@@ -283,7 +283,7 @@ function local(){try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){}}
 function fail(k){return function(e){delete SM[k];setMsg(e&&e.code==='invalid_argument'?'View-only account: not saved to cloud':'Cloud save failed. Kept on this device.')}}
 function save(){
  local();if(!DB||!synced)return;
- COLS.forEach(function(c){D[c].forEach(function(r){var s=cs(r),k=c+'/'+r.id;if(SM[k]!==s){SM[k]=s;DB.doc(k).set(JSON.parse(JSON.stringify(r))).catch(fail(k))}})});
+ COLS.forEach(function(c){D[c].forEach(function(r){var s=csFast(r),k=c+'/'+r.id;if(SM[k]!==s){SM[k]=s;DB.doc(k).set(JSON.parse(JSON.stringify(r))).catch(fail(k))}})});
  var ms=cs({shop:D.shop,ps:D.ps||null});if(SM['meta/main']!==ms){SM['meta/main']=ms;DB.doc('meta/main').set({shop:D.shop,ps:D.ps||null}).catch(fail('meta/main'))}
 }
 function softRender(){var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)){dirty=1;return}render()}
@@ -2544,6 +2544,23 @@ function vOutbox(){
 var _vPo=vPage;vPage=function(){return pg==='out'?vOutbox():_vPo()};
 var _bn9=buildNav;buildNav=function(){_bn9();var n=$('nav');if(!n||n.querySelector('[data-out]'))return;var b=document.createElement('button');b.setAttribute('data-out','1');b.textContent='Outbox';if(pg==='out')b.className='on';b.onclick=function(){nav('out')};var bk=Array.prototype.find.call(n.children,function(x){return x.textContent==='Backup'});n.insertBefore(b,bk||null)};
 
+
+
+/* ---------- SPEED: fewer repeated searches and re-reads (does not change any result) ---------- */
+var QJ=new WeakMap();
+function csFast(r){var q=JSON.stringify(r),e=QJ.get(r);if(e&&e.q===q)return e.s;var v=cs(r);QJ.set(r,{q:q,s:v});return v}
+function mkFind(col,key,orig){var m=null,a0=null,n0=-1;
+ return function(id){var a=D[col];
+  if(!m||a0!==a||n0!==a.length){a0=a;n0=a.length;m={};for(var j=a.length-1;j>=0;j--)if(a[j])m[a[j][key]]=j}
+  var i=m[id];if(i!=null&&a[i]&&a[i][key]===id)return a[i];
+  return orig(id)}}
+P=mkFind('parties','id',P);
+I=mkFind('items','id',I);
+bl=mkFind('bills','no',bl);
+var PDC=null,PDK=null;
+paidOn=function(b){if(!BC)BC=balMap();
+ if(PDK!==BC||!PDC){PDK=BC;PDC={};D.pays.forEach(function(x){if(x.bn!=null&&!x.x)PDC[x.bn]=(PDC[x.bn]||0)+x.amt})}
+ return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
 function awGo(k,p){return !!(PS().autoWA&&awOn(k)&&obOk()&&p&&phone(p).length>=10)}
