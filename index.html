@@ -54,6 +54,21 @@ button.dlb{background:#fdecee;color:#d21f30}button.dlb:hover{background:#fbd5da}
 .stat{border:0;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.10)}
 @media(min-width:900px){header,nav{background:#101338!important}header h1{font-size:17px}nav button{font-size:15px;transition:background .15s;padding:14px 16px!important}nav button:hover{background:#1b1f55!important}nav button.on{background:#1d2160!important;border-left:4px solid #e8213a!important}nav .sb{opacity:.9}
 #top{box-shadow:0 1px 3px rgba(25,35,80,.08);padding:10px 22px}#top input{border-radius:999px;border-color:transparent;background:#f1f3f8}#v{padding:18px 24px}}
+
+/* ===== Auto-send settings ===== */
+.sw{position:relative;width:46px;height:26px;flex:0 0 46px;margin:0;display:inline-block}
+.sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:1}
+.sw i{position:absolute;inset:0;background:#c5cbd9;border-radius:99px;transition:.2s}
+.sw i:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.sw input:checked+i{background:var(--ac)}.sw input:checked+i:before{transform:translateX(20px)}
+.setrow{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid var(--bd)}
+.setrow.first{border-top:0}.setrow .t{flex:1;min-width:0}.setrow .t b{font-weight:500;display:block}
+.dis{opacity:.45;pointer-events:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{padding:9px 15px;border-radius:999px;background:#eaf2fe;color:#1a56b8;border:0;font:inherit;font-size:14px;font-weight:500}
+.chip.on{background:var(--ac);color:#fff}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.fgrid{grid-template-columns:1fr}}
 </style><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"></head><body>
 <header><h1 id="sh" onclick="rename()"></h1><span class="mu" id="sy">tap name to edit</span></header>
 <nav><button id="t-home" onclick="go('home')">Home</button><button id="t-bill" onclick="go('bill')">Sale</button><button id="t-party" onclick="go('party')">Parties</button><button id="t-stock" onclick="go('stock')">Items</button><button id="t-tx" onclick="go('tx')">Transactions</button><button id="t-rep" onclick="go('rep')">Reports</button><button id="t-bk" onclick="go('bk')">Backup</button></nav>
@@ -1013,7 +1028,7 @@ docMenu=function(id){var d=docById(id),c=DT[d.t],a=[['View',"viewD='"+id+"';rend
 function PS(){D.ps=D.ps||{};return D.ps}
 function vSettings(){var p=PS(),f=function(id,lb,v,ph){return '<label class="mu">'+lb+'</label><input id="'+id+'" placeholder="'+(ph||'')+'" value="'+esc(v||'')+'">'};
  return '<h2 style="font-size:20px;margin:6px 0">Settings · Print layout</h2><div class="card" style="max-width:560px">'+f('ps_n','Firm name (printed on top)',p.name||D.shop)+f('ps_t','Small line under name (example: Tiles & Sanitaryware)',p.tag)+'<label class="mu">Address</label><textarea id="ps_a" rows="3" placeholder="Shop address, city">'+esc(p.addr||'')+'</textarea>'+f('ps_p','Phone number(s)',p.phone)+f('ps_e','Email (optional)',p.email)+f('ps_x','Extra line (optional, example: GST / Reg. no.)',p.extra)+'<label class="mu">Note at the bottom (example: payment terms, bank details)</label><textarea id="ps_r" rows="3">'+esc(p.terms||'Thank you for your business!')+'</textarea><label class="mu">Paper size</label><select id="ps_s"><option value="A4"'+(p.size==='A5'?'':' selected')+'>A4 (big paper)</option><option value="A5"'+(p.size==='A5'?' selected':'')+'>A5 (half paper)</option></select><label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input type="checkbox" id="ps_g" style="width:20px;height:20px;margin:0"'+(p.nosign?'':' checked')+'> Show "Authorised signatory" at the bottom</label><div class="row" style="justify-content:flex-start"><button class="b" onclick="savePS()">Save</button><button class="s" onclick="savePS();testPrint()">Save and test print</button></div></div>'}
-function savePS(){var g=function(i){return ($('#'+i)||{value:''}).value.trim()};var n=g('ps_n');if(n)D.shop=n;D.ps={name:n,tag:g('ps_t'),addr:g('ps_a'),phone:g('ps_p'),email:g('ps_e'),extra:g('ps_x'),terms:g('ps_r'),size:g('ps_s')||'A4',nosign:($('#ps_g')&&$('#ps_g').checked)?0:1};save();$('#sh').textContent=D.shop;setMsg('Print settings saved ✓')}
+function savePS(){var g=function(i){return ($('#'+i)||{value:''}).value.trim()};var n=g('ps_n');if(n)D.shop=n;D.ps=Object.assign({},D.ps,{name:n,tag:g('ps_t'),addr:g('ps_a'),phone:g('ps_p'),email:g('ps_e'),extra:g('ps_x'),terms:g('ps_r'),size:g('ps_s')||'A4',nosign:($('#ps_g')&&$('#ps_g').checked)?0:1});save();$('#sh').textContent=D.shop;setMsg('Print settings saved ✓')}
 function testPrint(){var p=D.parties[0];if(p)printHtml('Test',stmtHtml(p));else printHtml('Test','<h2></h2><h3>Sample</h3><p>Add a party to see a full statement.</p>')}
 function letterhead(){var p=PS(),n=p.name||D.shop,c=[p.phone&&'Phone: '+esc(p.phone),p.email&&esc(p.email),p.extra&&esc(p.extra)].filter(Boolean).join(' &nbsp;|&nbsp; ');
  return '<div class="lh"><div class="lhn">'+esc(n)+'</div>'+(p.tag?'<div class="lht">'+esc(p.tag)+'</div>':'')+(p.addr?'<div>'+esc(p.addr).replace(/\n/g,'<br>')+'</div>':'')+(c?'<div>'+c+'</div>':'')+'</div>'}
@@ -1337,9 +1352,26 @@ var OB={rows:[],beats:[],sel:{},min:1,err:'',T:null,bulkDone:false,
 function obOk(){return !!(SB&&SB.from)}
 function obToast(t){var e=document.createElement('div');e.style.cssText='position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;z-index:60;font-size:14px;max-width:90%;text-align:center';e.textContent=t;document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}
 function obAdd(list){return Promise.resolve(SB.from('outbox').insert(list)).then(function(r){if(r&&r.error)throw r.error;return r})}
+/* what kind of message is this? (used for the per-type auto-send switches) */
+var AW_TYPES=[
+ ['bill','Sale bill','Bill details sent to a customer'],
+ ['receipt','Payment receipt','Received / paid / return confirmations'],
+ ['reminder','Reminder button','The "Send reminder" button on a party'],
+ ['stmt','Party statement','Statement text from Parties or Reports'],
+ ['dispatch','Dispatch update','Items sent / items remaining'],
+ ['other','Estimate, order, challan','Everything else']];
+function awKind(t){t=String(t||'');
+ if(/Kindly clear it/i.test(t))return 'reminder';
+ if(/\*Party Statement\*/.test(t))return 'stmt';
+ if(/Remaining to be sent|All items dispatched/i.test(t))return 'dispatch';
+ if(/\nReceived |We have paid|has been credited/i.test(t))return 'receipt';
+ if(/Bill #|Total pending balance/i.test(t))return 'bill';
+ return 'other'}
+function awOn(k){var a=PS().awt;return !a||a[k]!==0}
 var _ow9=openWA;
 openWA=function(p,text){
- if(PS().autoWA&&obOk()&&p&&!/attached/i.test(text||'')&&phone(p).length>=10){
+ var k=awKind(text);
+ if(PS().autoWA&&awOn(k)&&obOk()&&p&&!/attached/i.test(text||'')&&phone(p).length>=10){
   obAdd([{phone:phone(p),party_name:p.name||'',message:text,kind:'msg'}]).then(function(){obToast('Added to Outbox. It will be sent automatically.')}).catch(function(e){alert('Could not add to Outbox ('+(e&&e.message||e)+'). Opening WhatsApp instead.');_ow9(p,text)});
   return}
  _ow9(p,text)};
@@ -1397,10 +1429,106 @@ function obQueue(){
  var arr=L.map(function(p){return {phone:phone(p),party_name:p.name,kind:'reminder',message:OB.tpl.replace(/\{name\}/g,p.name).replace(/\{shop\}/g,D.shop||'').replace(/\{amount\}/g,money(bal(p)))}}),i=0;
  function next(){if(i>=arr.length)return Promise.resolve();var part=arr.slice(i,i+200);i+=200;return obAdd(part).then(next)}
  next().then(function(){obToast(arr.length+' reminders added to Outbox');L.forEach(function(p){OB.sel[p.id]=false});return obLoad()}).then(obPaintBulk).catch(function(e){alert('Could not add: '+(e&&e.message||e))})}
+/* ---------- AUTO REMINDER ENGINE ---------- */
+var AR_DEF_TPL='Namaste {name},\nYour payment of {amount} with {shop} has been pending for {days} days. Kindly clear it at your earliest convenience. Thank you.';
+var AR_PRESET=[1,2,3,5,7,10,15,30,45,60],AR_BUSY=false;
+function AR(){var a=PS().ar||{};return {on:a.on?1:0,days:Array.isArray(a.days)?a.days:[2,7],rep:+a.rep||0,min:a.min==null?1:+a.min,from:a.from==null?9:+a.from,to:a.to==null?20:+a.to,cap:+a.cap||30,tpl:a.tpl||AR_DEF_TPL}}
+function arSet(k,v){var p=PS();p.ar=Object.assign({},p.ar||{});p.ar[k]=v;save()}
+function arSince(p){
+ /* date of the oldest bill that is still unpaid (oldest bills are treated as paid first). 'open' = unpaid opening balance */
+ var op=+p.open||0,credit=0;
+ D.pays.forEach(function(x){if(x.pid===p.id&&!x.x)credit+=x.out?-x.amt:x.amt});
+ (D.docs||[]).forEach(function(x){if(x.pid===p.id&&!x.x){if(x.t==='pur')credit+=x.total;else if(x.t==='pret')credit-=x.total}});
+ if(op>0){if(credit>=op-0.009)credit-=op;else return 'open'}else credit-=op;
+ var bills=D.bills.filter(function(x){return x.pid===p.id&&!x.x}).sort(function(a,b){return a.date-b.date});
+ for(var i=0;i<bills.length;i++){if(credit>=bills[i].total-0.009)credit-=bills[i].total;else return bills[i].date}
+ return null}
+function arPlan(){
+ var a=AR(),log=PS().arLog||{},now=Date.now(),days=a.days.slice().sort(function(x,y){return x-y}),out=[],seen={};
+ D.parties.forEach(function(p){
+  if(p.x||!p.phone||phone(p).length<10)return;
+  var b=bal(p);if(!(b>=Math.max(a.min,0.01)))return;
+  var s=arSince(p);if(s===null)return;
+  var L=log[p.id]||null,since=s==='open'?((L&&L.o&&L.s)?L.s:now):s;
+  if(!L||L.s!==since)L={s:since,d:[],l:0,o:s==='open'?1:0};else L={s:L.s,d:(L.d||[]).slice(),l:L.l||0,o:L.o||0};
+  var age=Math.floor((now-since)/864e5),hit=null,kind='';
+  days.forEach(function(d){if(d<=age&&L.d.indexOf(d)<0)hit=d});
+  if(hit!=null){days.forEach(function(d){if(d<=age&&L.d.indexOf(d)<0)L.d.push(d)});kind='Day '+hit}
+  else if(a.rep>0&&L.l&&(!days.length||days.every(function(d){return L.d.indexOf(d)>=0||d>age}))&&now-L.l>=a.rep*864e5){kind='Repeat'}
+  out.push({p:p,age:age,bal:b,L:L,kind:kind,due:!!kind})});
+ return out}
+function arMsg(a,p,bl,age){return a.tpl.replace(/\{name\}/g,function(){return p.name}).replace(/\{shop\}/g,function(){return D.shop||''}).replace(/\{amount\}/g,function(){return money(bl)}).replace(/\{days\}/g,function(){return age})}
+function arRun(force,quiet){
+ var a=AR();
+ if(AR_BUSY||!obOk())return Promise.resolve();
+ if(!force&&!a.on)return Promise.resolve();
+ if(!D.parties.length||(typeof synced!=='undefined'&&!synced))return Promise.resolve();
+ var h=new Date().getHours();
+ if(!force&&!(h>=a.from&&h<a.to))return Promise.resolve();
+ AR_BUSY=true;
+ var plan=arPlan(),due=plan.filter(function(x){return x.due}),log=Object.assign({},PS().arLog||{}),today0=new Date().setHours(0,0,0,0),sentToday=0;
+ Object.keys(log).forEach(function(k){if(log[k]&&log[k].l>=today0)sentToday++});
+ /* remember the unpaid-since date for parties we have just started to track */
+ var changed=false;plan.forEach(function(x){if(!x.due&&(!log[x.p.id]||log[x.p.id].s!==x.L.s)){log[x.p.id]=x.L;changed=true}});
+ function fin(){AR_BUSY=false}
+ if(!due.length){if(changed){PS().arLog=log;save()}fin();if(!quiet)obToast('No reminders are due right now');return Promise.resolve()}
+ var room=Math.max(a.cap-sentToday,0);
+ if(!room){fin();if(!quiet)obToast('Daily limit reached ('+a.cap+')');return Promise.resolve()}
+ var lim=new Date(Date.now()-20*36e5).toISOString();
+ return Promise.resolve(SB.from('outbox').select('phone').eq('kind','reminder').gte('created_at',lim)).then(function(r){
+  var recent={};((r&&r.data)||[]).forEach(function(m){recent[m.phone]=1});
+  var pick=due.filter(function(x){return !recent[phone(x.p)]}).slice(0,room);
+  if(!pick.length){if(changed){PS().arLog=log;save()}fin();if(!quiet)obToast('Everyone due was already reminded recently');return}
+  var rows=pick.map(function(x){return {phone:phone(x.p),party_name:x.p.name,kind:'reminder',message:arMsg(a,x.p,x.bal,x.age)}});
+  return obAdd(rows).then(function(){
+   var now=Date.now();pick.forEach(function(x){x.L.l=now;log[x.p.id]=x.L});
+   due.forEach(function(x){if(!log[x.p.id]||log[x.p.id].s!==x.L.s)log[x.p.id]=x.L});
+   PS().arLog=log;save();
+   obToast(pick.length+' auto reminder'+(pick.length>1?'s':'')+' added to Outbox');
+   fin();return obLoad()})
+ }).catch(function(e){fin();if(!quiet)alert('Auto reminders: could not add ('+(e&&e.message||e)+')')})}
+setTimeout(function(){arRun(false,true)},20000);
+setInterval(function(){arRun(false,true)},15*60*1000);
+
+/* ---------- SETTINGS UI ---------- */
+function sw(checked,fn,dis){return '<span class="sw"><input type="checkbox" '+(checked?'checked ':'')+(dis?'disabled ':'')+'onchange="'+fn+'"><i></i></span>'}
+function awPaint(){var e=$('#aws');if(e)e.innerHTML=awHtml()}
+function awHtml(){
+ var m=!!PS().autoWA,h='<b style="font-size:16px">Automatic WhatsApp sending</b><div class="mu" style="margin:2px 0 4px">Choose which messages go to the Outbox and send by themselves. Anything switched off opens WhatsApp by hand, like before. Needs the sender program running on your laptop.</div>';
+ h+='<div class="setrow first"><div class="t"><b>Send automatically (master switch)</b><span class="mu">Turn off to stop all automatic sending</span></div>'+sw(m,"PS().autoWA=this.checked;save();awPaint()")+'</div>';
+ h+='<div class="'+(m?'':'dis')+'">';
+ AW_TYPES.forEach(function(t){h+='<div class="setrow"><div class="t"><b>'+t[1]+'</b><span class="mu">'+t[2]+'</span></div>'+sw(awOn(t[0]),"awSet('"+t[0]+"',this.checked)",!m)+'</div>'});
+ return h+'</div><div class="mu" style="margin-top:6px">Messages that carry a picture (bill picture, statement picture) always open WhatsApp by hand.</div>'}
+function awSet(k,v){var p=PS();p.awt=Object.assign({},p.awt||{});p.awt[k]=v?1:0;save()}
+function arPaint(){var e=$('#arc');if(e)e.innerHTML=arHtml()}
+function arHtml(){
+ var a=AR(),on=!!a.on,sel={};a.days.forEach(function(d){sel[d]=1});
+ var all=AR_PRESET.slice();a.days.forEach(function(d){if(all.indexOf(d)<0)all.push(d)});all.sort(function(x,y){return x-y});
+ var hrs=function(v,mx){var o='';for(var i=0;i<=mx;i++)o+='<option value="'+i+'"'+(i===v?' selected':'')+'>'+(i%12||12)+':00 '+(i<12||i===24?'AM':'PM')+'</option>';return o};
+ var h='<b style="font-size:16px">Automatic payment reminders</b><div class="mu" style="margin:2px 0 4px">Reminds parties who have not paid, by themselves, after the number of days you pick below (counted from the oldest unpaid bill).</div>';
+ h+='<div class="setrow first"><div class="t"><b>Send payment reminders automatically</b></div>'+sw(on,"arSet(\'on\',this.checked?1:0);arPaint()")+'</div>';
+ h+='<div class="'+(on?'':'dis')+'">';
+ h+='<label class="mu">Remind after these many days unpaid (tap to choose more than one)</label><div class="chips">'+all.map(function(d){return '<button type="button" class="chip'+(sel[d]?' on':'')+'" onclick="arDay('+d+')">'+d+(d===1?' day':' days')+'</button>'}).join('')+'</div>';
+ h+='<div class="row" style="gap:8px"><input id="ard" type="number" inputmode="numeric" min="1" placeholder="Other number of days" style="margin:0"><button type="button" class="s" onclick="arAddDay()">Add</button></div>';
+ h+='<div class="mu" style="margin:6px 0 10px">'+(a.days.length?'Example: with '+a.days.slice().sort(function(x,y){return x-y}).join(' and ')+' days selected, a party gets a reminder on day '+a.days.slice().sort(function(x,y){return x-y}).join(' and on day ')+' of staying unpaid.':'No day selected yet.')+'</div>';
+ h+='<div class="fgrid"><div><label class="mu">After that, repeat every</label><select onchange="arSet(\'rep\',+this.value)">'+[[0,'Do not repeat'],[3,'3 days'],[7,'7 days'],[15,'15 days'],[30,'30 days']].map(function(o){return '<option value="'+o[0]+'"'+(a.rep===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></div>'+
+  '<div><label class="mu">Only if balance is at least (₹)</label><input type="number" inputmode="decimal" value="'+esc(a.min)+'" onchange="arSet(\'min\',+this.value||0)"></div>'+
+  '<div><label class="mu">Send not before</label><select onchange="arSet(\'from\',+this.value)">'+hrs(a.from,23)+'</select></div>'+
+  '<div><label class="mu">Send not after</label><select onchange="arSet(\'to\',+this.value)">'+hrs(a.to,24)+'</select></div>'+
+  '<div><label class="mu">Most reminders per day</label><input type="number" inputmode="numeric" value="'+esc(a.cap)+'" onchange="arSet(\'cap\',Math.max(1,+this.value||30))"></div></div>';
+ h+='<label class="mu" style="margin-top:8px;display:block">Message ({name}, {shop}, {amount} and {days} are filled in for each party)</label><textarea rows="4" onchange="arSet(\'tpl\',this.value)">'+esc(a.tpl)+'</textarea>';
+ h+='<div class="row" style="margin-top:8px;flex-wrap:wrap;justify-content:flex-start"><button type="button" class="s" onclick="arPreview()">Who is due now?</button><button type="button" class="b" onclick="arNow()">Send due reminders now</button></div><div id="arp"></div>';
+ h+='<div class="mu" style="margin-top:10px">Reminders are added to the Outbox while this app is open on any of your devices (checked every 15 minutes), and the sender program on your laptop sends them. Nobody gets more than one reminder in 20 hours.</div></div>';
+ return h}
+function arDay(d){var a=AR().days.slice(),i=a.indexOf(d);if(i<0)a.push(d);else a.splice(i,1);arSet('days',a.sort(function(x,y){return x-y}));arPaint()}
+function arAddDay(){var e=$('#ard'),v=Math.floor(+(e&&e.value));if(!(v>=1&&v<=365))return alert('Write a number of days between 1 and 365');var a=AR().days.slice();if(a.indexOf(v)<0)a.push(v);arSet('days',a.sort(function(x,y){return x-y}));arPaint()}
+function arPreview(){var e=$('#arp');if(!e)return;var pl=arPlan(),rows=pl.filter(function(x){return x.due});
+ e.innerHTML='<div style="margin-top:8px">'+(rows.length?'<b>'+rows.length+' due now</b>'+rows.map(function(x){return '<div class="row" style="border-top:1px solid var(--bd);padding:6px 0"><span>'+esc(x.p.name)+'<br><span class="mu">'+x.age+' days unpaid · '+x.kind+'</span></span><b class="red">'+money(x.bal)+'</b></div>'}).join(''):'<span class="mu">Nobody is due for a reminder right now. '+pl.length+' part'+(pl.length===1?'y has':'ies have')+' a balance and a phone number.</span>')+'</div>'}
+function arNow(){if(!confirm('Add all due reminders to the Outbox now?'))return;arRun(true,false).then(function(){arPreview()})}
 function vOutbox(){
  setTimeout(function(){OB.bulkDone=false;obLoad();obTimer()},0);
- return '<div class="card" style="max-width:700px"><b>WhatsApp Outbox</b><label style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" style="width:auto;margin:3px 0 0" '+(PS().autoWA?'checked':'')+' onchange="PS().autoWA=this.checked;save()"><span>Send WhatsApp messages automatically<br><span class="mu">When ON, every WhatsApp button in the app (bill, receipt, reminder, statement) adds the message to the Outbox instead of opening WhatsApp. Messages that need a picture still open WhatsApp by hand. This needs the sender program running on your laptop.</span></span></label></div>'+
- '<div style="max-width:700px"><div id="obx"><div class="card mu">Loading…</div></div><div class="card"><b>Send payment reminders to many parties</b><div id="obb">'+obBulkHtml()+'</div></div></div>'}
+ return '<h2 style="font-size:20px;margin:6px 0">WhatsApp Outbox</h2><div style="max-width:700px"><div class="card" id="aws">'+awHtml()+'</div><div class="card" id="arc">'+arHtml()+'</div></div>'+
+ '<div style="max-width:700px"><div id="obx"><div class="card mu">Loading…</div></div><div class="card"><b>Send payment reminders to many parties now</b><div id="obb">'+obBulkHtml()+'</div></div></div>'}
 var _vPo=vPage;vPage=function(){return pg==='out'?vOutbox():_vPo()};
 var _bn9=buildNav;buildNav=function(){_bn9();var n=$('nav');if(!n||n.querySelector('[data-out]'))return;var b=document.createElement('button');b.setAttribute('data-out','1');b.textContent='Outbox';if(pg==='out')b.className='on';b.onclick=function(){nav('out')};var bk=Array.prototype.find.call(n.children,function(x){return x.textContent==='Backup'});n.insertBefore(b,bk||null)};
 
