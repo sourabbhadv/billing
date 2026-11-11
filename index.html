@@ -267,7 +267,7 @@ function vLedger(){
  rows.forEach(function(r){run+=r.a;h+='<div class="row" style="margin-top:6px"><span>'+dt(r.d)+' · '+esc(r.t)+'</span><span class="'+(r.a<0?'grn':'')+'">'+(r.a<0?'−':'+')+money(Math.abs(r.a))+'<br><span class="mu">Bal '+money(run)+'</span></span></div>'});
  return h+'</div>';
 }
-function receive(){var a=+prompt('Amount received');if(a>0){D.pays.push({id:uid(),pid:openP,date:Date.now(),amt:a,note:''});save();var p=P(openP);if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,'Namaste '+p.name+',\nReceived '+money(a)+' with thanks.\nPending balance: '+money(Math.max(bal(p),0))+'\n- '+D.shop);render()}}
+function receive(){var a=+prompt('Amount received');if(a>0){D.pays.push({id:uid(),pid:openP,date:Date.now(),amt:a,note:''});save();var p=P(openP);if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,msgPayIn(p,a));render()}}
 function remind(){var p=P(openP),b=bal(p);openWA(p,'Namaste '+p.name+',\nYour pending balance with '+D.shop+' is '+money(b)+'. Kindly clear it at your earliest convenience. Thank you.')}
 /* ---------- BACKUP ---------- */
 function vBk(){return '<div class="card"><b>Backup</b><p class="mu">Data is saved in this browser on this device only. Copy the backup text and keep it safely (WhatsApp to yourself or Notes). To restore, paste it below and tap Restore.</p><textarea id="bt" rows="8">'+esc(JSON.stringify(D))+'</textarea><div class="row"><button class="b" onclick="cp()">Copy backup</button><button class="s" onclick="rs()">Restore from box</button></div></div>'}
@@ -408,7 +408,7 @@ function recvBill(no){
  var b=bl(no),p=P(b.pid),due=Math.max(b.total-paidOn(b),0),a=+prompt('Amount received for bill #'+no+' (due '+money(due)+')',due);
  if(!(a>0))return;
  D.pays.push({id:uid(),pid:p.id,date:Date.now(),amt:a,note:'Against bill #'+no,bn:no});save();
- if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,'Namaste '+p.name+',\nReceived '+money(a)+' against bill #'+no+'.\nPending on this bill: '+money(Math.max(due-a,0))+'\nTotal pending balance: '+money(Math.max(bal(p),0))+'\n- '+D.shop);
+ if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,msgPayIn(p,a,no,Math.max(due-a,0)));
  render();
 }
 function wa(no){
@@ -617,7 +617,7 @@ function savePin(){
  if(!p){if(!confirm('"'+nm+'" is not in your parties. Create new party?'))return;p={id:uid(),name:nm,phone:'',open:0};D.parties.push(p)}
  D.pays.push({id:uid(),pid:p.id,date:Date.now(),amt:a,note:(pdraft.note||'').trim()});
  save();pdraft={name:'',amt:'',note:''};sub=null;tab='home';
- if(p.phone&&confirm('Payment saved. Send receipt on WhatsApp?'))openWA(p,'Namaste '+p.name+',\nReceived '+money(a)+' with thanks.\nPending balance: '+money(Math.max(bal(p),0))+'\n- '+D.shop);
+ if(p.phone&&confirm('Payment saved. Send receipt on WhatsApp?'))openWA(p,msgPayIn(p,a));
  render();
 }
 function retInfo(){var e=$('#rinfo'),p=findP(rdraft.name);if(e)e.textContent=p?'Existing party · balance '+money(bal(p)):((rdraft.name||'').trim()?'Party not found. Pick from the list.':'')}
@@ -2356,6 +2356,139 @@ function prOpts(h,rec){
  return d.innerHTML}
 var _bhPr=billHtml;billHtml=function(b){return prOpts(_bhPr(b),b)};
 var _dhPr=docHtml;docHtml=function(d){return prOpts(_dhPr(d),d)};
+
+/* ================= WHATSAPP MESSAGES (added) =================
+   Settings > Messages: edit the text of every automatic WhatsApp message.
+   A message is plain text with {placeholders}. A line whose placeholder has
+   nothing to show (example {received} when nothing is received) is left out.
+   The default text is the same message the app always sent.                  */
+var MSGK=[
+ {k:'sale',t:'Sale invoice',d:'Sent from a sale bill (WhatsApp button).',
+  ph:[['party','Party name'],['no','Bill number'],['date','Bill date'],['items','Item list'],['total','Bill total'],['received','Received (hidden if 0)'],['due','Due on this bill'],['balance','Total pending of party'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\nBill #{no} ({date}) from {shop}\n\n{items}\n\nBill total: {total}\nReceived: {received}\nDue on this bill: {due}\nTotal pending balance (all bills): {balance}\n\n{closing}'},
+ {k:'pin',t:'Payment received (Payment-In)',d:'Receipt sent after you receive money from a party.',
+  ph:[['party','Party name'],['amount','Amount received'],['bill','Bill number (if against a bill)'],['bill_due','Pending on that bill'],['balance_line','Pending / advance line'],['balance','Pending balance'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\nReceived {amount} with thanks.\nAgainst bill #{bill}\nPending on this bill: {bill_due}\n{balance_line}\n- {shop}'},
+ {k:'pout',t:'Payment made (Payment-Out)',d:'Sent after you pay money to a supplier or party.',
+  ph:[['party','Party name'],['amount','Amount paid'],['balance_line','Pending / advance line'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\nWe have paid {amount} to you.\n{balance_line}\n- {shop}'},
+ {k:'rem',t:'Payment reminder',d:'Sent from a party when you ask for pending money.',
+  ph:[['party','Party name'],['balance','Pending balance'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\nYour pending balance with {shop} is {balance}. Kindly clear it at your earliest convenience. {closing}'},
+ {k:'disp',t:'Dispatch update (to customer)',d:'Tells the customer what was sent and what is still to come.',
+  ph:[['party','Party name'],['no','Bill number'],['sent_block','Sent items with heading'],['remaining_block','Remaining items with heading'],['sent','Sent items only'],['remaining','Remaining items only'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\nUpdate on bill #{no} from {shop}\n\n{sent_block}\n\n{remaining_block}\n\n{closing}'},
+ {k:'trn',t:'Dispatch to transporter',d:'Loading order sent to the transporter. Prices are never included.',
+  ph:[['transporter','Transporter name'],['no','Bill number'],['date','Date'],['vehicle','Vehicle number'],['customer','Customer name'],['phone','Customer phone'],['address','Delivery address'],['items','Goods to load'],['shop','Your shop name']],
+  tpl:'{greeting} {transporter},\n🚚 *LOADING ORDER* from {shop}\n\nBill #{no} · {date}\nVehicle: {vehicle}\n\n*Deliver to:*\n{customer}\n📞 {phone}\n📍 {address}\n\n*Goods to load:*\n{items}\nPlease confirm after loading and delivery.\n- {shop}'},
+ {k:'sret',t:'Sale return',d:'Sent when goods come back from a customer.',
+  ph:[['party','Party name'],['amount','Return amount'],['items','Returned items'],['balance_line','Pending / advance line'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\nSale return of {amount} has been credited to your account.\n{items}\n{balance_line}\n- {shop}'},
+ {k:'pur',t:'Purchase bill',d:'Sent from a purchase bill.',
+  ph:[['party','Supplier name'],['doc','Document name'],['no','Number'],['date','Date'],['items','Item list'],['total','Total'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\n{doc} #{no} ({date}) from {shop}\n\n{items}\n\nTotal: {total}\n\n{closing}'},
+ {k:'doc',t:'Estimate, order, challan, purchase return',d:'Sent from these other documents.',
+  ph:[['party','Party name'],['doc','Document name'],['no','Number'],['date','Date'],['items','Item list'],['total','Total'],['shop','Your shop name']],
+  tpl:'{greeting} {party},\n{doc} #{no} ({date}) from {shop}\n\n{items}\n\nTotal: {total}\n\n{closing}'}
+];
+var msgSel=null;
+function msgDef(k){return MSGK.find(function(x){return x.k===k})}
+function msgTpl(k){var c=(PS().msgs||{})[k];return typeof c==='string'?c:msgDef(k).tpl}
+function msgRender(tpl,v){var out=[];
+ String(tpl).split('\n').forEach(function(line){var drop=false;
+  var r=line.replace(/\{(\w+)\}/g,function(m,k){if(!(k in v))return m;var x=v[k];if(x===''||x==null){drop=true;return ''}return x});
+  if(!drop)out.push(r)});
+ return out.join('\n').replace(/\n{3,}/g,'\n\n').trim()}
+function msgCom(){var p=PS();return {shop:D.shop,greeting:p.msg_g||'Namaste',closing:p.msg_c||'Thank you!'}}
+function mt(k,v){var o=msgCom(),x;for(x in v)o[x]=v[x];return msgRender(msgTpl(k),o)}
+function msgLines(ls){return ls.map(function(l){return l.name+': '+l.qty+' '+l.unit+' × '+l.rate+' = '+money(l.amt)}).join('\n')}
+function msgBal(p){var b=bal(p);return b>=0?'Pending balance: '+money(b):'Advance with us: '+money(-b)}
+
+/* builders (real data) */
+function msgSaleV(b,p){var pd=paidOn(b);return {party:p.name,no:b.no,date:dt(b.date),items:msgLines(b.lines),total:money(b.total),received:pd>0?money(pd):'',due:money(Math.max(b.total-pd,0)),balance:money(Math.max(bal(p),0))}}
+function msgPayInV(p,a,no,bd){return {party:p.name,amount:money(a),bill:no||'',bill_due:no?money(bd):'',balance_line:msgBal(p),balance:money(Math.max(bal(p),0))}}
+function msgPayIn(p,a,no,bd){return mt('pin',msgPayInV(p,a,no,bd))}
+function msgDispV(b,p,now){
+ var sd=now?now:b.lines.filter(function(l){return dq(l)>0}).map(function(l){return {name:l.name,unit:l.unit,q:dq(l),of:l.qty}}),
+  r=b.lines.filter(function(l){return rem(l)>0}),
+  sl=sd.map(function(x){return '✔ '+x.name+': '+(x.of?x.q+' of '+x.of:x.q)+' '+x.unit}).join('\n'),
+  rl=r.map(function(l){return '• '+l.name+': '+rem(l)+' '+l.unit}).join('\n');
+ return {party:p.name,no:b.no,sent:sl,remaining:rl,sent_block:sl?(now?'Sent now:\n':'Sent so far:\n')+sl:'',remaining_block:r.length?'Remaining to be sent:\n'+rl:'All items dispatched.'}}
+function msgTrV(d){var t=TRS().find(function(x){return x.id===d.tid})||{name:''},
+ its=d.items.slice().sort(function(a,b){var x=String(a.loc||'~').toLowerCase(),y=String(b.loc||'~').toLowerCase();return x<y?-1:x>y?1:0});
+ return {transporter:t.name,no:d.no,date:dt(d.date),vehicle:t.veh||'',customer:d.cust,phone:d.cph||'',address:d.addr||'',items:its.map(function(x,i){return (i+1)+'. '+x.name+' - *'+x.q+' '+x.unit+'*'+(x.loc?'\n    📦 Godown / Block: '+x.loc:'')}).join('\n')+'\n'}}
+
+/* live message functions now use the templates */
+wa=function(no){var b=bl(no),p=b&&P(b.pid);if(!p)return;openWA(p,mt('sale',msgSaleV(b,p)))};
+waRem=function(no,now){var b=bl(no),p=b&&P(b.pid);if(!p)return;
+ var n=(now&&lastDisp&&lastDisp.no===no)?lastDisp.items.map(function(x){return {name:x.name,unit:x.unit,q:x.q}}):null;
+ openWA(p,mt('disp',msgDispV(b,p,n)))};
+trMsg=function(d){return mt('trn',msgTrV(d))};
+docWA=function(id){var d=docById(id),p=d&&P(d.pid);if(!p)return;
+ openWA(p,mt(d.t==='pur'?'pur':'doc',{party:p.name,doc:DT[d.t].s,no:d.no,date:dt(d.date),items:msgLines(d.lines),total:money(d.total)}))};
+payWA=function(id){var x=D.pays.find(function(q){return q.id===id}),p=x&&P(x.pid);if(!p)return;
+ var v={party:p.name,amount:money(x.amt),balance_line:msgBal(p),balance:money(Math.max(bal(p),0)),
+  items:(x.lines||[]).map(function(l){return '• '+l.name+': '+l.qty+' '+l.unit}).join('\n'),bill:'',bill_due:''};
+ openWA(p,mt(x.ret?'sret':x.out?'pout':'pin',v))};
+remindP=function(id){var p=P(id),b=bal(p);if(b>0)openWA(p,mt('rem',{party:p.name,balance:money(b)}));else alert('No pending balance to remind')};
+remind=function(){remindP(openP)};
+
+/* ---- settings page ---- */
+(function(){var st=document.createElement('style');st.textContent=
+'.msgb{background:#e7f6ee;border-radius:10px 10px 10px 2px;padding:11px 13px;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.45;color:#1f2437;border:1px solid #cfe9db}'+
+'.msgta{width:100%;min-height:210px;font-family:inherit;line-height:1.45;resize:vertical}'+
+'.msgph{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}.msgph button{border:1px solid #cfd5e3;background:#fff;color:#1a56b8;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;min-height:34px;cursor:pointer}'+
+'.msgph button small{color:#7b8194;font-weight:400;margin-left:4px}'+
+'.msgcm{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:520px){.msgcm{grid-template-columns:1fr}}';
+document.head.appendChild(st)})();
+function msgSample(k){
+ var p={name:'Ramesh Patil',id:'x'},b=D.bills.filter(function(x){return !x.x}).slice(-1)[0],bp=b&&P(b.pid),
+  fl=[{name:'Glossy Tile 2x2',qty:20,unit:'box',rate:500,amt:10000},{name:'Cement',qty:10,unit:'bag',rate:300,amt:3000}],o=msgCom(),x;
+ var V;
+ if(k==='sale')V=b&&bp?msgSaleV(b,bp):{party:p.name,no:12,date:dt(Date.now()),items:msgLines(fl),total:money(13000),received:money(5000),due:money(8000),balance:money(8000)};
+ else if(k==='pin')V={party:p.name,amount:money(5000),bill:12,bill_due:money(8000),balance_line:'Pending balance: '+money(8000),balance:money(8000)};
+ else if(k==='pout')V={party:'Sunil Traders',amount:money(5000),balance_line:'Pending balance: '+money(0)};
+ else if(k==='rem')V={party:p.name,balance:money(8000)};
+ else if(k==='disp')V=b&&bp?msgDispV(b,bp,null):{party:p.name,no:12,sent:'✔ Glossy Tile 2x2: 10 of 20 box',remaining:'• Glossy Tile 2x2: 10 box\n• Cement: 10 bag',sent_block:'Sent so far:\n✔ Glossy Tile 2x2: 10 of 20 box',remaining_block:'Remaining to be sent:\n• Glossy Tile 2x2: 10 box\n• Cement: 10 bag'};
+ else if(k==='trn')V={transporter:'Ganesh Transport',no:12,date:dt(Date.now()),vehicle:'MH 15 AB 1234',customer:p.name,phone:'9876543210',address:'Plot 4, Nashik',items:'1. Glossy Tile 2x2 - *20 box*\n    📦 Godown / Block: Godown 1\n'};
+ else if(k==='sret')V={party:p.name,amount:money(3000),items:'• Glossy Tile 2x2: 6 box',balance_line:'Pending balance: '+money(5000)};
+ else V={party:'Sunil Traders',doc:k==='pur'?'Purchase':'Estimate',no:7,date:dt(Date.now()),items:msgLines(fl),total:money(13000)};
+ for(x in V)o[x]=V[x];return o}
+function msgPreview(k){return esc(msgRender(msgTpl(k),msgSample(k)))}
+function msgPick(k){msgSel=k;render();window.scrollTo(0,0)}
+function msgEdit(k,v){var m=PS().msgs=PS().msgs||{};m[k]=v;save();var e=document.getElementById('msgpv');if(e)e.innerHTML=msgPreview(k);var c=document.getElementById('msgst');if(c)c.textContent=v===msgDef(k).tpl?'Default':'Edited'}
+function msgIns(tok){var ta=document.getElementById('msgta');if(!ta)return;var s=ta.selectionStart==null?ta.value.length:ta.selectionStart,e=ta.selectionEnd==null?s:ta.selectionEnd;
+ ta.value=ta.value.slice(0,s)+tok+ta.value.slice(e);var pos=s+tok.length;ta.focus();try{ta.setSelectionRange(pos,pos)}catch(x){}msgEdit(msgSel||msgAuto,ta.value)}
+function msgReset(k){var m=PS().msgs||{};delete m[k];save();render()}
+function msgCommon(k,v){PS()[k]=v.trim();save();var e=document.getElementById('msgpv');if(e&&msgSel)e.innerHTML=msgPreview(msgSel)}
+function msgEdited(k){var c=(PS().msgs||{})[k];return typeof c==='string'&&c!==msgDef(k).tpl}
+function vMsgList(){
+ return '<div class="dxc" style="padding:0;overflow:hidden">'+MSGK.map(function(m){
+  return '<div class="dxtrow'+(msgSel===m.k?' on':'')+'" onclick="msgPick(\''+m.k+'\')"><span class="dxav">'+dxI('chat')+'</span><span class="dxtm"><b>'+esc(m.t)+'</b><small>'+esc(m.d)+'</small></span>'+(msgEdited(m.k)?'<span class="dxchip b">Edited</span>':'')+'<span class="dhch">›</span></div>'}).join('')+'</div>'}
+function vMsgEd(k){var m=msgDef(k),v=msgTpl(k),p=PS();
+ return '<button class="s dxback dhbk" onclick="msgSel=null;render()">← Back</button>'
+ +'<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">WhatsApp message</div><div class="dxt">'+esc(m.t)+'</div><div class="dxm">'+esc(m.d)+'</div></div><span class="dxchip b" id="msgst">'+(msgEdited(k)?'Edited':'Default')+'</span></div>'
+ +'<label class="dxl">Message text</label><textarea id="msgta" class="msgta" oninput="msgEdit(\''+k+'\',this.value)" spellcheck="false">'+esc(v)+'</textarea>'
+ +'<div class="dxm" style="margin-top:8px">Tap a word below to add it where your cursor is. It is replaced with the real value when the message is sent. A line is left out when its value is empty.</div>'
+ +'<div class="msgph">'+m.ph.map(function(x){return '<button type="button" onmousedown="event.preventDefault()" onclick="msgIns(\'{'+x[0]+'}\')">{'+x[0]+'}<small>'+esc(x[1])+'</small></button>'}).join('')+'<button type="button" onmousedown="event.preventDefault()" onclick="msgIns(\'{greeting}\')">{greeting}</button><button type="button" onmousedown="event.preventDefault()" onclick="msgIns(\'{closing}\')">{closing}</button></div></div>'
+ +'<div class="dxlh"><b>Preview</b><span class="dxm">With sample details</span></div><div class="dxc"><div class="msgb" id="msgpv">'+msgPreview(k)+'</div></div>'
+ +'<div class="dxbtns"><button class="dxsec" onclick="msgReset(\''+k+'\')">Reset to default</button></div>'}
+function vMsg(){
+ var p=PS(),cm='<div class="dxc"><div class="dxk">For all messages</div><div class="dxm" style="margin-bottom:4px">Used wherever a message has {greeting} or {closing}.</div><div class="msgcm"><div><label class="dxl">Greeting</label><input value="'+esc(p.msg_g||'Namaste')+'" placeholder="Namaste" onchange="msgCommon(\'msg_g\',this.value)"></div><div><label class="dxl">Closing line</label><input value="'+esc(p.msg_c||'Thank you!')+'" placeholder="Thank you!" onchange="msgCommon(\'msg_c\',this.value)"></div></div></div>';
+ var L=cm+vMsgList(),R=msgSel?vMsgEd(msgSel):'<div class="dxc dxm dxdesk">Pick a message on the left to edit it</div>';
+ var cur=msgSel||(!isM()?MSGK[0].k:null);if(!msgSel&&cur)R=vMsgEd(cur),msgAuto=cur;else msgAuto=null;
+ return '<div class="split"><div class="'+(msgSel?'hid':'')+'">'+L+'</div><div>'+R+'</div></div>'}
+var msgAuto=null;
+
+/* tab in Settings */
+function msgPills(h){var on=sTab==='msg';if(on)h=h.replace('style="background:#1a73e8;color:#fff"','style=""');
+ return h.replace("onclick=\"sTab='prt';render()\">Print</button>","onclick=\"sTab='prt';render()\">Print</button><button class=\"s\" style=\""+(on?'background:#1a73e8;color:#fff':'')+"\" onclick=\"sTab='msg';msgSel=null;render()\">Messages</button>")}
+var _vSm=vSettings;
+vSettings=function(){
+ if(sTab==='msg'){var s0=sTab,h;sTab='gen';try{h=_vSm()}finally{sTab=s0}
+  var i=h.indexOf('<div class="sgrid">');if(i<0)return h;return msgPills(h.slice(0,i))+vMsg()}
+ return msgPills(_vSm())};
+var _gbM=goBack;goBack=function(){if(pg==='set'&&sTab==='msg'&&msgSel){msgSel=null;render();window.scrollTo(0,0);return}_gbM()};
 
 lockCk();
 render();
