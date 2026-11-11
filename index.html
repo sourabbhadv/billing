@@ -1463,14 +1463,14 @@ var _rSort=render;render=function(){_rSort();try{decoSort()}catch(e){}};
 function goBack(){var b=[].find.call(document.querySelectorAll('#v button'),function(x){return /^←/.test(x.textContent.trim())});if(b){b.click();return}nav('home')}
 function mMore(){var s=$('#msheet'),h='<div><b style="font-size:17px">Menu</b>';
  function sec(t,L){h+='<h4>'+t+'</h4>'+L.map(function(x){return '<button onclick="$(\'#msheet\').classList.remove(\'open\');nav(\''+x[0]+'\')">'+x[1]+'</button>'}).join('')}
- sec('Sale',GR.sale);sec('Purchase',GR.pur);sec('More',[['rep','Reports'],['bk','Backup & Import'],['set','Settings']]);
+ sec('Sale',GR.sale);sec('Purchase',GR.pur);sec('More',[['rep','Reports'],['out','WhatsApp Outbox & Auto message'],['bk','Backup & Import'],['set','Settings']]);
  s.innerHTML=h+'</div>';s.classList.add('open')}
 function mBar(){
  var g=grpOf(pg),on=function(k){return (g===k||pg===k)?'on':''},bar=$('#mbar'),top=$('#mtop');if(!bar)return;
  bar.innerHTML='<button class="'+on('home')+'" onclick="nav(\'home\')"><b>🏠</b>Home</button><button class="'+(g==='sale'?'on':'')+'" onclick="nav(\'sale\')"><b>🧾</b>Sale</button><button class="'+on('party')+'" onclick="nav(\'party\')"><b>👥</b>Parties</button><button class="'+on('items')+'" onclick="nav(\'items\')"><b>📦</b>Items</button><button onclick="mMore()"><b>☰</b>More</button>';
  var detail=!!(form||sub||viewB||openB||viewD||pg!=='home');
  top.style.display=(detail?'':'none');bar.style.display=form?'none':'';
- var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',bk:'Backup',set:'Settings'};
+ var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings'};
  var tt=$('#mtt');if(tt)tt.textContent=form?'New Sale':(nm[pg]||'')}
 var _r8=render;render=function(){_r8();try{mBar()}catch(e){}};
 var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTimeout(_sr8,400)};
@@ -2506,7 +2506,7 @@ setInterval(function(){arRun(false,true)},15*60*1000);
 function sw(checked,fn,dis){return '<span class="sw"><input type="checkbox" '+(checked?'checked ':'')+(dis?'disabled ':'')+'onchange="'+fn+'"><i></i></span>'}
 function awPaint(){var e=$('#aws');if(e)e.innerHTML=awHtml()}
 function awHtml(){
- var m=!!PS().autoWA,h='<b style="font-size:16px">Automatic WhatsApp sending</b><div class="mu" style="margin:2px 0 4px">Choose which messages go to the Outbox and send by themselves. Anything switched off opens WhatsApp by hand, like before. Sends by itself when you press Save. Needs the cloud sender to be online.</div>';
+ var m=!!PS().autoWA,h='<b style="font-size:16px">Automatic WhatsApp sending</b><div class="mu">'+APPV+'</div><div class="mu" style="margin:2px 0 4px">Choose which messages go to the Outbox and send by themselves. Anything switched off opens WhatsApp by hand, like before. Sends by itself when you press Save. Needs the cloud sender to be online.</div>';
  h+='<div class="setrow first"><div class="t"><b>Send automatically (master switch)</b><span class="mu">Turn off to stop all automatic sending</span></div>'+sw(m,"PS().autoWA=this.checked;save();awPaint()")+'</div>';
  h+='<div class="'+(m?'':'dis')+'">';
  AW_TYPES.forEach(function(t){h+='<div class="setrow"><div class="t"><b>'+t[1]+'</b><span class="mu">'+t[2]+'</span></div>'+sw(awOn(t[0]),"awSet('"+t[0]+"',this.checked)",!m)+'</div>'});
@@ -2563,7 +2563,11 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-function awGo(k,p){return !!(PS().autoWA&&awOn(k)&&obOk()&&p&&phone(p).length>=10)}
+var APPV='App version 12-Nov-C';
+function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
+ if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
+ if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
+ return true}
 /* payment receipts: the "Send on WhatsApp?" question is answered YES by itself when auto send is on */
 var _awQ=0,_cfAW=window.confirm;
 window.confirm=function(m){
