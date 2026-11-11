@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stock & Billing</title>
 <meta name="theme-color" content="#0f6e56">
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--ac:#0f6e56;--ac2:#e1f5ee;--bd:#dedcd4;--rd:#b3261e}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#161614;--card:#222220;--tx:#eeede8;--mu:#9a9990;--ac:#3fbf9a;--ac2:#18352c;--bd:#3a3a36;--rd:#f2877f}}
-*{box-sizing:border-box;touch-action:manipulation}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;max-width:640px;margin:0 auto;padding-bottom:70px}
 header{padding:14px 14px 4px;display:flex;justify-content:space-between;align-items:center}
 h1{font-size:18px;margin:0}h2{font-size:15px;margin:14px 0 6px}
@@ -142,7 +142,7 @@ function vBillView(){
  var b=bl(viewB);if(!b){viewB=null;return vBill2()}
  var p=P(b.pid),pd=paidOn(b),due=Math.max(b.total-pd,0),h='<button class="s" onclick="viewB=null;render()">← Back</button><h2 style="font-size:20px;margin:8px 0">Bill #'+b.no+(b.x?' <span class="red">(Cancelled)</span>':'')+'</h2>';
  h+='<div class="card row"><span><b>'+esc(p?p.name:'?')+'</b><br><span class="mu">'+esc(p&&p.phone||'')+'</span></span><span class="mu">'+dt(b.date)+'</span></div>';
- h+='<div class="card">'+tbl(['#','Item','Qty','Unit','Rate','Amount','Sent'],b.lines.map(function(l,k){return [k+1,esc(l.name)+locTag(l),l.qty,esc(l.unit),l.rate,money(l.amt),dq(l)+'/'+l.qty]}))+'<div class="row" style="margin-top:8px"><b>Total</b><b>'+money(b.total)+'</b></div><div class="row"><span>Received</span><span class="grn">'+money(pd)+'</span></div><div class="row"><span>Due</span><b class="'+(due>0?'red':'grn')+'">'+money(due)+'</b></div></div>';
+ h+='<div class="card">'+tbl(['#','Item','Qty','Unit','Rate','Amount','Sent'],b.lines.map(function(l,k){return [k+1,esc(l.name),l.qty,esc(l.unit),l.rate,money(l.amt),dq(l)+'/'+l.qty]}))+'<div class="row" style="margin-top:8px"><b>Total</b><b>'+money(b.total)+'</b></div><div class="row"><span>Received</span><span class="grn">'+money(pd)+'</span></div><div class="row"><span>Due</span><b class="'+(due>0?'red':'grn')+'">'+money(due)+'</b></div></div>';
  h+='<div style="display:flex;gap:6px;flex-wrap:wrap">'+(b.x?'<button class="b" onclick="restoreBill('+b.no+')">Restore bill</button>':'<button class="b" onclick="editBill('+b.no+')">Edit bill</button><button class="s" onclick="recvBill('+b.no+')">Receive</button><button class="s" onclick="openB='+b.no+';render()">Dispatch</button><button class="s" onclick="wa('+b.no+')">WhatsApp</button><button class="s" onclick="shareBill('+b.no+')">Bill picture</button><button class="s" onclick="cancelBill('+b.no+')">Cancel bill</button>')+'</div>';
  return h;
 }
@@ -267,7 +267,7 @@ function vLedger(){
  rows.forEach(function(r){run+=r.a;h+='<div class="row" style="margin-top:6px"><span>'+dt(r.d)+' · '+esc(r.t)+'</span><span class="'+(r.a<0?'grn':'')+'">'+(r.a<0?'−':'+')+money(Math.abs(r.a))+'<br><span class="mu">Bal '+money(run)+'</span></span></div>'});
  return h+'</div>';
 }
-function receive(){var a=+prompt('Amount received');if(a>0){D.pays.push({id:uid(),pid:openP,date:Date.now(),amt:a,note:''});save();var p=P(openP);if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,msgPayIn(p,a));render()}}
+function receive(){var a=+prompt('Amount received');if(a>0){D.pays.push({id:uid(),pid:openP,date:Date.now(),amt:a,note:''});save();var p=P(openP);if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,'Namaste '+p.name+',\nReceived '+money(a)+' with thanks.\nPending balance: '+money(Math.max(bal(p),0))+'\n- '+D.shop);render()}}
 function remind(){var p=P(openP),b=bal(p);openWA(p,'Namaste '+p.name+',\nYour pending balance with '+D.shop+' is '+money(b)+'. Kindly clear it at your earliest convenience. Thank you.')}
 /* ---------- BACKUP ---------- */
 function vBk(){return '<div class="card"><b>Backup</b><p class="mu">Data is saved in this browser on this device only. Copy the backup text and keep it safely (WhatsApp to yourself or Notes). To restore, paste it below and tap Restore.</p><textarea id="bt" rows="8">'+esc(JSON.stringify(D))+'</textarea><div class="row"><button class="b" onclick="cp()">Copy backup</button><button class="s" onclick="rs()">Restore from box</button></div></div>'}
@@ -344,7 +344,7 @@ function rs(){try{var x=JSON.parse($('#bt').value);if(!x.items||!x.parties)throw
 function snapDaily(){
  var day=new Date().toISOString().slice(0,10),r=DB.doc('snapshots/'+day+'_1');
  try{DB.pruneSnaps(new Date(Date.now()-7*864e5).toISOString().slice(0,10)).catch(function(){})}catch(e){}
- r.get().then(function(s){if(s.exists)return;var str=JSON.stringify({parties:D.parties,items:D.items,bills:D.bills,pays:D.pays,docs:D.docs,trs:D.trs,dsp:D.dsp,shop:D.shop}),n=Math.ceil(str.length/400000),k;for(k=n;k>=1;k--)DB.doc('snapshots/'+day+'_'+k).set({day:day,n:k,total:n,data:str.slice((k-1)*400000,k*400000)}).catch(function(){})}).catch(function(){});
+ r.get().then(function(s){if(s.exists)return;var str=JSON.stringify({parties:D.parties,items:D.items,bills:D.bills,pays:D.pays,docs:D.docs,shop:D.shop}),n=Math.ceil(str.length/400000),k;for(k=n;k>=1;k--)DB.doc('snapshots/'+day+'_'+k).set({day:day,n:k,total:n,data:str.slice((k-1)*400000,k*400000)}).catch(function(){})}).catch(function(){});
 }
 function loadSnaps(){
  var e=$('#ss');if(!e)return;if(!DB){e.textContent='Cloud not connected';return}
@@ -408,7 +408,7 @@ function recvBill(no){
  var b=bl(no),p=P(b.pid),due=Math.max(b.total-paidOn(b),0),a=+prompt('Amount received for bill #'+no+' (due '+money(due)+')',due);
  if(!(a>0))return;
  D.pays.push({id:uid(),pid:p.id,date:Date.now(),amt:a,note:'Against bill #'+no,bn:no});save();
- if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,msgPayIn(p,a,no,Math.max(due-a,0)));
+ if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,'Namaste '+p.name+',\nReceived '+money(a)+' against bill #'+no+'.\nPending on this bill: '+money(Math.max(due-a,0))+'\nTotal pending balance: '+money(Math.max(bal(p),0))+'\n- '+D.shop);
  render();
 }
 function wa(no){
@@ -486,7 +486,7 @@ function vDispatch(){
  if(lastDisp&&lastDisp.no===b.no)h+='<div class="ok"><b>Dispatch saved.</b><br>'+lastDisp.items.map(function(x){return '✔ '+esc(x.name)+': '+x.q+' '+esc(x.unit)}).join('<br>')+'<br><button class="b" style="margin-top:8px" onclick="waRem('+b.no+',1)">Send on WhatsApp</button></div>';
  h+='<div class="card row mu"><span>Tick an item if all of it is sent, or type the quantity sent now. Then press Save dispatch.</span><button class="s" onclick="tickEvery()">Tick all</button></div>';
  b.lines.forEach(function(l,k){var r=rem(l),tr=(l.trips||[]);
-  h+='<div class="card"><div class="row"><label style="display:flex;align-items:center;cursor:pointer">'+(r>0?'<input type="checkbox" id="ck'+k+'" style="width:26px;height:26px;margin:0 10px 0 0" onchange="tickAll('+k+','+r+',this.checked)">':'<span class="grn" style="font-size:24px;margin-right:10px">✔</span>')+'<b>'+esc(l.name)+'</b></label><span class="'+(r>0?'red':'grn')+'">'+(r>0?'Remaining '+r+' '+esc(l.unit):'All sent')+'</span></div><div class="mu">Sold '+l.qty+' '+esc(l.unit)+' · Sent so far '+dq(l)+'</div>'+locLine(l)+tripRows(b.no,k,l)+
+  h+='<div class="card"><div class="row"><label style="display:flex;align-items:center;cursor:pointer">'+(r>0?'<input type="checkbox" id="ck'+k+'" style="width:26px;height:26px;margin:0 10px 0 0" onchange="tickAll('+k+','+r+',this.checked)">':'<span class="grn" style="font-size:24px;margin-right:10px">✔</span>')+'<b>'+esc(l.name)+'</b></label><span class="'+(r>0?'red':'grn')+'">'+(r>0?'Remaining '+r+' '+esc(l.unit):'All sent')+'</span></div><div class="mu">Sold '+l.qty+' '+esc(l.unit)+' · Sent so far '+dq(l)+'</div>'+tripRows(b.no,k,l)+
   (r>0?'<div class="row" style="margin-top:6px;gap:6px"><input id="dq'+k+'" type="number" inputmode="decimal" placeholder="Sent now (max '+r+')" style="margin:0" oninput="syncTick('+k+','+r+')"><button class="s" onclick="tickAll('+k+','+r+',true);$(\'#ck'+k+'\').checked=true">All '+r+'</button></div>':'')+
   (!tr.length&&dq(l)>0?'<button class="s" style="margin-top:6px" onclick="fixSent('+b.no+','+k+')">Fix sent quantity</button>':'')+'</div>'});
  return h+'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="b" onclick="saveDisp('+b.no+')">Save dispatch</button><button class="s" onclick="waRem('+b.no+')">Send full update on WhatsApp</button></div>';
@@ -516,11 +516,9 @@ function waRem(no,now){
  openWA(p,t+'\nThank you!');
 }
 function vPendDisp(){
- var bs=D.bills.filter(function(b){return !b.x&&b.lines.some(function(l){return rem(l)>0})}),hl=[];try{hl=dhList()}catch(e){}
- var hn=hl.length,hint=hn?hn+' dispatch'+(hn===1?'':'es')+' · last '+dt(hl[0].d):'No dispatches recorded yet';
- if(!bs.length)return '<div class="card clk" role="button" tabindex="0" style="cursor:pointer" onclick="dhOpen()" onkeydown="if(event.key===\'Enter\')dhOpen()"><div class="row"><span><b>Remaining dispatch</b> <span class="mu">(0 bills)</span></span></div><p class="grn" style="margin:8px 0 0">✔ Nothing pending. All sent.</p><div class="dhlink"><span>'+dxI('hist')+'<span>View dispatch history<small>'+hint+'</small></span></span><span class="dhch">›</span></div></div>';
- var h='<div class="card"><div class="row"><span><b>Remaining dispatch</b> <span class="mu">('+bs.length+' bills)</span></span><button class="s" onclick="dhOpen()">'+dxI('hist')+' History</button></div><div class="pend">';
- bs.forEach(function(b){var p=P(b.pid);h+='<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px;cursor:pointer" onclick="tab=\'bill\';viewB=null;openB='+b.no+';render()"><b>#'+b.no+' '+esc(p?p.name:'?')+'</b> <span class="mu">'+dt(b.date)+'</span>'+b.lines.filter(function(l){return rem(l)>0}).map(function(l){return '<div class="row mu" style="margin-top:2px"><span>'+esc(l.name)+locTag(l)+'</span><span class="red">'+rem(l)+' of '+l.qty+' '+esc(l.unit)+'</span></div>'}).join('')+'</div>'});
+ var bs=D.bills.filter(function(b){return !b.x&&b.lines.some(function(l){return rem(l)>0})}),h='<div class="card"><b>Remaining dispatch</b> <span class="mu">('+bs.length+' bills)</span><div class="pend">';
+ if(!bs.length)h+='<p class="grn">Nothing pending. All sent.</p>';
+ bs.forEach(function(b){var p=P(b.pid);h+='<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px;cursor:pointer" onclick="tab=\'bill\';viewB=null;openB='+b.no+';render()"><b>#'+b.no+' '+esc(p?p.name:'?')+'</b> <span class="mu">'+dt(b.date)+'</span>'+b.lines.filter(function(l){return rem(l)>0}).map(function(l){return '<div class="row mu" style="margin-top:2px"><span>'+esc(l.name)+'</span><span class="red">'+rem(l)+' of '+l.qty+' '+esc(l.unit)+'</span></div>'}).join('')+'</div>'});
  return h+'</div></div>';
 }
 var _vHome=vHome;vHome=function(){return '<div class="hsplit"><div>'+_vHome()+'</div><div>'+vPendDisp()+'</div></div>'};
@@ -617,7 +615,7 @@ function savePin(){
  if(!p){if(!confirm('"'+nm+'" is not in your parties. Create new party?'))return;p={id:uid(),name:nm,phone:'',open:0};D.parties.push(p)}
  D.pays.push({id:uid(),pid:p.id,date:Date.now(),amt:a,note:(pdraft.note||'').trim()});
  save();pdraft={name:'',amt:'',note:''};sub=null;tab='home';
- if(p.phone&&confirm('Payment saved. Send receipt on WhatsApp?'))openWA(p,msgPayIn(p,a));
+ if(p.phone&&confirm('Payment saved. Send receipt on WhatsApp?'))openWA(p,'Namaste '+p.name+',\nReceived '+money(a)+' with thanks.\nPending balance: '+money(Math.max(bal(p),0))+'\n- '+D.shop);
  render();
 }
 function retInfo(){var e=$('#rinfo'),p=findP(rdraft.name);if(e)e.textContent=p?'Existing party · balance '+money(bal(p)):((rdraft.name||'').trim()?'Party not found. Pick from the list.':'')}
@@ -646,8 +644,8 @@ var _togPay=togPay;
 togPay=function(id){var x=D.pays.find(function(q){return q.id===id});if(x&&x.ret){var d=x.x?1:-1;(x.lines||[]).forEach(function(l){var i=I(l.iid);if(i)i.qty=Math.round((i.qty+d*l.qty)*100)/100})}_togPay(id)};
 document.addEventListener('keydown',function(e){
  if(e.key!=='Enter')return;var id=e.target&&e.target.id;if(!id)return;
- var nx={bi:'bq',bq:'br',bu:'br',rit:'rqt',rqt:'rrt',rut:'rrt',sn:'su',su:'sr',sr:'sb',sb:'sq',sq:'sg',sg:'sl',pn2:'pa',rn:'rit',pn:'pp',pp:'po',dn:'dit',dit:'dqt',dqt:'drt',dut:'drt'};
- if(nx[id]){e.preventDefault();var t=$('#'+nx[id]);if(!t&&id==='sb')t=$('#sg')||$('#sl');if(t)t.focus();return}
+ var nx={bi:'bq',bq:'br',bu:'br',rit:'rqt',rqt:'rrt',rut:'rrt',sn:'su',su:'sr',sr:'sb',sb:'sq',sq:'sl',pn2:'pa',rn:'rit',pn:'pp',pp:'po',dn:'dit',dit:'dqt',dqt:'drt',dut:'drt'};
+ if(nx[id]){e.preventDefault();var t=$('#'+nx[id]);if(!t&&id==='sb')t=$('#sl');if(t)t.focus();return}
  if(id==='bs'){e.preventDefault();addLine2()}
  else if(id==='rrt'){e.preventDefault();addRet()}
  else if(id==='sl'){e.preventDefault();addItem()}
@@ -702,7 +700,7 @@ bal=function(p){var b=+p.open||0;
 balTxt=function(b){return b>0.009?'<span class="grn">'+money(b)+' to receive</span>':b<-0.009?'<span class="red">'+money(-b)+' to pay</span>':'<span class="mu">Nil</span>'};
 function balShort(b){return b>0.009?money(b)+' Dr':b<-0.009?money(-b)+' Cr':money(0)}
 /* ---- navigation ---- */
-function buildNav(){var g=grpOf(pg),L=[['home','Home'],['party','Parties'],['items','Items'],['gd','Godowns'],['sale','Sale'],['pur','Purchase'],['rep','Reports'],['bk','Backup'],['set','Settings']],h='';
+function buildNav(){var g=grpOf(pg),L=[['home','Home'],['party','Parties'],['items','Items'],['sale','Sale'],['pur','Purchase'],['rep','Reports'],['bk','Backup'],['set','Settings']],h='';
  L.forEach(function(x){var grp=!!GR[x[0]],act=grp?g===x[0]:pg===x[0];h+='<button class="'+(act?(grp?'gon':'on'):'')+'" onclick="nav(\''+x[0]+'\')">'+x[1]+'</button>';
   if(grp&&g===x[0])GR[x[0]].forEach(function(s){h+='<button class="sb'+(pg===s[0]?' on':'')+'" onclick="nav(\''+s[0]+'\')">'+s[1]+'</button>'})});
  $('nav').innerHTML=h}
@@ -753,7 +751,7 @@ function openRep(k){rsel=k;nav('rep')}
 /* ---- PRINT / SHARE TEXT FOR BILLS AND DOCS ---- */
 function billHtml(b){var p=P(b.pid)||{name:'?'},pd=paidOn(b);return '<h2>'+esc(D.shop)+'</h2><p>Bill #'+b.no+' · '+dt(b.date)+'<br><b>'+esc(p.name)+'</b> '+esc(p.phone||'')+'</p><table><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>'+b.lines.map(function(l,k){return '<tr><td>'+(k+1)+'</td><td>'+esc(l.name)+'</td><td class="r">'+l.qty+' '+esc(l.unit)+'</td><td class="r">'+l.rate+'</td><td class="r">'+money(l.amt)+'</td></tr>'}).join('')+'</table><p class="r"><b>Total '+money(b.total)+'</b><br>Received '+money(pd)+'<br>Balance '+money(Math.max(b.total-pd,0))+'</p>'}
 function printBill(no){var b=bl(no);if(b)printHtml('Bill '+no,billHtml(b))}
-function docHtml(d){var p=P(d.pid)||{name:'?'};return '<h2>'+esc(D.shop)+'</h2><p><b>'+DT[d.t].s+' #'+d.no+'</b> · '+dt(d.date)+'<br><b>'+esc(p.name)+'</b> '+esc(p.phone||'')+'</p><table><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>'+d.lines.map(function(l,k){return '<tr><td>'+(k+1)+'</td><td>'+esc(l.name)+(d.t==='pur'&&(l.loc||d.gd)?'<div class="m"><b>Godown / Block: '+esc(l.loc||d.gd)+'</b></div>':'')+'</td><td class="r">'+l.qty+' '+esc(l.unit)+'</td><td class="r">'+l.rate+'</td><td class="r">'+money(l.amt)+'</td></tr>'}).join('')+'</table><p class="r"><b>Total '+money(d.total)+'</b></p>'}
+function docHtml(d){var p=P(d.pid)||{name:'?'};return '<h2>'+esc(D.shop)+'</h2><p><b>'+DT[d.t].s+' #'+d.no+'</b> · '+dt(d.date)+'<br><b>'+esc(p.name)+'</b> '+esc(p.phone||'')+'</p><table><tr><th>#</th><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>'+d.lines.map(function(l,k){return '<tr><td>'+(k+1)+'</td><td>'+esc(l.name)+'</td><td class="r">'+l.qty+' '+esc(l.unit)+'</td><td class="r">'+l.rate+'</td><td class="r">'+money(l.amt)+'</td></tr>'}).join('')+'</table><p class="r"><b>Total '+money(d.total)+'</b></p>'}
 function printDoc(id){var d=docById(id);if(d)printHtml(DT[d.t].s+' '+d.no,docHtml(d))}
 function docWA(id){var d=docById(id),p=P(d.pid);if(!p)return;var t='Namaste '+p.name+',\n'+DT[d.t].s+' #'+d.no+' ('+dt(d.date)+') from '+D.shop+'\n\n';d.lines.forEach(function(l){t+=l.name+': '+l.qty+' '+l.unit+' × '+l.rate+' = '+money(l.amt)+'\n'});openWA(p,t+'\nTotal: '+money(d.total)+'\n\nThank you!')}
 function payWA(id){var x=D.pays.find(function(q){return q.id===id}),p=x&&P(x.pid);if(!p)return;var t='Namaste '+p.name+',\n';
@@ -801,35 +799,35 @@ function docMenu(id){var d=docById(id),c=DT[d.t],a=[['View',"viewD='"+id+"';rend
 function vDocView(){var d=docById(viewD);if(!d){viewD=null;return vPage()}
  var c=DT[d.t],p=P(d.pid),pd=paidDoc(d),h='<button class="s" onclick="viewD=null;render()">← Back</button><h2 style="font-size:20px;margin:8px 0">'+c.s+' #'+d.no+(d.x?' <span class="red">(Cancelled)</span>':'')+'</h2>';
  h+='<div class="card row"><span><b>'+esc(p?p.name:'?')+'</b><br><span class="mu">'+esc(p&&p.phone||'')+'</span></span><span class="mu">'+dt(d.date)+'</span></div>';
- if(d.t==='pur'&&d.gd)h+='<div class="card"><span class="mu">Godown / Block</span> &nbsp;<b>'+esc(d.gd)+'</b></div>';h+='<div class="card">'+tbl(['#','Item','Qty','Unit','Rate','Amount'],d.lines.map(function(l,k){return [k+1,esc(l.name)+(d.t==='pur'&&l.loc&&l.loc!==d.gd?'<div class="mu">'+esc(l.loc)+'</div>':''),l.qty,esc(l.unit),l.rate,money(l.amt)]}))+'<div class="row" style="margin-top:8px"><b>Total</b><b>'+money(d.total)+'</b></div>';
+ h+='<div class="card">'+tbl(['#','Item','Qty','Unit','Rate','Amount'],d.lines.map(function(l,k){return [k+1,esc(l.name),l.qty,esc(l.unit),l.rate,money(l.amt)]}))+'<div class="row" style="margin-top:8px"><b>Total</b><b>'+money(d.total)+'</b></div>';
  if(d.t==='pur')h+='<div class="row"><span>Paid</span><span class="grn">'+money(pd)+'</span></div><div class="row"><span>Balance</span><b class="'+(d.total-pd>0.009?'red':'grn')+'">'+money(Math.max(d.total-pd,0))+'</b></div>';
  if(d.bn)h+='<div class="mu" style="margin-top:6px">Converted to Sale '+bLink(d.bn,'#'+d.bn)+'</div>';
  h+='</div><div style="display:flex;gap:6px;flex-wrap:wrap">';
  if(d.x)h+='<button class="b" onclick="restoreDoc(\''+d.id+'\')">Restore</button>';else{h+='<button class="b" onclick="editDoc(\''+d.id+'\')">Edit</button>';if(d.t==='est'||d.t==='so'||d.t==='chal')h+='<button class="s" onclick="convertDoc(\''+d.id+'\')">Convert to Sale</button>';if(d.t==='pur')h+='<button class="s" onclick="payDoc(\''+d.id+'\')">Payment-Out</button>';h+='<button class="s" onclick="docWA(\''+d.id+'\')">WhatsApp</button><button class="s" onclick="printDoc(\''+d.id+'\')">Print</button><button class="s" onclick="cancelDoc(\''+d.id+'\')">Cancel</button>'}
  return h+'</div>'}
 function vDocForm(){var d=ddraft,c=DT[d.t],tot=0,rows='';
- d.lines.forEach(function(l,k){tot+=l.amt;rows+='<tr><td>'+(k+1)+'</td><td style="min-width:160px">'+delnIn(k,'name',l.name,'text','il4')+'</td><td style="width:90px">'+delnIn(k,'qty',l.qty,'number')+'</td><td style="width:90px">'+delnIn(k,'unit',l.unit,'text')+'</td><td style="width:110px">'+delnIn(k,'rate',l.rate,'number')+'</td><td style="text-align:right">'+money(l.amt)+'</td>'+(d.t==='pur'?'<td style="min-width:150px">'+delnIn(k,'loc',l.loc||d.gd||'','text','gdl')+'</td>':'')+'<td><button class="s" onclick="ddraft.lines.splice('+k+',1);render()">✕</button></td></tr>'});
+ d.lines.forEach(function(l,k){tot+=l.amt;rows+='<tr><td>'+(k+1)+'</td><td>'+esc(l.name)+'</td><td>'+l.qty+'</td><td>'+esc(l.unit)+'</td><td>'+l.rate+'</td><td>'+money(l.amt)+'</td><td><button class="s" onclick="ddraft.lines.splice('+k+',1);render()">✕</button></td></tr>'});
  setTimeout(docInfo,0);var no=d.edit?docById(d.edit).no:docNo(d.t);
  return '<button class="s" onclick="ddraft=null;sub=null;render()">← Back</button><h2 style="font-size:20px;margin:8px 0">'+(d.edit?'Edit ':'New ')+c.s+'</h2><div class="card">'+partyList('pl4')+'<div class="split" style="grid-template-columns:1fr 1fr 200px;gap:10px"><div><input id="dn" list="pl4" placeholder="'+c.pl+' name *" autocomplete="off" value="'+esc(d.name)+'" oninput="ddraft.name=this.value;docInfo()"><div id="dinfo" class="mu"></div></div><div><input id="dph" type="tel" placeholder="Phone number" value="'+esc(d.phone)+'" oninput="ddraft.phone=this.value"></div><div class="mu" style="text-align:right">No: <b>'+no+'</b><br>Date: <b>'+(d.edit?dt(docById(d.edit).date):new Date().toLocaleDateString('en-IN'))+'</b></div></div></div>'+
- (d.t==='pur'?'<div class="card">'+gdList()+'<label class="mu"><b>Godown / Block where goods are unloaded</b> (printed on the sale bill so dispatch staff know where to find the goods)</label><input id="dgd" list="gdl" autocomplete="off" placeholder="e.g. Godown 1, Block A" value="'+esc(d.gd||'')+'" oninput="gdIn(this.value)"></div>':'')+'<div class="card" style="overflow-x:auto"><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><table class="tbl"><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>'+(d.t==='pur'||d.t==='pret'?'Purchase price':'Price/Unit')+'</th><th>Amount</th>'+(d.t==='pur'?'<th>Godown / Block</th>':'')+'<th></th></tr>'+rows+'<tr><td>+</td><td style="min-width:160px"><input id="dit" list="il4" placeholder="Item name" autocomplete="off" oninput="docFill(this.value)"></td><td style="width:80px"><input id="dqt" type="number" inputmode="decimal" placeholder="Qty"></td><td style="width:90px"><input id="dut" placeholder="Unit"></td><td style="width:100px"><input id="drt" type="number" inputmode="decimal" placeholder="Rate"></td><td></td>'+(d.t==='pur'?'<td style="min-width:150px"><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+'<td><button class="s addb" onclick="addDocLine()">Add</button></td></tr></table></div>'+
+ '<div class="card" style="overflow-x:auto"><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><table class="tbl"><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>'+(d.t==='pur'||d.t==='pret'?'Purchase price':'Price/Unit')+'</th><th>Amount</th><th></th></tr>'+rows+'<tr><td>+</td><td style="min-width:160px"><input id="dit" list="il4" placeholder="Item name" autocomplete="off" oninput="docFill(this.value)"></td><td style="width:80px"><input id="dqt" type="number" inputmode="decimal" placeholder="Qty"></td><td style="width:90px"><input id="dut" placeholder="Unit"></td><td style="width:100px"><input id="drt" type="number" inputmode="decimal" placeholder="Rate"></td><td></td><td><button class="s addb" onclick="addDocLine()">Add</button></td></tr></table></div>'+
  '<div class="card" style="max-width:420px;margin-left:auto"><div class="row"><b>Total</b><b>'+money(tot)+'</b></div>'+(c.paid?'<input id="dpd" type="number" inputmode="decimal" placeholder="Paid now (optional)" value="'+esc(d.paid)+'">':'')+(d.t==='pur'?'<div class="mu" style="margin:2px 2px 8px">Stock goes up and the purchase price of each item is updated.</div>':d.t==='pret'?'<div class="mu" style="margin:2px 2px 8px">Stock goes down and the amount is taken off what you owe the supplier.</div>':'<div class="mu" style="margin:2px 2px 8px">No stock or balance change until it is converted to a Sale.</div>')+'<button class="b" style="width:100%" onclick="saveDoc()">'+(d.edit?'Save changes':'Save')+'</button></div>'}
 function docInfo(){var e=$('#dinfo'),d=ddraft;if(!e||!d)return;var p=findP(d.name);if(p){if(p.phone&&!d.phone){d.phone=p.phone;var x=$('#dph');if(x)x.value=p.phone}e.innerHTML='Existing party · '+balTxt(bal(p))}else e.textContent=(d.name||'').trim()?'New party, will be created when you save':''}
 function docFill(v){var i=findI(v);if(i){var pr=(ddraft.t==='pur'||ddraft.t==='pret')?(+i.buy||+i.rate||0):i.rate;$('#drt').value=pr;$('#dut').value=i.unit}}
 function addDocLine(){var n=$('#dit').value.trim(),q=+$('#dqt').value,r=+$('#drt').value;if(!n||!(q>0)||$('#drt').value==='')return alert('Enter item name, qty and rate');
- var lc=(($('#dlc')||{}).value||'').trim();ddraft.lines.push({name:n,unit:$('#dut').value.trim()||'pcs',qty:q,rate:r,amt:q*r,loc:(ddraft.t==='pur'&&lc&&lc!==(ddraft.gd||''))?lc:''});render();setTimeout(function(){var e=$('#dit');if(e)e.focus()},0)}
+ ddraft.lines.push({name:n,unit:$('#dut').value.trim()||'pcs',qty:q,rate:r,amt:q*r});render();setTimeout(function(){var e=$('#dit');if(e)e.focus()},0)}
 function saveDoc(){var d=ddraft,c=DT[d.t],nm=(d.name||'').trim();if(!nm)return alert('Enter '+c.pl.toLowerCase()+' name');if(!d.lines.length)return alert('Add at least one item');
  var ph=(d.phone||'').trim(),p=findP(nm);if(!p){p={id:uid(),name:nm,phone:ph,open:0};D.parties.push(p)}else if(ph&&p.phone!==ph)p.phone=ph;
  var tot=0,paid=c.paid?(+(($('#dpd')||{}).value)||0):0,doc=d.edit?docById(d.edit):null;
  if(doc)stockFx(doc,-1);
- d.lines.forEach(function(l){var i=findI(l.name);if(!i){i={id:uid(),name:l.name,unit:l.unit,rate:l.rate,buy:(d.t==='pur'||d.t==='pret')?l.rate:0,qty:0,low:0};D.items.push(i)}l.iid=i.id;if(d.t==='pur'){i.buy=l.rate;var gl=(l.loc||d.gd||'').trim();l.loc=gl;if(gl){i.loc=gl;gdReg(gl)}}tot+=l.amt});
- if(doc){doc.pid=p.id;doc.lines=d.lines;doc.total=tot;doc.gd=gdMain(d)}else{doc={id:'d'+uid(),t:d.t,no:docNo(d.t),pid:p.id,date:Date.now(),lines:d.lines,total:tot,st:'open',gd:gdMain(d)};D.docs.push(doc)}
+ d.lines.forEach(function(l){var i=findI(l.name);if(!i){i={id:uid(),name:l.name,unit:l.unit,rate:l.rate,buy:(d.t==='pur'||d.t==='pret')?l.rate:0,qty:0,low:0};D.items.push(i)}l.iid=i.id;if(d.t==='pur')i.buy=l.rate;tot+=l.amt});
+ if(doc){doc.pid=p.id;doc.lines=d.lines;doc.total=tot}else{doc={id:'d'+uid(),t:d.t,no:docNo(d.t),pid:p.id,date:Date.now(),lines:d.lines,total:tot,st:'open'};D.docs.push(doc)}
  stockFx(doc,1);
  if(c.paid){var wp=D.pays.find(function(x){return x.dn===doc.id&&/^With purchase/.test(x.note||'')});
   if(wp){wp.pid=p.id;if(paid>0){wp.amt=paid;wp.x=0}else wp.x=1}else if(paid>0)D.pays.push({id:uid(),pid:p.id,date:doc.date,amt:paid,out:1,note:'With purchase #'+doc.no,dn:doc.id});
   D.pays.forEach(function(x){if(x.dn===doc.id)x.pid=p.id})}
  save();ddraft=null;sub=null;render()}
 function editDoc(id){var d=docById(id),p=P(d.pid);if(d.x)return alert('This is cancelled. Press Restore first, then Edit.');var pd=0;D.pays.forEach(function(x){if(x.dn===id&&!x.x&&/^With purchase/.test(x.note||''))pd+=x.amt});
- leave();pg=d.t;ddraft={t:d.t,edit:id,name:p?p.name:'',phone:(p&&p.phone)||'',lines:JSON.parse(JSON.stringify(d.lines)),paid:pd||'',gd:d.gd||''};sub='doc';render()}
+ leave();pg=d.t;ddraft={t:d.t,edit:id,name:p?p.name:'',phone:(p&&p.phone)||'',lines:JSON.parse(JSON.stringify(d.lines)),paid:pd||''};sub='doc';render()}
 function cancelDoc(id){var d=docById(id);if(!confirm('Cancel '+DT[d.t].s+' #'+d.no+'? Stock and balance are corrected. You can restore it later.'))return;d.x=1;stockFx(d,-1);D.pays.forEach(function(x){if(x.dn===id&&/^With purchase/.test(x.note||''))x.x=1});save();render()}
 function restoreDoc(id){var d=docById(id);d.x=0;stockFx(d,1);D.pays.forEach(function(x){if(x.dn===id&&/^With purchase/.test(x.note||''))x.x=0});save();render()}
 function payDoc(id){var d=docById(id),p=P(d.pid),due=Math.max(d.total-paidDoc(d),0),a=+prompt('Amount paid for purchase #'+d.no+' (balance '+money(due)+')',due);if(!(a>0))return;D.pays.push({id:uid(),pid:p.id,date:Date.now(),amt:a,out:1,note:'Against purchase #'+d.no,dn:id});save();render()}
@@ -866,7 +864,7 @@ buy=function(id){var q=+prompt('Quantity to add to stock');if(q>0){var i=I(id);i
 function itemMenu(id){var i=I(id);mItems('Adjust '+i.name,[['Add stock',"buy('"+id+"')"],['Set correct stock quantity',"fixQty('"+id+"')"],['Edit item details and prices',"iform={id:'"+id+"'};render()"]])}
 function csvItems(){csvOut('items',['Item','Unit','Sale price','Purchase price','Stock qty','Stock value'],D.items.map(function(i){return [i.name,i.unit,i.rate,i.buy||0,i.qty,rnd(Math.max(i.qty,0)*((+i.buy>0)?+i.buy:i.rate))]}))}
 vItems=function(){
- var it=D.items.slice().sort(itemCmp),sel=I(selI),cur=sel||(window.innerWidth>=900&&!iform?it[0]:null),hide=!!(sel||iform);
+ var it=D.items.slice().sort(function(a,b){return a.name.localeCompare(b.name)}),sel=I(selI),cur=sel||(window.innerWidth>=900&&!iform?it[0]:null),hide=!!(sel||iform);
  var L='<div class="row" style="margin-bottom:6px"><button class="b" style="background:#e08a00" onclick="iform={};render()">+ Add Item</button><button class="s" onclick="csvItems()">Excel (CSV)</button></div><input placeholder="Search item" oninput="flt(this.value)"><div class="card" style="padding:0">'+it.map(function(i){var low=i.qty<0||(i.low>0&&i.qty<=i.low);return '<div class="row" data-n="'+esc(i.name.toLowerCase())+'" style="padding:10px;cursor:pointer;border-bottom:1px solid var(--bd);'+(cur&&cur.id===i.id&&!iform?'background:var(--ac2)':'')+'" onclick="selI=\''+i.id+'\';iform=null;render()"><span>'+esc(i.name)+'</span><b class="'+(low?'red':'grn')+'">'+i.qty+'</b></div>'}).join('')+(it.length?'':'<p class="mu" style="padding:10px">No items yet</p>')+'</div>';
  var R='';
  if(iform)R=vItemForm();
@@ -876,17 +874,17 @@ vItems=function(){
   D.docs.forEach(function(d){if(d.t!=='pur'&&d.t!=='pret')return;d.lines.forEach(function(l){if(l.iid===cur.id){var p=P(d.pid);tx.push({d:d.date,t:DT[d.t].s,no:d.no,n:p?p.name:'?',q:l.qty,r:l.rate,s:docStatus(d),dot:'#d32f2f',k:"viewD='"+d.id+"';render()"})}})});
   (cur.log||[]).forEach(function(g){if(g.t==='Sale return')return;tx.push({d:g.d,t:g.t,no:'',n:g.t==='Opening stock'?'Opening Stock':'Stock adjustment',q:g.q,r:'',s:'',dot:'#222',pl:1})});
   tx.sort(function(a,b){return b.d-a.d});
-  R='<button class="s mob" onclick="selI=null;render()">← Back</button><div class="card"><div class="row"><h2 style="font-size:18px;margin:0">'+esc(cur.name)+'</h2><button class="b" style="background:#1565c0" onclick="itemMenu(\''+cur.id+'\')">ADJUST ITEM</button></div><div class="stats" style="margin-top:8px"><div><span class="mu">Sale price</span><br><b>'+money(cur.rate)+'</b></div><div><span class="mu">Purchase price</span><br><b>'+money(cur.buy||0)+'</b></div><div><span class="mu">Stock quantity</span><br><b class="'+(low?'red':'grn')+'">'+cur.qty+' '+esc(cur.unit)+(low?' ⚠':'')+'</b></div><div><span class="mu">Stock value</span><br><b>'+money(Math.max(cur.qty,0)*((+cur.buy>0)?+cur.buy:cur.rate))+'</b></div><div><span class="mu">Godown / Block</span><br><b>'+esc(cur.loc||'-')+'</b></div></div></div>';
+  R='<button class="s mob" onclick="selI=null;render()">← Back</button><div class="card"><div class="row"><h2 style="font-size:18px;margin:0">'+esc(cur.name)+'</h2><button class="b" style="background:#1565c0" onclick="itemMenu(\''+cur.id+'\')">ADJUST ITEM</button></div><div class="stats" style="margin-top:8px"><div><span class="mu">Sale price</span><br><b>'+money(cur.rate)+'</b></div><div><span class="mu">Purchase price</span><br><b>'+money(cur.buy||0)+'</b></div><div><span class="mu">Stock quantity</span><br><b class="'+(low?'red':'grn')+'">'+cur.qty+' '+esc(cur.unit)+(low?' ⚠':'')+'</b></div><div><span class="mu">Stock value</span><br><b>'+money(Math.max(cur.qty,0)*((+cur.buy>0)?+cur.buy:cur.rate))+'</b></div></div></div>';
   R+='<div class="card"><b>Transactions</b>'+tbl2(['Type','Invoice / Ref','Name','Date','Quantity','Price / Unit','Status'],tx.map(function(x){return {k:x.k||'',c:['<span style="color:'+x.dot+'">●</span> '+esc(x.t),x.no,esc(x.n),dt(x.d),(x.pl&&x.q>0?'+':'')+x.q+' '+esc(cur.unit),x.r===''?'':money(x.r),x.s?stH(x.s):'']}}),0)+'</div>'}
  else R='<div class="card mu">Click an item to see its transactions</div>';
  return '<div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+R+'</div></div>'};
 function vItemForm(){var i=iform.id?I(iform.id):null,m=iform.msg?'<div class="ok">'+esc(iform.msg)+'</div>':'';
- return '<button class="s mob" onclick="iform=null;render()">← Back</button><div class="card">'+m+'<b>'+(i?'Edit item':'Add item')+'</b><input id="sn" placeholder="Item name *" autocomplete="off" value="'+esc(i?i.name:'')+'"><div class="g"><input id="su" placeholder="Unit (box, sq ft, pcs)" value="'+esc(i?i.unit:'')+'"><input id="sr" type="number" inputmode="decimal" placeholder="Sale price" value="'+(i&&i.rate?i.rate:'')+'"><input id="sb" type="number" inputmode="decimal" placeholder="Purchase price" value="'+(i&&i.buy?i.buy:'')+'">'+(i?'':'<input id="sq" type="number" inputmode="decimal" placeholder="Opening stock">')+'<input id="sl" type="number" inputmode="decimal" placeholder="Low-stock alert at" value="'+(i&&i.low?i.low:'')+'"><input id="sg" list="gdl" autocomplete="off" placeholder="Godown / Block (where kept)" value="'+esc(i&&i.loc||'')+'"></div>'+gdList()+'<div class="row" style="margin-top:6px"><button class="b" onclick="saveItem()">Save</button><button class="s" onclick="iform=null;render()">Close</button></div></div>'}
+ return '<button class="s mob" onclick="iform=null;render()">← Back</button><div class="card">'+m+'<b>'+(i?'Edit item':'Add item')+'</b><input id="sn" placeholder="Item name *" autocomplete="off" value="'+esc(i?i.name:'')+'"><div class="g"><input id="su" placeholder="Unit (box, sq ft, pcs)" value="'+esc(i?i.unit:'')+'"><input id="sr" type="number" inputmode="decimal" placeholder="Sale price" value="'+(i&&i.rate?i.rate:'')+'"><input id="sb" type="number" inputmode="decimal" placeholder="Purchase price" value="'+(i&&i.buy?i.buy:'')+'">'+(i?'':'<input id="sq" type="number" inputmode="decimal" placeholder="Opening stock">')+'<input id="sl" type="number" inputmode="decimal" placeholder="Low-stock alert at" value="'+(i&&i.low?i.low:'')+'"></div><div class="row" style="margin-top:6px"><button class="b" onclick="saveItem()">Save</button><button class="s" onclick="iform=null;render()">Close</button></div></div>'}
 function saveItem(){var n=(($('#sn')||{}).value||'').trim();if(!n)return alert('Enter item name');
  var o=iform&&iform.id?I(iform.id):null,ex=findI(n);if(ex&&(!o||ex.id!==o.id))return alert('An item with this name already exists');
- var u=$('#su').value.trim()||'pcs',r=+$('#sr').value||0,b=+$('#sb').value||0,l=+$('#sl').value||0,g=(($('#sg')||{}).value||'').trim();gdReg(g);
- if(o){o.name=n;o.unit=u;o.rate=r;o.buy=b;o.low=l;o.loc=g;save();selI=o.id;iform=null;render();return}
- var q=+(($('#sq')||{}).value)||0,i={id:uid(),name:n,unit:u,rate:r,buy:b,qty:q,low:l,loc:g};if(q)logI(i,'Opening stock',q);D.items.push(i);save();selI=i.id;iform={msg:'Saved: '+n+'. You can add the next item.'};render();setTimeout(function(){var e=$('#sn');if(e)e.focus()},30)}
+ var u=$('#su').value.trim()||'pcs',r=+$('#sr').value||0,b=+$('#sb').value||0,l=+$('#sl').value||0;
+ if(o){o.name=n;o.unit=u;o.rate=r;o.buy=b;o.low=l;save();selI=o.id;iform=null;render();return}
+ var q=+(($('#sq')||{}).value)||0,i={id:uid(),name:n,unit:u,rate:r,buy:b,qty:q,low:l};if(q)logI(i,'Opening stock',q);D.items.push(i);save();selI=i.id;iform={msg:'Saved: '+n+'. You can add the next item.'};render();setTimeout(function(){var e=$('#sn');if(e)e.focus()},30)}
 addItem=saveItem;
 /* ---- PARTY STATEMENT (full timeline) ---- */
 function stmtEntries(p){var r=[];
@@ -1186,7 +1184,7 @@ billHtml=function(b){var h=_bh3(b),x=((b.tn||b.vn)?'<p class="m">Transport: '+es
 /* ---------- STEP 2: bill picture in Vyapar layout ---------- */
 var SHOP_ADDR='Near Bhawani Mandir, Wadhu Chowk, Sindhi Colony, Gondia 441601',SHOP_PH='Ph: 7020645390',SHOP_TERMS='बिका हुआ माल वापस नहीं होगा';
 billImg=function(b,p){
- var L=b.lines,W=900,rh=46,AL=imgAddrLines(b,p),ofs=AL.length?AL.length*22+12:0,H=560+ofs+L.length*rh,c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
+ var L=b.lines,W=900,rh=46,H=560+L.length*rh,c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
  var pd=paidOn(b),sub=0;L.forEach(function(l){sub+=l.amt});var due=Math.max(b.total-pd,0);
  function T(t,X,Y,f,col,al){x.font=f;x.fillStyle=col||'#111';x.textAlign=al||'left';x.fillText(t,X,Y)}
  function LN(X1,Y1,X2,Y2){x.strokeStyle='#999';x.lineWidth=1;x.beginPath();x.moveTo(X1,Y1);x.lineTo(X2,Y2);x.stroke()}
@@ -1194,13 +1192,13 @@ billImg=function(b,p){
  T((PS().name||D.shop).toUpperCase(),W/2,68,'bold 36px sans-serif','#111','center');
  if(op('hadr')){T(PS().addr||SHOP_ADDR,W/2,98,'18px sans-serif','#444','center');T(PS().phone?'Ph: '+PS().phone:SHOP_PH,W/2,122,'18px sans-serif','#444','center')}
  LN(20,140,W-20,140);
- T('Bill To',40,170,'16px sans-serif','#666');T(p.name,40,198,'bold 24px sans-serif');T(p.phone||'',40,226,'18px sans-serif','#444');AL.forEach(function(a,i){T(a,40,252+i*22,'15px sans-serif','#444')});
+ T('Bill To',40,170,'16px sans-serif','#666');T(p.name,40,198,'bold 24px sans-serif');T(p.phone||'',40,226,'18px sans-serif','#444');
  T('Invoice No: '+b.no,W-40,170,'bold 20px sans-serif','#111','right');T('Date: '+dt(b.date)+(PS().htm?', '+new Date(b.date).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):''),W-40,198,'18px sans-serif','#444','right');
  if((b.tn||b.vn)&&op('htr'))T('Transport: '+(b.tn||'-')+'   Vehicle: '+(b.vn||'-'),W-40,226,'16px sans-serif','#444','right');
- LN(20,244+ofs,W-20,244+ofs);
- var y=278+ofs;x.fillStyle='#eef1f7';x.fillRect(21,250+ofs,W-42,40);
+ LN(20,244,W-20,244);
+ var y=278;x.fillStyle='#eef1f7';x.fillRect(21,250,W-42,40);
  T('#',36,y,'bold 18px sans-serif');T('Item name',72,y,'bold 18px sans-serif');T('Qty',560,y,'bold 18px sans-serif','#111','right');T('Price/unit',700,y,'bold 18px sans-serif','#111','right');T('Amount',W-36,y,'bold 18px sans-serif','#111','right');
- y=296+ofs;L.forEach(function(l,k){y+=rh;var n=l.name.length>34?l.name.slice(0,33)+'…':l.name;T(String(k+1),36,y-14,'18px sans-serif');T(n,72,y-14,'18px sans-serif');T(l.qty+' '+l.unit,560,y-14,'18px sans-serif','#111','right');T(String(l.rate),700,y-14,'18px sans-serif','#111','right');T(money(l.amt),W-36,y-14,'18px sans-serif','#111','right');LN(21,y,W-21,y)});
+ y=296;L.forEach(function(l,k){y+=rh;var n=l.name.length>34?l.name.slice(0,33)+'…':l.name;T(String(k+1),36,y-14,'18px sans-serif');T(n,72,y-14,'18px sans-serif');T(l.qty+' '+l.unit,560,y-14,'18px sans-serif','#111','right');T(String(l.rate),700,y-14,'18px sans-serif','#111','right');T(money(l.amt),W-36,y-14,'18px sans-serif','#111','right');LN(21,y,W-21,y)});
  y+=40;var R=W-40;
  function row(a,v,f,col){T(a,R-200,y,f||'20px sans-serif',col||'#111','right');T(v,R,y,f||'20px sans-serif',col||'#111','right');y+=34}
  row('Sub Total',money(sub));
@@ -1231,11 +1229,10 @@ function rmPass(){if(confirm('Remove passcode from this device?')){localStorage.
 function lockCk(){var w=localStorage.getItem('sbpw');if(!w)return;var m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:#101338;z-index:99;display:flex;align-items:center;justify-content:center;padding:20px';m.innerHTML='<div class="card" style="max-width:320px;width:100%"><b>Enter passcode</b><input id="pw" type="password" autocomplete="off"><button class="b" style="width:100%;margin-top:6px" id="pwb">Open</button><div id="pwm" class="red"></div></div>';document.body.appendChild(m);function go1(){if(btoa(unescape(encodeURIComponent($('#pw').value)))===w)m.remove();else{$('#pwm').textContent='Wrong passcode';$('#pw').value=''}}$('#pwb').onclick=go1;$('#pw').onkeydown=function(e){if(e.key==='Enter')go1()}}
 var _vS0=vSettings;
 vSettings=function(){
- var T=[['gen','General'],['trn','Transaction'],['prt','Print'],['bill','Bill picture'],['gd','Godowns']],p=PS(),h='<h2 style="font-size:20px;margin:6px 0">Settings</h2><div class="pills" style="display:flex">'+T.map(function(t){return '<button class="s" style="'+(sTab===t[0]?'background:#1a73e8;color:#fff':'')+'" onclick="sTab=\''+t[0]+'\';render()">'+t[1]+'</button>'}).join('')+'</div><div class="card" style="max-width:600px">';
+ var T=[['gen','General'],['trn','Transaction'],['prt','Print'],['bill','Bill picture']],p=PS(),h='<h2 style="font-size:20px;margin:6px 0">Settings</h2><div class="pills" style="display:flex">'+T.map(function(t){return '<button class="s" style="'+(sTab===t[0]?'background:#1a73e8;color:#fff':'')+'" onclick="sTab=\''+t[0]+'\';render()">'+t[1]+'</button>'}).join('')+'</div><div class="card" style="max-width:600px">';
  if(sTab==='gen')h+='<b>General</b>'+tg('nostk','Stop sale on negative stock','Bill will not save if quantity is more than stock.',1)+'<label class="mu">Amount decimal places</label><select onchange="setP(\'dec\',+this.value)">'+[0,1,2,3].map(function(n){return '<option value="'+n+'"'+((p.dec==null?2:p.dec)===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select><div style="margin-top:14px"><b>Passcode (this device)</b><div class="mu">'+(localStorage.getItem('sbpw')?'Passcode is ON.':'No passcode set.')+'</div><button class="b" onclick="setPass()">Set / change passcode</button> '+(localStorage.getItem('sbpw')?'<button class="s" onclick="rmPass()">Remove</button>':'')+'</div>';
  else if(sTab==='trn')h+='<b>Transaction</b>'+tg('round','Round off total','Bill total is rounded to a whole rupee when you save.',1)+'<div class="mu">Transporter, Vehicle number and Discount are always on the Sale bill.</div>';
  else if(sTab==='prt')return _vS0();
- else if(sTab==='gd')return h+'<b>Godowns and blocks</b><div class="mu" style="margin-top:4px">Save your godown / block names here, or just type them on a purchase bill (they are saved automatically). Click a name to see what is stored in it and its history.</div></div>'+vGodowns();
  else h+='<b>Bill picture (WhatsApp)</b>'+tg('hadr','Show address and phone')+tg('htr','Show transport and vehicle')+tg('hcur','Show current balance of party')+tg('hsv','Show "You Saved" (discount)')+tg('htm','Show time with date',0,1)+tg('hter','Show terms and conditions')+'<div class="mu">Address, phone and terms text are taken from the Print tab.</div>';
  return h+'</div>';
 };
@@ -1333,1162 +1330,80 @@ vSettings=function(){if(sTab!=='chk')return _vS7().replace("['bill','Bill pictur
  document.head.appendChild(st);
 })();
 
-/* ---------- ADDRESS: billing + shipping address on Party and Sale ---------- */
-function nl2(a){return esc(a||'').replace(/\n/g,'<br>')}
-function bAddr(b){var p=P(b.pid)||{};return {a:(b.addr!=null?b.addr:p.addr)||'',s:(b.ship!=null?b.ship:p.ship)||''}}
-function shipShow(){var w=document.getElementById('pshw'),l=document.getElementById('pshl');if(w)w.style.display='block';if(l)l.style.display='none';var t=document.getElementById('psh');if(t)t.focus()}
-function shipSame(){var a=document.getElementById('pa'),s=document.getElementById('psh');if(a&&s)s.value=a.value}
-function shipSame2(){var a=document.getElementById('bad'),s=document.getElementById('bsh');if(a&&s){s.value=a.value;draft.ship=a.value}}
-function imgAddrLines(b,p){
- var ad=bAddr(b),c=document.createElement('canvas').getContext('2d'),out=[];c.font='15px sans-serif';
- function wrap(pre,t){var words=(pre+String(t).replace(/\s*\n\s*/g,', ')).split(/\s+/),ln='';words.forEach(function(w){var tt=ln?ln+' '+w:w;if(c.measureText(tt).width>470&&ln){out.push(ln);ln='   '+w}else ln=tt});if(ln.trim())out.push(ln)}
- if(ad.a)wrap('Billing: ',ad.a);if(ad.s)wrap('Ship To: ',ad.s);return out}
 
-/* party form */
-var _pf=vPartyForm;
-vPartyForm=function(){var h=_pf(),p=pform.id?P(pform.id):null,a=p&&p.addr||'',s=p&&p.ship||'',has=!!s;
- var blk='<label class="mu">Billing address</label><textarea id="pa" rows="2" placeholder="Billing address">'+esc(a)+'</textarea>'+
- '<a id="pshl" style="display:'+(has?'none':'inline-block')+';cursor:pointer;color:#1a73e8;font-weight:600;margin:4px 0 8px" onclick="shipShow()">+ Add Shipping Address</a>'+
- '<div id="pshw" style="display:'+(has?'block':'none')+'"><div class="row"><label class="mu">Shipping address</label><a style="cursor:pointer;color:#1a73e8;font-size:13px" onclick="shipSame()">Same as billing</a></div><textarea id="psh" rows="2" placeholder="Shipping address (delivery site)">'+esc(s)+'</textarea></div>';
- return h.replace('<div class="g"><input id="po"',blk+'<div class="g"><input id="po"')};
-var _sp=saveParty;
-saveParty=function(){var a=document.getElementById('pa'),s=document.getElementById('psh'),av=a?a.value.trim():null,sv=s?s.value.trim():null;
- _sp();if(!pform&&selP&&av!==null){var p=P(selP);if(p){p.addr=av;p.ship=sv||'';save();render()}}};
-addParty=saveParty;
+/* ---------- OUTBOX: automatic WhatsApp sending (sender program runs on laptop) ---------- */
+var OB={rows:[],beats:[],sel:{},min:1,err:'',T:null,bulkDone:false,
+ tpl:'Namaste {name},\nYour pending balance with {shop} is {amount}. Kindly clear it at your earliest convenience. Thank you.'};
+function obOk(){return !!(SB&&SB.from)}
+function obToast(t){var e=document.createElement('div');e.style.cssText='position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;z-index:60;font-size:14px;max-width:90%;text-align:center';e.textContent=t;document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}
+function obAdd(list){return Promise.resolve(SB.from('outbox').insert(list)).then(function(r){if(r&&r.error)throw r.error;return r})}
+var _ow9=openWA;
+openWA=function(p,text){
+ if(PS().autoWA&&obOk()&&p&&!/attached/i.test(text||'')&&phone(p).length>=10){
+  obAdd([{phone:phone(p),party_name:p.name||'',message:text,kind:'msg'}]).then(function(){obToast('Added to Outbox. It will be sent automatically.')}).catch(function(e){alert('Could not add to Outbox ('+(e&&e.message||e)+'). Opening WhatsApp instead.');_ow9(p,text)});
+  return}
+ _ow9(p,text)};
+function obLoad(){
+ if(!obOk())return Promise.resolve();
+ var a=SB.from('outbox').select('*').in('status',['pending','sending']).order('created_at',{ascending:true}).limit(500);
+ var b=SB.from('outbox').select('*').in('status',['sent','failed']).order('created_at',{ascending:false}).limit(100);
+ var c=SB.from('sender_beat').select('*');
+ return Promise.all([Promise.resolve(a),Promise.resolve(b),Promise.resolve(c)]).then(function(r){
+  if(r[0].error||r[1].error){OB.err=(r[0].error||r[1].error).message;OB.rows=[]}
+  else{OB.err='';OB.rows=(r[0].data||[]).concat(r[1].data||[])}
+  OB.beats=r[2].error?[]:(r[2].data||[]);
+  obPaint();
+  if(!OB.bulkDone&&$('#obb')){OB.bulkDone=true;obPaintBulk()}
+ }).catch(function(e){OB.err=String(e&&e.message||e);obPaint()})}
+function obTimer(){if(OB.T)return;OB.T=setInterval(function(){if(pg!=='out'){clearInterval(OB.T);OB.T=null;return}obLoad()},5000)}
+function obPaint(){var e=$('#obx');if(!e)return;
+ if(OB.err){e.innerHTML='<div class="card"><b class="red">Outbox is not ready</b><p class="mu">'+esc(OB.err)+'</p><p class="mu">The Outbox tables are probably not created in Supabase yet.</p></div>';return}
+ var now=Date.now(),on=OB.beats.filter(function(b){return now-new Date(b.seen).getTime()<120000}),h='';
+ h+='<div class="card">'+(on.length?'<span class="grn">Sender is ONLINE</span> <span class="mu">('+esc(on.map(function(b){return b.device}).join(', '))+')</span>':'<span class="red">Sender is OFFLINE</span><div class="mu">Messages will wait here until the sender program is running on your laptop.</div>')+'</div>';
+ var pend=OB.rows.filter(function(m){return m.status==='pending'||m.status==='sending'}).length,td=new Date().toDateString(),
+  sent=OB.rows.filter(function(m){return m.status==='sent'&&m.sent_at&&new Date(m.sent_at).toDateString()===td}).length,
+  fail=OB.rows.filter(function(m){return m.status==='failed'}).length;
+ h+='<div class="card row" style="flex-wrap:wrap"><span>Waiting: <b>'+pend+'</b></span><span>Sent today: <b>'+sent+'</b></span><span class="'+(fail?'red':'')+'">Failed: <b>'+fail+'</b></span></div>';
+ h+='<div class="card"><div class="row"><b>Messages</b><button class="s" onclick="obAct(\'\',\'clear\')">Clear sent list</button></div>';
+ if(!OB.rows.length)h+='<p class="mu">No messages yet.</p>';
+ OB.rows.forEach(function(m){var st={pending:'Waiting',sending:'Sending…',sent:'Sent',failed:'Failed'}[m.status]||m.status,cl=m.status==='sent'?'grn':m.status==='failed'?'red':'mu',
+  tm=new Date(m.sent_at||m.created_at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  h+='<div style="border-top:1px solid var(--bd);padding:7px 0"><div class="row"><b>'+esc(m.party_name||m.phone)+'</b><span class="'+cl+'">'+st+'</span></div><div class="mu">'+tm+' · +'+esc(m.phone)+'</div><div class="mu" style="white-space:pre-wrap;max-height:3.6em;overflow:hidden">'+esc(m.message)+'</div>'+(m.error?'<div class="red" style="font-size:12px">'+esc(m.error)+'</div>':'')+
+  (m.status==='failed'?'<button class="s" data-id="'+m.id+'" onclick="obAct(this.dataset.id,\'retry\')">Try again</button>':'')+(m.status==='pending'?'<button class="s" data-id="'+m.id+'" onclick="obAct(this.dataset.id,\'cancel\')">Cancel</button>':'')+'</div>'});
+ e.innerHTML=h+'</div>'}
+function obAct(id,a){
+ var q;
+ if(a==='retry')q=SB.from('outbox').update({status:'pending',error:null,claimed_by:null}).eq('id',id).eq('status','failed');
+ else if(a==='cancel')q=SB.from('outbox').delete().eq('id',id).eq('status','pending');
+ else if(a==='clear'){if(!confirm('Remove all Sent messages from this list?'))return;q=SB.from('outbox').delete().eq('status','sent')}
+ Promise.resolve(q).then(function(r){if(r&&r.error)alert('Could not do it: '+r.error.message);obLoad()})}
+function obList(){var min=Math.max(+OB.min||0,0.01);return D.parties.filter(function(p){return !p.x&&p.phone&&phone(p).length>=10&&bal(p)>=min}).sort(function(a,b){return bal(b)-bal(a)})}
+function obRecent(){var rec={},lim=Date.now()-3*864e5;OB.rows.forEach(function(m){if(m.kind==='reminder'&&new Date(m.created_at).getTime()>lim)rec[m.phone]=1});return rec}
+function obBulkHtml(){var L=obList(),rec=obRecent(),n=0,h='';
+ L.forEach(function(p){if(OB.sel[p.id]===undefined)OB.sel[p.id]=!rec[phone(p)];if(OB.sel[p.id])n++;
+  h+='<label style="display:flex;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--bd)"><input type="checkbox" style="width:auto;margin:0" data-id="'+esc(p.id)+'" '+(OB.sel[p.id]?'checked':'')+' onchange="OB.sel[this.dataset.id]=this.checked;obCount()"><span style="flex:1">'+esc(p.name)+(rec[phone(p)]?' <span class="mu">(reminded in last 3 days)</span>':'')+'<br><span class="mu">+'+esc(phone(p))+'</span></span><b class="red">'+money(bal(p))+'</b></label>'});
+ return '<div class="mu">Only parties with a phone number and balance due are listed.</div><label class="mu">Remind parties owing at least (₹)</label><input type="number" value="'+esc(OB.min)+'" oninput="OB.min=this.value" onchange="obPaintBulk()">'+
+ '<label class="mu">Message ({name}, {shop} and {amount} are filled in for each party)</label><textarea rows="4" oninput="OB.tpl=this.value">'+esc(OB.tpl)+'</textarea>'+
+ '<div class="row" style="margin:6px 0"><button class="s" onclick="obSelAll(1)">Select all</button><button class="s" onclick="obSelAll(0)">Select none</button></div>'+(L.length?h:'<p class="mu">No party matches.</p>')+
+ '<div id="obc" class="mu" style="margin-top:8px">'+n+' selected</div><button style="width:100%;margin-top:6px" onclick="obQueue()">Add selected reminders to Outbox</button>'}
+function obPaintBulk(){var e=$('#obb');if(e)e.innerHTML=obBulkHtml()}
+function obCount(){var n=0;obList().forEach(function(p){if(OB.sel[p.id])n++});var e=$('#obc');if(e)e.textContent=n+' selected'}
+function obSelAll(v){obList().forEach(function(p){OB.sel[p.id]=!!v});obPaintBulk()}
+function obQueue(){
+ var L=obList().filter(function(p){return OB.sel[p.id]});
+ if(!L.length)return alert('Select at least one party');
+ if(!/\{amount\}/.test(OB.tpl)&&!confirm('Your message does not contain {amount}. Continue?'))return;
+ if(!confirm('Add '+L.length+' reminders to the Outbox?\nSending takes about '+Math.ceil(L.length*25/60)+' minutes, one message every ~20 seconds, and only while the sender program is running.'))return;
+ var arr=L.map(function(p){return {phone:phone(p),party_name:p.name,kind:'reminder',message:OB.tpl.replace(/\{name\}/g,p.name).replace(/\{shop\}/g,D.shop||'').replace(/\{amount\}/g,money(bal(p)))}}),i=0;
+ function next(){if(i>=arr.length)return Promise.resolve();var part=arr.slice(i,i+200);i+=200;return obAdd(part).then(next)}
+ next().then(function(){obToast(arr.length+' reminders added to Outbox');L.forEach(function(p){OB.sel[p.id]=false});return obLoad()}).then(obPaintBulk).catch(function(e){alert('Could not add: '+(e&&e.message||e))})}
+function vOutbox(){
+ setTimeout(function(){OB.bulkDone=false;obLoad();obTimer()},0);
+ return '<div class="card" style="max-width:700px"><b>WhatsApp Outbox</b><label style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input type="checkbox" style="width:auto;margin:3px 0 0" '+(PS().autoWA?'checked':'')+' onchange="PS().autoWA=this.checked;save()"><span>Send WhatsApp messages automatically<br><span class="mu">When ON, every WhatsApp button in the app (bill, receipt, reminder, statement) adds the message to the Outbox instead of opening WhatsApp. Messages that need a picture still open WhatsApp by hand. This needs the sender program running on your laptop.</span></span></label></div>'+
+ '<div style="max-width:700px"><div id="obx"><div class="card mu">Loading…</div></div><div class="card"><b>Send payment reminders to many parties</b><div id="obb">'+obBulkHtml()+'</div></div></div>'}
+var _vPo=vPage;vPage=function(){return pg==='out'?vOutbox():_vPo()};
+var _bn9=buildNav;buildNav=function(){_bn9();var n=$('nav');if(!n||n.querySelector('[data-out]'))return;var b=document.createElement('button');b.setAttribute('data-out','1');b.textContent='Outbox';if(pg==='out')b.className='on';b.onclick=function(){nav('out')};var bk=Array.prototype.find.call(n.children,function(x){return x.textContent==='Backup'});n.insertBefore(b,bk||null)};
 
-/* party details panel */
-var _vps=vParties;
-vParties=function(){var h=_vps(),m=h.match(/pform=\{id:'([^']+)'\}/);if(!m)return h;var p=P(m[1]);if(!p)return h;
- var x='';if(p.addr)x+='<div class="mu" style="margin-top:6px"><b>Billing address:</b><br>'+nl2(p.addr)+'</div>';
- if(p.ship)x+='<div class="mu" style="margin-top:6px"><b>Shipping address:</b><br>'+nl2(p.ship)+'</div>';
- else x+='<div style="margin-top:6px"><a style="cursor:pointer;color:#1a73e8;font-weight:600" onclick="pform={id:\''+p.id+'\'};render();setTimeout(shipShow,0)">+ Add shipping address</a></div>';
- return h.replace(/(<div class="mu" style="margin-top:4px">Phone: [^<]*<\/div>)/,function(a){return a+x})};
-csvParties=function(){csvOut('parties',['Party','Phone','Billing Address','Shipping Address','Balance','Type'],D.parties.map(function(p){var b=bal(p);return [p.name,p.phone||'',(p.addr||'').replace(/\n/g,', '),(p.ship||'').replace(/\n/g,', '),Math.abs(b),b>0.009?'To receive':b<-0.009?'To pay':'Nil']}))};
-
-/* sale form */
-var _vb=vBill2;
-vBill2=function(){var h=_vb(),blk='<div class="card" style="padding:16px"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px"><div><label class="mu">Billing Address</label><textarea id="bad" rows="2" placeholder="Billing address" oninput="draft.addr=this.value">'+esc(draft.addr||'')+'</textarea></div><div><div class="row"><label class="mu">Shipping Address</label><a style="cursor:pointer;color:#1a73e8;font-size:13px" onclick="shipSame2()">Same as billing</a></div><textarea id="bsh" rows="2" placeholder="Shipping address (delivery site)" oninput="draft.ship=this.value">'+esc(draft.ship||'')+'</textarea></div></div></div>';
- var k='<div class="card" style="padding:0;overflow-x:auto"><datalist id="il">',i=h.indexOf(k);return i<0?h:h.slice(0,i)+blk+h.slice(i)};
-var _fpA=fillP;
-fillP=function(){_fpA();var p=findP(draft.name);if(p&&draft.autoP!==p.id){draft.autoP=p.id;draft.addr=p.addr||'';draft.ship=p.ship||'';var a=document.getElementById('bad'),s=document.getElementById('bsh');if(a)a.value=draft.addr;if(s)s.value=draft.ship}};
-function putAddr(b,a,s){if(!b)return;b.addr=a||'';b.ship=s||'';var p=P(b.pid);if(p){if(a&&!p.addr)p.addr=a;if(s&&!p.ship)p.ship=s}save()}
-var _sbA=saveBill2;
-saveBill2=function(){var a=draft.addr,s=draft.ship,n0=D.bills.length;_sbA();if(D.bills.length>n0){putAddr(D.bills[D.bills.length-1],a,s);render()}};
-var _seA=saveEdit;
-saveEdit=function(){var a=draft.addr,s=draft.ship,no=draft.edit;_seA();var b=bl(no);if(b&&a!==undefined){putAddr(b,a,s);render()}};
-var _ebA=editBill;
-editBill=function(no){_ebA(no);var b=bl(no);if(b&&draft.edit===no){var ad=bAddr(b);draft.addr=ad.a;draft.ship=ad.s;draft.autoP=b.pid;render()}};
-
-/* bill view, print, bill picture */
-var _bvA=vBillView;
-vBillView=function(){var h=_bvA(),b=bl(viewB);if(!b)return h;var ad=bAddr(b);if(!ad.a&&!ad.s)return h;
- var x='<div class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">'+(ad.a?'<div><span class="mu">Billing address</span><br>'+nl2(ad.a)+'</div>':'')+(ad.s?'<div><span class="mu">Shipping address</span><br>'+nl2(ad.s)+'</div>':'')+'</div>';
- return h.replace(/(<div class="card row">[\s\S]*?<\/span><\/div>)/,function(a){return a+x})};
-var _bhA=billHtml;
-billHtml=function(b){var h=_bhA(b),ad=bAddr(b);if(!ad.a&&!ad.s)return h;
- var x=(ad.a?'<br><span class="m">Billing: '+nl2(ad.a)+'</span>':'')+(ad.s?'<br><span class="m"><b>Ship to:</b> '+nl2(ad.s)+'</span>':'');
- return h.replace('</p><table>',x+'</p><table>')};
-
-/* ---------- SORT ARROWS on every list (click = one way, click again = other way) ---------- */
-var NCMP=function(a,b){return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'})};
-function sArr(on,up){return on?'<span style="color:#1a73e8;font-weight:700">'+(up?'↑':'↓')+'</span>':'<span style="opacity:.45">⇅</span>'}
-function sHdr(l1,f1,on1,up1,l2,f2,on2,up2){return '<div class="row" style="padding:9px 10px;background:#f4f6fb;border:1px solid var(--bd);border-radius:6px;font-weight:600;font-size:13px;color:#5d647a;margin:6px 0"><span style="cursor:pointer;user-select:none" onclick="'+f1+'">'+l1+' '+sArr(on1,up1)+'</span><span style="cursor:pointer;user-select:none" onclick="'+f2+'">'+l2+' '+sArr(on2,up2)+'</span></div>'}
-/* parties */
-partyCmp=function(a,b){var n=NCMP(a.name,b.name);if(PSORT==='az')return n;if(PSORT==='za')return -n;var d=bal(a)-bal(b);return PSORT==='hi'?(-d||n):(d||n)};
-function togPS(k){setPSort(k==='n'?(PSORT==='az'?'za':'az'):(PSORT==='hi'?'lo':'hi'))}
-var _vpS=vParties;
-vParties=function(){return _vpS().replace(/<select style="margin:0 0 8px" onchange="setPSort\(this\.value\)">[\s\S]*?<\/select>/,function(){var n=PSORT==='az'||PSORT==='za';return sHdr('Party Name','togPS(\'n\')',n,PSORT==='az','Amount','togPS(\'a\')',!n,PSORT==='lo')})};
-/* items */
-var ISORT=(function(){try{return localStorage.getItem('isort')||'az'}catch(e){return 'az'}})();
-function setISort(v){ISORT=v;try{localStorage.setItem('isort',v)}catch(e){}render()}
-function togIS(k){setISort(k==='n'?(ISORT==='az'?'za':'az'):(ISORT==='hi'?'lo':'hi'))}
-function itemCmp(a,b){var n=NCMP(a.name,b.name);if(ISORT==='az')return n;if(ISORT==='za')return -n;var d=(+a.qty||0)-(+b.qty||0);return ISORT==='hi'?(-d||n):(d||n)}
-var _viS=vItems;
-vItems=function(){return _viS().replace('<input placeholder="Search item" oninput="flt(this.value)">',function(a){var n=ISORT==='az'||ISORT==='za';return a+sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo')})};
-
-/* every table: click a heading to sort, click again to reverse */
-var TSORT={};
-function cellTxt(td){return (td.textContent||'').replace(/\s+/g,' ').trim()}
-function numOf(s){var m=s.replace(/[₹,\s]/g,'').match(/^[-+−]?\d+(\.\d+)?/);return m?parseFloat(m[0].replace('−','-')):NaN}
-function dateOf(s){var m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?Date.UTC(+m[3],+m[2]-1,+m[1]):NaN}
-function applySort(t,key){
- var st=TSORT[key],rows=Array.prototype.slice.call(t.rows,1),body=rows.length?rows[0].parentNode:null;if(!body)return;
- var data=[],fix=[];
- rows.forEach(function(r){var c=r.cells;if(c.length<=st.c||r.querySelector('input,select,textarea')||/^total/i.test(cellTxt(c[0]))||(c[0]&&c[0].colSpan>1))fix.push(r);else data.push({r:r,s:cellTxt(c[st.c])})});
- var ne=data.filter(function(x){return x.s!==''}),isD=ne.length&&ne.every(function(x){return !isNaN(dateOf(x.s))}),isN=!isD&&ne.length&&ne.every(function(x){return !isNaN(numOf(x.s))});
- data.forEach(function(x,i){x.i=i;x.v=isD?dateOf(x.s):isN?numOf(x.s):x.s});
- data.sort(function(a,b){var ae=a.s==='',be=b.s==='';if(ae||be)return ae&&be?a.i-b.i:ae?1:-1;var c=(isD||isN)?((isNaN(a.v)?-1e18:a.v)-(isNaN(b.v)?-1e18:b.v)):NCMP(a.v,b.v);return c?c*st.d:a.i-b.i});
- data.forEach(function(x){body.appendChild(x.r)});fix.forEach(function(r){body.appendChild(r)});
-}
-function decoSort(){
- document.querySelectorAll('table.tbl').forEach(function(t){
-  var h=t.rows[0];if(!h||!h.querySelector('th')||t.querySelector('input,select,textarea'))return;
-  var cs=Array.prototype.slice.call(h.cells),key=cs.map(function(c){return c.getAttribute('data-h')||cellTxt(c)}).join('|'),st=TSORT[key];
-  cs.forEach(function(c,i){
-   var base=c.getAttribute('data-h');if(base==null){base=cellTxt(c);c.setAttribute('data-h',base)}
-   if(!base)return;
-   c.style.cursor='pointer';c.style.userSelect='none';c.style.whiteSpace='nowrap';
-   var on=st&&st.c===i;c.innerHTML=base.replace(/&/g,'&amp;').replace(/</g,'&lt;')+' '+sArr(on,on&&st.d===1);
-   c.onclick=function(){var s=TSORT[key];if(s&&s.c===i)TSORT[key]={c:i,d:-s.d};else{var v=[];Array.prototype.slice.call(t.rows,1).forEach(function(r){if(r.cells[i]&&!r.querySelector('input,select,textarea')){var x=cellTxt(r.cells[i]);if(x!==''&&!/^total/i.test(cellTxt(r.cells[0])))v.push(x)}});
-     var num=v.length&&(v.every(function(x){return !isNaN(dateOf(x))})||v.every(function(x){return !isNaN(numOf(x))}));TSORT[key]={c:i,d:num?-1:1}}render()};
-  });
-  if(st)applySort(t,key);
- });
-}
-var _rSort=render;render=function(){_rSort();try{decoSort()}catch(e){}};
-
-/* ---------- PHONE FRIENDLY: bottom menu, Back button, less lag ---------- */
-(function(){
- var st=document.createElement('style');
- st.textContent='#mbar,#mtop,#msheet{display:none}'+
- '@media(max-width:899px){nav{display:none!important}body{padding-bottom:78px}'+
- 'input,select,textarea{font-size:16px!important}'+
- '#mtop{display:flex;gap:8px;align-items:center;position:sticky;top:0;z-index:8;background:#101338;padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top,0px));margin:0}'+
- '#mtop button{background:#fff;color:#101338;border:0;border-radius:8px;padding:9px 14px;font-weight:600;font-size:15px}'+
- '#mtop span{color:#fff;font-weight:600;flex:1;text-align:right;font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}'+
- '#mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:9;background:#101338;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -2px 10px rgba(0,0,0,.2)}'+
- '#mbar button{flex:1;background:none;border:0;color:#aab;font-size:12px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px}'+
- '#mbar button b{font-size:20px;font-weight:400;line-height:1}#mbar button.on{color:#fff}#mbar button.on b{transform:scale(1.15)}'+
- '#msheet.open{display:block;position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45)}'+
- '#msheet div{position:absolute;left:0;right:0;bottom:0;background:#fff;color:#1f2437;border-radius:16px 16px 0 0;padding:14px;max-height:80vh;overflow-y:auto;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}'+
- '#msheet button{display:block;width:100%;text-align:left;background:#f4f6fb;border:0;border-radius:10px;padding:14px;margin:6px 0;font-size:16px;color:#1f2437}'+
- '#msheet h4{margin:12px 0 4px;color:#7b8194;font-size:13px;font-weight:600}}'+
- '@media(max-width:899px){#v .tbl tr{content-visibility:auto;contain-intrinsic-size:auto 44px}}';
- document.head.appendChild(st);
- var t=document.createElement('div');t.id='mtop';t.innerHTML='<button onclick="goBack()">← Back</button><button onclick="nav(\'home\')">🏠 Home</button><span id="mtt"></span>';
- var v=document.getElementById('v');v.parentNode.insertBefore(t,v);
- var b=document.createElement('div');b.id='mbar';document.body.appendChild(b);
- var s=document.createElement('div');s.id='msheet';s.onclick=function(e){if(e.target===s)s.classList.remove('open')};document.body.appendChild(s);
-})();
-function goBack(){var b=[].find.call(document.querySelectorAll('#v button'),function(x){return /^←/.test(x.textContent.trim())});if(b){b.click();return}nav('home')}
-function mMore(){var s=$('#msheet'),h='<div><b style="font-size:17px">Menu</b>';
- function sec(t,L){h+='<h4>'+t+'</h4>'+L.map(function(x){return '<button onclick="$(\'#msheet\').classList.remove(\'open\');nav(\''+x[0]+'\')">'+x[1]+'</button>'}).join('')}
- sec('Sale',GR.sale);sec('Purchase',GR.pur);sec('More',[['rep','Reports'],['bk','Backup & Import'],['set','Settings']]);
- s.innerHTML=h+'</div>';s.classList.add('open')}
-function mBar(){
- var g=grpOf(pg),on=function(k){return (g===k||pg===k)?'on':''},bar=$('#mbar'),top=$('#mtop');if(!bar)return;
- bar.innerHTML='<button class="'+on('home')+'" onclick="nav(\'home\')"><b>🏠</b>Home</button><button class="'+(g==='sale'?'on':'')+'" onclick="nav(\'sale\')"><b>🧾</b>Sale</button><button class="'+on('party')+'" onclick="nav(\'party\')"><b>👥</b>Parties</button><button class="'+on('items')+'" onclick="nav(\'items\')"><b>📦</b>Items</button><button onclick="mMore()"><b>☰</b>More</button>';
- var detail=!!(form||sub||viewB||openB||viewD||pg!=='home');
- top.style.display=(detail?'':'none');bar.style.display=form?'none':'';
- var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',bk:'Backup',set:'Settings'};
- var tt=$('#mtt');if(tt)tt.textContent=form?'New Sale':(nm[pg]||'')}
-var _r8=render;render=function(){_r8();try{mBar()}catch(e){}};
-var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTimeout(_sr8,400)};
-
-/* ---------- SUGGESTION LIST THAT WORKS ON PHONES (replaces the phone-unfriendly datalist) ---------- */
-(function(){
- var box=document.createElement('div');box.id='sug';
- box.style.cssText='display:none;position:fixed;z-index:40;background:#fff;color:#1f2437;border:1px solid #cfd5e3;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.25);max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
- document.body.appendChild(box);var cur=null,sIdx=-1;
- function hide(){box.style.display='none';cur=null;sIdx=-1}
- function pos(){if(!cur)return;var r=cur.getBoundingClientRect(),vh=(window.visualViewport?visualViewport.height:innerHeight);box.style.left=Math.max(4,r.left)+'px';box.style.width=Math.min(Math.max(r.width,240),innerWidth-8)+'px';
-  var h=box.offsetHeight;if(r.bottom+h+6>vh&&r.top>h+6)box.style.top=(r.top-h-4)+'px';else box.style.top=(r.bottom+3)+'px'}
- function show(inp){
-  var l=document.getElementById(inp.dataset.dl);if(!l){hide();return}
-  var q=inp.value.trim().toLowerCase(),M=[];
-  [].forEach.call(l.options,function(o){var v=String(o.value),lb=o.label||o.getAttribute('label')||'',a=v.toLowerCase(),t=(a+' '+lb.toLowerCase()),k;
-   if(!q)k=3;else if(a.indexOf(q)===0)k=0;else if((' '+a).indexOf(' '+q)>=0)k=1;else if(t.indexOf(q)>=0)k=2;else return;M.push({v:v,l:lb,k:k})});
-  M.sort(function(x,y){return x.k-y.k||(x.v<y.v?-1:1)});M=M.slice(0,8);
-  if(!M.length||(M.length===1&&M[0].v.toLowerCase()===q)){hide();return}
-  cur=inp;box.innerHTML='';
-  M.forEach(function(m){var d=document.createElement('div');d.style.cssText='padding:12px 14px;border-bottom:1px solid #eef0f5;font-size:16px;cursor:pointer';
-   d.dataset.v=m.v;d.textContent=(m.l&&m.l!==m.v&&m.l.indexOf(m.v)===0)?m.l:m.v;
-   d.addEventListener('pointerdown',function(e){e.preventDefault();inp.value=m.v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));hide()});
-   box.appendChild(d)});
-  box.style.display='block';sIdx=-1;pos()}
- document.addEventListener('input',function(e){var t=e.target;if(t&&t.dataset&&t.dataset.dl)show(t)});
- document.addEventListener('focusin',function(e){var t=e.target;if(t&&t.dataset&&t.dataset.dl)show(t)});
- document.addEventListener('focusout',function(e){setTimeout(function(){if(cur&&document.activeElement!==cur)hide()},120)});
- window.addEventListener('scroll',pos,true);window.addEventListener('resize',pos);
- document.addEventListener('keydown',function(e){if(e.key==='Escape')hide()});
- function sHl(i){var k=box.children;if(!k.length)return;sIdx=(i+k.length)%k.length;for(var j=0;j<k.length;j++)k[j].style.background=j===sIdx?'#d6e9f9':'';k[sIdx].scrollIntoView({block:'nearest'})}
- document.addEventListener('keydown',function(e){var t=e.target;if(!t||!t.dataset||!t.dataset.dl)return;var open=box.style.display==='block'&&cur===t;
-  if(e.key==='ArrowDown'||e.key==='ArrowUp'){if(!open){if(e.key==='ArrowUp')return;show(t);if(box.style.display!=='block')return}
-   e.preventDefault();e.stopPropagation();sHl(sIdx<0?(e.key==='ArrowDown'?0:box.children.length-1):sIdx+(e.key==='ArrowDown'?1:-1));return}
-  if(e.key==='Enter'&&open&&sIdx>=0){e.preventDefault();e.stopPropagation();var v=box.children[sIdx].dataset.v;t.value=v;t.dispatchEvent(new Event('input',{bubbles:true}));t.dispatchEvent(new Event('change',{bubbles:true}));hide()}
- },true);
- window.sugUp=function(){hide();[].forEach.call(document.querySelectorAll('input[list]'),function(i){i.dataset.dl=i.getAttribute('list');i.removeAttribute('list');i.setAttribute('autocomplete','off')})};
-})();
-var _r9=render;render=function(){_r9();try{sugUp()}catch(e){}};
-
-/* ---------- SUGGESTIONS ALSO IN SEARCH BOXES (party / item) ---------- */
-function sgList(id,html,key){var l=document.getElementById(id);if(!l){l=document.createElement('datalist');l.id=id;document.body.appendChild(l)}if(l.dataset.k!==key){l.dataset.k=key;l.innerHTML=html}}
-var _su10=sugUp;
-sugUp=function(){_su10();
- var q=[].slice.call(document.querySelectorAll('input[placeholder*="earch"]')).filter(function(i){return !i.dataset.dl});
- if(!q.length)return;
- var needI=q.some(function(i){return /item/i.test(i.placeholder)});
- sgList('sgP',D.parties.map(function(p){return '<option value="'+esc(p.name)+'" label="'+esc(p.name+(p.phone?' · '+p.phone:''))+'">'}).join(''),D.parties.length+'|'+D.parties.reduce(function(n,p){return n+(p.phone?1:0)},0));
- if(needI)sgList('sgI',D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join(''),String(D.items.length));
- q.forEach(function(i){i.dataset.dl=/item/i.test(i.placeholder)?'sgI':'sgP';i.setAttribute('autocomplete','off')})};
-
-/* ---------- LISTS SCROLL INSIDE THEIR OWN BOX (like Vyapar) + BACK FROM SETTINGS TABS ---------- */
-(function(){var st=document.createElement('style');st.textContent='.scl{overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px}.card.scl{border:0;border-radius:6px}.scl th{position:sticky;top:0;z-index:2}';document.head.appendChild(st)})();
-var SCR={};
-function scrKey(w,i){var l=w.classList.contains('scl-l');return (l?'L':'T')+i+'|'+(typeof tab!=='undefined'?tab:'')+'|'+(typeof pg!=='undefined'?pg:'')+(l?'':'|'+selP+'|'+selI+'|'+(typeof openP!=='undefined'?openP:''))}
-function decoScroll(){var v=document.getElementById('v');if(!v)return;if(window.innerWidth<900)return;
- var m=document.getElementById('mbar'),bot=(m&&getComputedStyle(m).display!=='none')?86:24,boxes=[];
- /* 1) row lists (parties, items) */
- [].forEach.call(v.querySelectorAll('.card'),function(c){if(c.querySelector(':scope > .row[data-n]')){c.classList.add('scl','scl-l');boxes.push(c)}});
- /* 2) every table (transactions, payments, invoices, reports...) except the ones you type into */
- [].forEach.call(v.querySelectorAll('table.tbl'),function(t){var w=t.parentElement;if(!w||t.rows.length<2)return;
-  if(t.querySelector('input,select,textarea'))return;
-  if(w.parentElement&&w.parentElement.closest('.scl,.pend,[style*="max-height"]'))return;
-  w.classList.add('scl');boxes.push(w)});
- boxes.forEach(function(w){w.style.maxHeight='';w._fit=false});
- boxes.forEach(function(w){if(!w.getClientRects().length)return;
-  var top=w.getBoundingClientRect().top+window.pageYOffset,h=window.innerHeight-top-bot;w._fit=h>=220;w.style.maxHeight=Math.max(h,220)+'px'});
- /* trim so the whole page never needs its own scrollbar */
- for(var k=0;k<3;k++){var ov=document.documentElement.scrollHeight-window.innerHeight;if(ov<=1)break;
-  var act=boxes.filter(function(w){return w._fit&&w.getClientRects().length&&w.scrollHeight>w.clientHeight+1});if(!act.length)break;
-  act.forEach(function(w){w.style.maxHeight=Math.max(w.offsetHeight-ov,160)+'px'})}
- /* short lists stay plain; long ones scroll inside the box and keep their position */
- boxes.forEach(function(w,i){if(!w.getClientRects().length)return;
-  if(w.scrollHeight<=w.clientHeight+1){w.classList.remove('scl');w.style.maxHeight='';return}
-  if(!w.dataset.rs){w.dataset.sk=scrKey(w,i);w.scrollTop=SCR[w.dataset.sk]||0;w.dataset.rs='1'}})}
-window.addEventListener('resize',function(){try{decoScroll()}catch(e){}});
-var _gb11=goBack;
-goBack=function(){if(pg==='set'&&sTab!=='gen'){sTab='gen';render();window.scrollTo(0,0);return}_gb11()};
-function fixBack(){if(pg!=='set')return;[].forEach.call(document.querySelectorAll('#v button'),function(b){if(/^←/.test(b.textContent.trim())){b.removeAttribute('onclick');b.onclick=function(){goBack()}}})}
-var _r11=render;render=function(){try{[].forEach.call(document.querySelectorAll('#v .scl[data-sk]'),function(w){SCR[w.dataset.sk]=w.scrollTop})}catch(e){}_r11();try{fixBack();decoScroll()}catch(e){}};
-
-/* ---------- PHONE LOOK (Vyapar style): light header, 4-tab bottom bar, cards, floating Add button ---------- */
-(function(){
- var st=document.createElement('style');
- st.textContent='#mfab{display:none}'+
- '@media(max-width:899px){'+
- 'header,#v>.pills:first-child{display:none!important}'+
- 'body{background:#e3eefa;padding-bottom:140px}#v{padding:8px 10px}'+
- 'body #mtop{display:flex;align-items:center;gap:10px;background:#fff;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top,0px));box-shadow:0 1px 4px rgba(25,35,80,.08)}'+
- '#mtop .mlogo{width:32px;height:32px;border-radius:50%;background:#101338;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}'+
- '#mtop .mnm{flex:1;min-width:0}#mtop .mnm b{display:block;font-size:17px;color:#1f2437;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#mtop .mnm small{color:#7b8194;font-size:11px}'+
- 'body #mtop button{background:#f1f3f8;color:#1f2437;border:0;border-radius:50%;width:36px;height:36px;padding:0;font-size:20px;line-height:1;flex:none}'+
- '#mtop .mttl{flex:1;font-size:17px;font-weight:700;color:#1f2437;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
- 'body #mbar{background:#fff;box-shadow:0 -2px 12px rgba(25,35,80,.12);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));gap:4px}'+
- 'body #mbar button{color:#1f2437;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-radius:20px;padding:7px 2px;gap:3px}'+
- '#mbar button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}'+
- 'body #mbar button.on{background:#e3eefc;color:#1a73e8}'+
- '#mfab.show{display:flex;align-items:center;gap:8px;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:9;background:#e8213a;color:#fff;border:0;border-radius:999px;padding:13px 20px;font-weight:700;font-size:14px;white-space:nowrap;box-shadow:0 4px 14px rgba(232,33,58,.45)}'+
- '.mpills{display:flex;gap:10px;margin:4px 0 10px}.mp{flex:1;background:#fff;border:1px solid #cfd5e3;color:#7b8194;border-radius:999px;padding:10px 6px;font-size:14px;font-weight:500}.mp.on{background:#fde8ea;border-color:#e8213a;color:#e8213a}'+
- '.mq{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.1);padding:12px;margin:0 0 10px}.mq>b{font-size:14px}'+
- '.mqg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}.mqg button{background:none;border:0;font-size:11.5px;color:#1f2437;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0}'+
- '.mqg i{font-style:normal;width:44px;height:40px;border-radius:10px;background:#dcebfd;color:#1a73e8;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}.mqg i.r{background:#fde1e5;color:#e8213a}'+
- 'input.msr{background:#fff;border:0;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.1);padding:13px 12px;margin:0 0 6px}'+
- '.mc{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.1);padding:11px 12px;margin:8px 0}'+
- '.mc .t{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.mc .t b{font-size:14.5px;text-transform:uppercase}.mc .t span{color:#9097a8;font-size:11.5px;text-align:right;line-height:1.35;flex:none}'+
- '.chip{display:inline-block;margin:6px 0 2px;padding:3px 8px;border-radius:5px;font-size:10.5px;font-weight:700;background:#fff0d6;color:#d98200}.chip.g{background:#dff5ea;color:#17a56b}.chip.x{background:#eceef3;color:#7b8194}'+
- '.mc3{display:flex;gap:18px;margin-top:8px}.mc3 span{display:block;color:#9097a8;font-size:11.5px}.mc3 b{font-size:14px}'+
- '.mg{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.1);padding:4px 12px 4px;margin:0 0 12px}.mgt{font-size:13.5px;font-weight:600;padding:10px 0 4px}'+
- '.mr{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #eef0f5;font-size:15px}.mr:last-child{border-bottom:0}.mr.sub{padding-left:16px;color:#4a5068;background:#fafbfe}.mrc{color:#1a73e8;font-size:20px;line-height:1}'+
- '}';
- document.head.appendChild(st);
- var f=document.createElement('button');f.id='mfab';document.body.appendChild(f);
-})();
-var MH='tx',MN=60,MQ='',MX={};
-function isM(){return window.innerWidth<900}
-var IC={home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',dash:'<svg viewBox="0 0 24 24"><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-8h4v8"/></svg>',items:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>',more:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'};
-function mDate(d){return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'}).replace(/ (\d\d)$/,', $1')}
-function mhRows(){var rows=[];
- D.bills.forEach(function(b){var p=P(b.pid),pd=paidOn(b);rows.push({d:b.date,ty:'SALE',k:b.x?'cancel':'sale',no:b.no,n:p?p.name:'?',amt:b.total,bal:b.x?'':Math.max(b.total-pd,0),st:b.x?'CANCELLED':(b.total-pd<=0.009?'PAID':pd>0?'PARTLY PAID':'UNPAID'),go:"viewB="+b.no+";tab='bill';openB=null"})});
- D.pays.forEach(function(x){if(/^With bill #/.test(x.note||''))return;var p=P(x.pid);rows.push({d:x.date,ty:x.ret?'SALE RETURN':x.out?'PAYOUT':'PAYIN',k:x.x?'cancel':'pay',no:'',n:p?p.name:'?',amt:x.amt,bal:'',st:x.x?'CANCELLED':x.ret?'RETURNED':x.out?'PAID':'RECEIVED',go:"openP='"+x.pid+"';tab='party'"})});
- return rows.sort(function(a,b){return b.d-a.d})}
-function mhCards(q){q=String(q||'').toLowerCase().trim();var rows=mhRows();
- if(q)rows=rows.filter(function(r){return r.n.toLowerCase().indexOf(q)>=0||String(r.no).indexOf(q)>=0});
- var more=!q&&rows.length>MN;if(!q)rows=rows.slice(0,MN);
- return rows.map(function(r){var cl=r.st==='CANCELLED'?'x':(r.st==='PAID'||r.st==='RECEIVED')?'g':'';
-  return '<div class="mc" onclick="'+r.go+';render()"><div class="t"><b>'+esc(r.n)+'</b><span>'+(r.no?'#'+r.no+'<br>':'')+mDate(r.d)+'</span></div><span class="chip '+cl+'">'+(r.st==='CANCELLED'?'CANCELLED':r.ty+' : '+r.st)+'</span><div class="mc3"><div><span>Total</span><b>'+money(r.amt)+'</b></div>'+(r.bal===''?'':'<div><span>Balance</span><b>'+money(r.bal)+'</b></div>')+'</div></div>'}).join('')
-  +(rows.length?'':'<div class="mc mu">No transactions found</div>')
-  +(more?'<button class="s" style="width:100%;margin:6px 0" onclick="MN+=60;mhSearch(MQ)">Show older transactions</button>':'')}
-function mhSearch(q){MQ=q;var e=document.getElementById('mhl');if(e)e.innerHTML=mhCards(q)}
-function mPills(a){return '<div class="mpills"><button class="mp '+(a==='tx'?'on':'')+'" onclick="nav(\'home\')">Transaction Details</button><button class="mp '+(a==='pa'?'on':'')+'" onclick="nav(\'party\')">Party Details</button></div>'}
-function vMHome(){
- return '<div class="mq"><b>Quick Links</b><div class="mqg"><button onclick="newSale()"><i class="r">＋</i>Add Txn</button><button onclick="newPay(0)"><i>⇩</i>Payment-In</button><button onclick="newRet()"><i>↩</i>Sale Return</button><button onclick="openRep(\'sale\')"><i>☰</i>Sale Report</button></div></div>'
- +'<input class="msr" placeholder="Search for a transaction" value="'+esc(MQ)+'" oninput="mhSearch(this.value)"><div id="mhl">'+mhCards(MQ)+'</div>'}
-function vMItems(){var it=D.items.slice().sort(itemCmp);
- return '<input class="msr" placeholder="Search for an item or code" oninput="flt(this.value)">'+it.map(function(i){var low=i.qty<0||(i.low>0&&i.qty<=i.low);
-  return '<div class="mc" data-n="'+esc(i.name.toLowerCase())+'" onclick="selI=\''+i.id+'\';iform=null;render()"><div class="t"><b style="text-transform:none">'+esc(i.name)+'</b></div><div class="mc3" style="gap:0;justify-content:space-between"><div><span>Sale Price</span><b>'+money(i.rate)+'</b></div><div><span>Purchase Price</span><b>'+money(i.buy||0)+'</b></div><div style="min-width:60px"><span>Stock</span><b class="'+(low?'red':'grn')+'">'+i.qty+'</b></div></div></div>'}).join('')+(it.length?'':'<div class="mc mu">No items yet</div>')}
-function vMore(){
- function row(t,act,c){return '<div class="mr" onclick="'+act+'"><span>'+t+'</span><span class="mrc">'+c+'</span></div>'}
- function grp(k,t){var h=row(t,"MX."+k+"=!MX."+k+";render()",MX[k]?'⌃':'⌄');if(MX[k])GR[k].forEach(function(x){h+='<div class="mr sub" onclick="nav(\''+x[0]+'\')"><span>'+x[1]+'</span><span class="mrc">›</span></div>'});return h}
- return '<div class="mg"><div class="mgt">My Business</div>'+row('Parties',"nav('party')",'›')+grp('sale','Sale')+grp('pur','Purchase')+row('Godowns',"nav('gd')",'›')+row('Reports',"nav('rep')",'›')+'</div>'
- +'<div class="mg"><div class="mgt">Important Utilities</div>'+row('Backup / Restore',"nav('bk')",'›')+row('Settings',"nav('set')",'›')+'</div>'}
-var _vPm=vPage;
-vPage=function(){
- if(!isM())return _vPm();
- if(pg==='home')return mPills('tx')+vMHome();
- if(pg==='dash')return _vPm().replace('Total Receivable',"You'll Get").replace('Total Payable',"You'll Give").replace('>Home</h2>','>Dashboard</h2>');
- if(pg==='more')return vMore();
- if(pg==='items'&&!selI&&!iform)return vMItems();
- if(pg==='party'&&!selP&&!pform)return mPills('pa')+_vPm();
- return _vPm()};
-mBar=function(){
- var bar=$('#mbar'),top=$('#mtop'),fab=$('#mfab');if(!bar||!top)return;
- var cur=!!(form||sub||viewB||openB||viewD);
- var root=!cur&&(pg==='home'||pg==='dash'||pg==='more'||(pg==='items'&&!selI&&!iform)||(pg==='party'&&!selP&&!pform));
- var act=(pg==='home'||pg==='party')?'home':pg==='dash'?'dash':pg==='items'?'items':'more';
- bar.innerHTML=[['home','Home'],['dash','Dashboard'],['items','Items'],['more','More']].map(function(t){
-  var go=t[0]==='home'?"nav('home')":t[0]==='dash'?"nav('dash')":t[0]==='items'?"nav('items')":"nav('more')";
-  return '<button class="'+(act===t[0]?'on':'')+'" onclick="'+go+'">'+IC[t[0]]+t[1]+'</button>'}).join('');
- bar.style.display=form?'none':'';
- if(root){var sy=document.getElementById('sy');
-  top.innerHTML='<div class="mlogo">'+esc((D.shop||'A').charAt(0).toUpperCase())+'</div><div class="mnm"><b>'+esc(D.shop)+'</b><small>'+esc(sy?sy.textContent:'')+'</small></div><button onclick="nav(\'set\')">⚙</button>'}
- else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns'};
-  var t=form?'New Sale':sub==='pin'?(pdraft&&pdraft.out?'Payment-Out':'Payment-In'):sub==='ret'?'Sale Return':viewB?'Sale #'+viewB:(pg==='party'&&P(selP))?P(selP).name:(pg==='items'&&I(selI))?I(selI).name:pform?'Party':iform?'Item':(nm[pg]||'');
-  top.innerHTML='<button onclick="goBack()">←</button><div class="mttl">'+esc(t)+'</div>'}
- top.style.display='';
- var lab=null,fn=null;
- if(!cur){if((pg==='home')||pg==='si'){lab='Add New Sale';fn=function(){newSale()}}
-  else if(pg==='items'&&!selI&&!iform){lab='Add New Item';fn=function(){iform={};render()}}
-  else if(pg==='party'&&!selP&&!pform){lab='Add New Party';fn=function(){pform={};render()}}}
- if(lab){fab.textContent='＋ '+lab;fab.onclick=fn;fab.classList.add('show')}else fab.classList.remove('show')};
-var _wasM=isM();window.addEventListener('resize',function(){var m=isM();if(m!==_wasM){_wasM=m;try{render()}catch(e){}}});
-
-/* ---------- SETTINGS: Vyapar-style tick boxes (turn features on / off) ---------- */
-(function(){var st=document.createElement('style');st.textContent=
- '.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;max-width:1100px;align-items:start}'+
- '.sec{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.10);padding:14px 16px}'+
- '.sec h3{margin:0 0 6px;font-size:16px;padding-bottom:8px;border-bottom:1px solid var(--bd)}'+
- '.ck{display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:15px}.ck input[type=checkbox]{width:20px;height:20px;margin:0;flex:none}'+
- '.inf{width:16px;height:16px;border-radius:50%;background:#c3c8d6;color:#fff;font-size:11px;font-style:normal;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none;cursor:pointer}'+
- '.sec .hint{color:var(--mu);font-size:12.5px;margin:2px 0 4px}';
- document.head.appendChild(st)})();
-function ck(k,lb,hp,off){var on=off?!!PS()[k]:op(k);return '<label class="ck"><input type="checkbox" '+(on?'checked':'')+' onchange="setP(\''+k+'\',this.checked?1:0)"><span>'+lb+'</span>'+(hp?'<i class="inf" title="'+esc(hp)+'" onclick="event.preventDefault();alert(this.title)">i</i>':'')+'</label>'}
-var GR0={sale:GR.sale.slice(),pur:GR.pur.slice()},MODK={est:'m_est',so:'m_so',chal:'m_chal',sret:'m_sret',pret:'m_pret'};
-function applyMods(){['sale','pur'].forEach(function(g){GR[g]=GR0[g].filter(function(x){return !MODK[x[0]]||op(MODK[x[0]])})})}
-var _rM=render;render=function(){try{applyMods()}catch(e){}_rM()};
-/* block new items / parties when saving a transaction */
-function blkTx(name,lines){var m=[];
- if(PS().blkp&&(name||'').trim()&&!findP(name))m.push('Party "'+name.trim()+'" is not in your parties.');
- if(PS().blki){var bad=(lines||[]).filter(function(l){return !findI(l.name)}).map(function(l){return l.name});if(bad.length)m.push('Item not in your item list: '+bad.join(', '))}
- if(m.length){alert(m.join('\n')+'\n\nAdd it in Parties / Items first, or turn off "Block new ... from Txn Form" in Settings.');return false}return true}
-var _bs1=saveBill2;saveBill2=function(){if(!blkTx(draft.name,draft.lines))return;_bs1()};
-var _bs2=saveEdit;saveEdit=function(){if(!blkTx(draft.name,draft.lines))return;_bs2()};
-var _bs3=saveDoc;saveDoc=function(){if(!blkTx(ddraft.name,ddraft.lines))return;_bs3()};
-var _bs4=savePin;savePin=function(){if(!blkTx(pdraft.name,[]))return;_bs4()};
-var _bs5=saveRet;saveRet=function(){if(!blkTx(rdraft.name,rdraft.lines))return;_bs5()};
-var _vS8=vSettings;
-vSettings=function(){
- if(sTab!=='gen')return _vS8();
- var h=_vS8(),i=h.indexOf('<div class="card" style="max-width:600px">'),p=PS(),hasPw=!!localStorage.getItem('sbpw'),dec=p.dec==null?2:p.dec;
- return h.slice(0,i)+'<div class="sgrid">'
- +'<div class="sec"><h3>Application</h3>'
- +'<label class="ck"><input type="checkbox" '+(hasPw?'checked':'')+' onchange="(this.checked?setPass():rmPass());render()"><span>Enable Passcode</span><i class="inf" title="Asks for a passcode every time the app is opened on this device." onclick="event.preventDefault();alert(this.title)">i</i></label>'
- +(hasPw?'<div style="padding:0 0 6px 30px"><a style="color:#1a73e8;font-weight:600;cursor:pointer" onclick="setPass()">Change Passcode</a></div>':'')
- +'<div class="ck" style="cursor:default"><span style="flex:1">Amount (decimal places)</span><select style="width:72px;margin:0" onchange="setP(\'dec\',+this.value)">'+[0,1,2,3].map(function(n){return '<option value="'+n+'"'+(dec===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div>'
- +ck('nostk','Stop Sale on Negative Stock','Bill will not save if quantity is more than stock.',1)
- +ck('blki','Block New Items from Txn Form','Only items already in your Items list can be used in a bill.',1)
- +ck('blkp','Block New Parties from Txn Form','Only parties already in your Parties list can be used in a bill or payment.',1)
- +ck('round','Round off total','Bill total is rounded to a whole rupee when you save.',1)
- +'</div>'
- +'<div class="sec"><h3>More Transactions</h3><div class="hint">Switch off what you never use. It disappears from the menu. Old entries stay safe.</div>'
- +ck('m_est','Estimate / Quotation','Show Estimate / Quotation in the menu.')
- +ck('m_so','Sale Order','Show Sale Order in the menu.')
- +ck('m_chal','Delivery Challan','Show Delivery Challan in the menu.')
- +ck('m_sret','Sale Return','Show Sale Return in the menu.')
- +ck('m_pret','Purchase Return','Show Purchase Return in the menu.')
- +'</div></div>'};
-
-/* ---------- SALE INVOICES (laptop): same look as Vyapar desktop ---------- */
-(function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
- '.sv .svh{display:flex;align-items:center;justify-content:space-between;background:#fff;padding:14px 18px;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.08);margin:0 0 10px}'+
- '.sv .svt{font-size:24px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}.sv .svt i{font-style:normal;font-size:18px;color:#5d647a}'+
- '.sv .svh>div:last-child{display:flex;align-items:center;gap:14px}.sv .svh .addb{padding:11px 22px;font-size:15px}'+
- '.sv .gear{background:none;border:0;font-size:22px;color:#5d647a;padding:4px}'+
- '.sv .svf{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;padding:14px 18px;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.08);margin:0 0 10px}'+
- '.sv .fp{display:inline-flex;align-items:center;gap:8px;background:#e9f2fd;border-radius:999px;padding:0 16px;height:44px}'+
- '.sv .fp select,.sv .fp input{border:0;background:transparent;box-shadow:none;margin:0;padding:0;width:auto;font-size:15px;font-weight:500;color:#1f2437}'+
- '.sv .svk{display:inline-block;min-width:430px;border:1px solid #dcd6f0;background:#faf9ff;border-radius:6px;padding:14px 16px}'+
- '.sv .svk .a{font-size:30px;font-weight:700;margin:2px 0 10px}.sv .svk .mu{font-size:15px}.sv .svk b{color:#1f2437}'+
- '.sv .svc{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.08);padding:16px 18px;margin:0 0 10px}'+
- '.sv .svc>.row{margin-bottom:12px}.sv .svc>.row>b{font-size:20px;font-weight:500}.sv .svc>.row>span{display:flex;align-items:center;gap:10px}'+
- '.sv .svc input{margin:0;width:240px;border-radius:999px;background:#f1f3f8;border-color:transparent}'+
- '.sv .xls{background:#1e8e3e;color:#fff;border:0;border-radius:4px;padding:5px 8px;font-size:12px;font-weight:700}'+
- '.sv .scl{border:0}.sv .tbl th{padding:14px 12px;font-weight:500;white-space:nowrap}.sv .tbl td{padding:19px 12px;font-size:15px;border-bottom:0}.sv .tbl tr:nth-child(even) td{background:#fafbfe}.sv .tbl tr:hover td{background:#eceef4}'+
- '.sv .tbl th:nth-child(2),.sv .tbl td:nth-child(2),.sv .tbl th:nth-child(5),.sv .tbl td:nth-child(5),.sv .tbl th:nth-child(6),.sv .tbl td:nth-child(6){text-align:right}'+
- '.sv .ib{background:none;border:0;padding:6px;color:#5d647a;border-radius:50%}.sv .ib:hover{background:#e3e7f0}.sv .ib svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}'+
- '}';document.head.appendChild(st)})();
-function saleMenu(){mItems('Go to',GR.sale.map(function(x){return [x[1],"nav('"+x[0]+"')"]}))}
-var _vSIold=vSI;
-vSI=function(){
- if(isM())return _vSIold();
- var F=[['all','All Sale Invoices'],['unpaid','Unpaid'],['part','Partly paid'],['paid','Paid'],['cancel','Cancelled']];
- var list=D.bills.filter(function(b){if(!inPer('si',b.date))return false;var s=saleStatus(b);return sif==='all'||(sif==='unpaid'&&s==='Unpaid')||(sif==='part'&&s==='Partly paid')||(sif==='paid'&&s==='Paid')||(sif==='cancel'&&s==='Cancelled')}).sort(function(a,b){return b.no-a.no});
- var ts=0,tr=0,tb=0;list.forEach(function(b){if(b.x)return;var pd=paidOn(b);ts+=b.total;tr+=Math.min(pd,b.total);tb+=Math.max(b.total-pd,0)});
- var head=['Date','Invoice no','Party Name','Transaction','Amount','Balance','Status'];
- var ICp='<svg viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><path d="M7 17H4v-6a2 2 0 012-2h16a2 2 0 012 2v6h-3"/><path d="M7 14h10v7H7z"/></svg>',ICs='<svg viewBox="0 0 24 24"><path d="M14 5l7 6.5-7 6.5v-4C7 14 4 16 2 20c1-7 4-11 12-11z"/></svg>',ICm='<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>';
- var rows=list.map(function(b){var p=P(b.pid),nm=p?p.name:'?',pd=paidOn(b),tm=new Date(b.date).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
-  return {n:nm+' '+b.no,k:"viewB="+b.no+";render()",c:[dt(b.date)+'<br><span class="mu">'+tm+'</span>',b.no,esc(nm),'Sale',money(b.total),b.x?'':money(Math.max(b.total-pd,0)),stH(saleStatus(b))],a:'<button class="ib" title="Print" onclick="printBill('+b.no+')">'+ICp+'</button><button class="ib" title="Share on WhatsApp" onclick="wa('+b.no+')">'+ICs+'</button><button class="ib" title="More" onclick="billMenu('+b.no+')">'+ICm+'</button>'}});
- RCUR={name:'sale-invoices',h:head,r:rows.map(function(r){return r.c})};
- return '<div class="sv"><div class="svh"><div class="svt" onclick="saleMenu()">Sale Invoices <i>⌄</i></div><div><button class="b addb" onclick="newSale()">＋ Add Sale</button><button class="gear" title="Settings" onclick="sTab=\'gen\';nav(\'set\')">⚙</button></div></div>'
- +'<div class="svf"><b style="font-size:16px;font-weight:500">Filter by :</b><span class="fp"><select onchange="sif=this.value;render()">'+F.map(function(f){return '<option value="'+f[0]+'"'+(sif===f[0]?' selected':'')+'>'+f[1]+'</option>'}).join('')+'</select></span><span class="fp">'+perUI('si')+'</span></div>'
- +'<div class="svc"><div class="svk"><div class="mu">Total Sales Amount</div><div class="a">'+money(ts)+'</div><div class="mu">Received: <b>'+money(tr)+'</b> &nbsp;|&nbsp; Balance: <b>'+money(tb)+'</b></div></div></div>'
- +'<div class="svc"><div class="row"><b>Transactions</b><span><input placeholder="Search party or number" oninput="flt(this.value)"><button class="xls" title="Download Excel (CSV)" onclick="csvCur()">xls</button></span></div>'+tbl2(head,rows,1).replace('<th></th></tr>','<th>Actions</th></tr>')+'</div></div>'};
-
-/* ---------- PHONE: tables become cards (no sideways swiping), Sale list like Vyapar, Add Txn menu ---------- */
-(function(){var st=document.createElement('style');st.textContent=
- '#mtxn{display:none;position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45)}#mtxn.open{display:block}'+
- '#mtxn .sh{position:absolute;left:8px;right:8px;bottom:8px;background:#fff;border-radius:14px;padding:12px 12px calc(14px + env(safe-area-inset-bottom,0px));max-height:85vh;overflow-y:auto}'+
- '#mtxn h4{margin:14px 6px 10px;font-size:14px;font-weight:600}#mtxn .x{float:right;background:none;border:0;font-size:24px;color:#5d647a;line-height:1}'+
- '#mtxn .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 4px}#mtxn .g3 button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11.5px;color:#1f2437;padding:4px 2px}'+
- '#mtxn .g3 i{width:44px;height:40px;border-radius:10px;background:#e3eefc;color:#1a73e8;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:20px;font-weight:700}'+
- '@media(max-width:899px){'+
- '#v table.mtb,#v table.mtb tbody{display:block;width:100%}'+
- '#v table.mtb tr:first-child{display:none}'+
- '#v table.mtb tr{display:flex;flex-direction:column;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.1);margin:8px 0;padding:8px 12px}'+
- '#v table.mtb td{display:flex;justify-content:space-between;align-items:center;gap:10px;width:auto!important;min-width:0!important;padding:5px 0!important;border:0!important;background:none!important;text-align:right;font-size:14px;white-space:normal}'+
- '#v table.mtb td::before{content:attr(data-l);color:#7b8194;font-size:12.5px;text-align:left;flex:none;text-transform:capitalize}'+
- '#v table.mtb td:empty,#v table.mtb td[data-l="#"]{display:none}'+
- '#v table.mtb td.ttl{order:-1;justify-content:flex-start;font-weight:700;text-transform:uppercase;font-size:14.5px;text-align:left}#v table.mtb td.ttl::before{display:none}'+
- '#v table.mtb td input:not([type=checkbox]),#v table.mtb td select{width:100%!important;max-width:210px;margin:0}'+
- '#v table.mtb td.ttl input{max-width:none}'+
- '#v table.mtb td[data-l=""]{justify-content:flex-end}#v table.mtb td[data-l=""]::before{display:none}'+
- '.mtot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 10px}.mtot div{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.1);padding:10px 12px}.mtot span{display:block;color:#7b8194;font-size:12px}.mtot b{font-size:16px}'+
- '.mflt{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}.mflt select{width:auto;margin:0;background:#fff;border-radius:999px;padding:9px 12px}'+
- '.mc .acts{margin-left:auto;display:flex;align-items:center}.mc .ib{background:none;border:0;padding:6px;color:#5d647a;border-radius:50%}.mc .ib svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}'+
- '}';document.head.appendChild(st);
- var m=document.createElement('div');m.id='mtxn';m.onclick=function(e){if(e.target===m)m.classList.remove('open')};document.body.appendChild(m)})();
-var SVGP='<svg viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><path d="M7 17H4v-6a2 2 0 012-2h16a2 2 0 012 2v6h-3"/><path d="M7 14h10v7H7z"/></svg>',SVGS='<svg viewBox="0 0 24 24"><path d="M14 5l7 6.5-7 6.5v-4C7 14 4 16 2 20c1-7 4-11 12-11z"/></svg>',SVGM='<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>';
-function bAct(no){return '<span class="acts" onclick="event.stopPropagation()"><button class="ib" onclick="printBill('+no+')">'+SVGP+'</button><button class="ib" onclick="wa('+no+')">'+SVGS+'</button><button class="ib" onclick="billMenu('+no+')">'+SVGM+'</button></span>'}
-function mAddTxn(){var m=document.getElementById('mtxn');
- function g(L){return '<div class="g3">'+L.filter(function(x){return !x[3]||op(x[3])}).map(function(x){return '<button onclick="document.getElementById(\'mtxn\').classList.remove(\'open\');'+x[2]+'"><i>'+x[0]+'</i>'+x[1]+'</button>'}).join('')+'</div>'}
- m.innerHTML='<div class="sh"><button class="x" onclick="document.getElementById(\'mtxn\').classList.remove(\'open\')">×</button>'
- +'<h4 style="margin-top:6px">Sale Transactions</h4>'+g([['₹','Sale Invoice','newSale()'],['⇩','Payment-In','newPay(0)'],['↩','Sale Return','newRet()','m_sret'],['▤','Delivery Challan',"newDoc('chal')",'m_chal'],['≣','Estimate/Quotation',"newDoc('est')",'m_est'],['☑','Sale Order',"newDoc('so')",'m_so']])
- +'<h4>Purchase Transactions</h4>'+g([['＋','Purchase',"newDoc('pur')"],['⇧','Payment-Out','newPay(1)'],['↪','Purchase Return',"newDoc('pret')",'m_pret']])+'</div>';
- m.classList.add('open')}
-var _vMH=vMHome;vMHome=function(){return _vMH().replace('onclick="newSale()"><i class="r">＋</i>Add Txn','onclick="mAddTxn()"><i class="r">＋</i>Add Txn')};
-mhCards=function(q){q=String(q||'').toLowerCase().trim();var rows=mhRows();
- if(q)rows=rows.filter(function(r){return r.n.toLowerCase().indexOf(q)>=0||String(r.no).indexOf(q)>=0});
- var more=!q&&rows.length>MN;if(!q)rows=rows.slice(0,MN);
- return rows.map(function(r){var cl=r.st==='CANCELLED'?'x':(r.st==='PAID'||r.st==='RECEIVED')?'g':'';
-  return '<div class="mc" onclick="'+r.go+';render()"><div class="t"><b>'+esc(r.n)+'</b><span>'+(r.no?'#'+r.no+'<br>':'')+mDate(r.d)+'</span></div><span class="chip '+cl+'">'+(r.st==='CANCELLED'?'CANCELLED':r.ty+' : '+r.st)+'</span><div class="mc3" style="align-items:center"><div><span>Total</span><b>'+money(r.amt)+'</b></div>'+(r.bal===''?'':'<div><span>Balance</span><b>'+money(r.bal)+'</b></div>')+(r.ty==='SALE'&&r.no&&r.st!=='CANCELLED'?bAct(r.no):'')+'</div></div>'}).join('')
-  +(rows.length?'':'<div class="mc mu">No transactions found</div>')
-  +(more?'<button class="s" style="width:100%;margin:6px 0" onclick="MN+=60;mhSearch(MQ)">Show older transactions</button>':'')};
-var _vSId=vSI;
-vSI=function(){
- if(!isM())return _vSId();
- var F=[['all','All Sale Invoices'],['unpaid','Unpaid'],['part','Partly paid'],['paid','Paid'],['cancel','Cancelled']];
- var list=D.bills.filter(function(b){if(!inPer('si',b.date))return false;var s=saleStatus(b);return sif==='all'||(sif==='unpaid'&&s==='Unpaid')||(sif==='part'&&s==='Partly paid')||(sif==='paid'&&s==='Paid')||(sif==='cancel'&&s==='Cancelled')}).sort(function(a,b){return b.no-a.no});
- var ts=0,tb=0;list.forEach(function(b){if(b.x)return;ts+=b.total;tb+=Math.max(b.total-paidOn(b),0)});
- return '<div class="mtot"><div><span>Total Sale</span><b>'+money(ts)+'</b></div><div><span>Balance Due</span><b class="red">'+money(tb)+'</b></div></div>'
- +'<div class="mflt"><select onchange="sif=this.value;render()">'+F.map(function(f){return '<option value="'+f[0]+'"'+(sif===f[0]?' selected':'')+'>'+f[1]+'</option>'}).join('')+'</select>'+perUI('si')+'</div>'
- +'<input class="msr" placeholder="Search party or number" oninput="flt(this.value)">'
- +list.slice(0,200).map(function(b){var p=P(b.pid),nm=p?p.name:'?',pd=paidOn(b),s=saleStatus(b),cl=s==='Paid'?'g':s==='Cancelled'?'x':'',d=new Date(b.date);
-  return '<div class="mc" data-n="'+esc((nm+' '+b.no).toLowerCase())+'" onclick="viewB='+b.no+';render()"><div class="t"><b>'+esc(nm)+'</b><span>#'+b.no+'<br>'+mDate(b.date)+' • '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}).toUpperCase()+'</span></div><span class="chip '+cl+'">SALE : '+s.toUpperCase()+'</span><div class="mc3" style="align-items:center"><div><span>Total</span><b>'+money(b.total)+'</b></div>'+(b.x?'':'<div><span>Balance</span><b>'+money(Math.max(b.total-pd,0))+'</b></div>')+(b.x?'':bAct(b.no))+'</div></div>'}).join('')
- +(list.length>200?'<div class="mc mu">Showing latest 200. Use the date filter or search to see older ones.</div>':'')+(list.length?'':'<div class="mc mu">No invoices found</div>')};
-/* every table on the phone: label + value cards instead of a wide table */
-function mobCards(){if(!isM())return;
- [].forEach.call(document.querySelectorAll('#v table'),function(t){
-  if(t.classList.contains('mtb'))return;var r0=t.rows[0];if(!r0||!r0.querySelector('th'))return;
-  var H=[].map.call(r0.cells,function(c){return c.textContent.trim()});t.classList.add('mtb');
-  for(var i=1;i<t.rows.length;i++){var cs=t.rows[i].cells;if(cs.length!==H.length)continue;
-   [].forEach.call(cs,function(c,j){c.setAttribute('data-l',H[j]);if(/^(party|name|customer|item)/i.test(H[j]))c.classList.add('ttl')})}})}
-var _rQ=render;render=function(){_rQ();try{mobCards()}catch(e){}};
-
-
-/* ---------- GODOWN / BLOCK + REMAINING DISPATCH ON PHONE HOME ---------- */
-function itemLoc(l){var i=(l.iid&&I(l.iid))||findI(l.name);return i&&i.loc?String(i.loc):''}
-function locTag(l){var x=itemLoc(l);return x?' <span style="color:#1a56b8;font-weight:600;white-space:nowrap">📍 '+esc(x)+'</span>':''}
-function locLine(l){var x=itemLoc(l);return x?'<div style="color:#1a56b8;font-weight:600;margin-top:2px">📍 Godown / Block: '+esc(x)+'</div>':''}
-function gdNames(){var m={},a=[];function add(v){v=String(v||'').trim();if(v&&!m[v.toLowerCase()]){m[v.toLowerCase()]=1;a.push(v)}}
- (PS().gds||[]).forEach(add);D.items.forEach(function(i){add(i.loc)});(D.docs||[]).forEach(function(d){if(d.t==='pur'){add(d.gd);d.lines.forEach(function(l){add(l.loc)})}});return a.sort(NCMP)}
-function gdList(){return '<datalist id="gdl">'+gdNames().map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>'}
-function gdIn(v){if(ddraft)ddraft.gd=v}
-var _bhG=billHtml;
-billHtml=function(b){var h=_bhG(b);if(!op('hloc'))return h;
- var pos=h.indexOf('</tr>');if(pos<0)return h;pos+=5;
- b.lines.forEach(function(l){var s='<td>'+esc(l.name)+'</td>',i=h.indexOf(s,pos);if(i<0)return;var x=itemLoc(l);
-  if(!x){pos=i+s.length;return}
-  var r='<td>'+esc(l.name)+'<div style="font-size:12px;font-weight:700;color:#1d3a8a;margin-top:2px">Godown / Block: '+esc(x)+'</div></td>';
-  h=h.slice(0,i)+r+h.slice(i+s.length);pos=i+r.length});
- return h};
-var _vMHg=vMHome;
-vMHome=function(){var h=_vMHg(),i=h.indexOf('<input class="msr"'),x=vPendDisp();return i<0?h+x:h.slice(0,i)+x+h.slice(i)};
-(function(){var st=document.createElement('style');st.textContent='@media(max-width:899px){.pend{max-height:44vh}}';document.head.appendChild(st)})();
-var _vSg=vSettings;
-vSettings=function(){var h=_vSg();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');
- return k<0?h:h.slice(0,k)+'<div class="sec"><h3>Printing</h3>'+ck('hloc','Show Godown / Block on printed bill','Prints the place where each item is kept (taken from your purchase bills or the Items screen) so dispatch staff can find the goods.')+'</div>'+h.slice(k)};
-
-/* ---------- EDITABLE ROWS IN PURCHASE FORM ---------- */
-function delnIn(k,f,v,t,ls){return '<input class="eln" type="'+t+'" '+(t==='number'?'inputmode="decimal" ':'')+(ls?'list="'+ls+'" ':'')+'autocomplete="off" value="'+esc(String(v))+'" onfocus="this.select()" onchange="editDLn('+k+",'"+f+"',this.value)\">"}
-function editDLn(k,f,v){var d=ddraft,l=d&&d.lines[k];if(!l)return;
- if(f==='name'){v=(v||'').trim();if(!v){d.lines.splice(k,1);render();return}l.name=v;var i=findI(v);if(i){l.unit=i.unit||l.unit;l.rate=(d.t==='pur'||d.t==='pret')?(+i.buy||+i.rate||l.rate):(+i.rate||l.rate)}}
- else if(f==='unit'){l.unit=(v||'').trim()||'pcs'}
- else if(f==='loc'){v=(v||'').trim();l.loc=(v===(d.gd||''))?'':v}
- else{l[f]=+v||0}
- l.amt=Math.round((+l.qty||0)*(+l.rate||0)*100)/100;render()}
-
-/* ---------- GODOWN PROFILES ---------- */
-var gsel=null,gform=null,GNO='(No godown)';
-function gdMain(d){var g=d.gd||'';if(!g||d.t!=='pur')return g;if(d.lines.some(function(l){return l.loc===g}))return g;var f=d.lines.find(function(l){return l.loc});return f?f.loc:g}
-function gdKey(n){return String(n||'').trim().toLowerCase()}
-function gdReg(n){n=String(n||'').trim();if(!n)return;var p=PS();p.gds=p.gds||[];if(!p.gds.some(function(x){return gdKey(x)===gdKey(n)}))p.gds.push(n)}
-function gdUnits(o,f){var u={};Object.keys(o.items).forEach(function(k){var r=o.items[k],v=r[f];if(v>0.0001)u[r.unit]=(u[r.unit]||0)+v});return Object.keys(u).map(function(k){return rnd(u[k])+' '+esc(k)}).join(', ')||'0'}
-function gdItemsOf(o){return Object.keys(o.items).map(function(k){return o.items[k]}).sort(function(a,b){return b.now-a.now||NCMP(a.name,b.name)})}
-function gdCalc(){var R={},al={};
- function slot(g,it){g=String(g||'').trim()||GNO;var k=gdKey(g),o=R[k]||(R[k]={name:g,items:{},last:0,hist:[]}),r=o.items[it.id]||(o.items[it.id]={id:it.id,name:it.name,unit:it.unit,now:0,recv:0});return {o:o,r:r}}
- (D.docs||[]).forEach(function(d){if(d.t!=='pur')return;d.lines.forEach(function(l){var it=(l.iid&&I(l.iid))||findI(l.name);if(!it)return;var g=l.loc||d.gd||'',s=slot(g,it),p=P(d.pid);
-  s.o.hist.push({d:d.date,id:d.id,no:d.no,party:p?p.name:'?',item:l.name,unit:l.unit,qty:l.qty,rate:l.rate,x:d.x});
-  if(!d.x){s.r.recv+=+l.qty||0;if(d.date>s.o.last)s.o.last=d.date;(al[it.id]=al[it.id]||[]).push({d:d.date,g:g,q:+l.qty||0})}})});
- D.items.forEach(function(it){var rem=+it.qty||0;if(rem<=0)return;
-  (al[it.id]||[]).slice().sort(function(a,b){return b.d-a.d}).forEach(function(x){if(rem<=0)return;var t=Math.min(rem,x.q);slot(x.g,it).r.now+=t;rem-=t});
-  if(rem>0.0001)slot(it.loc||'',it).r.now+=rem});
- return R}
-function gdAllNames(R){var n=gdNames().slice();if(R[gdKey(GNO)])n.push(GNO);return n}
-function gdRename(old,nw){var p=PS(),k=gdKey(old),hit=0;p.gds=(p.gds||[]).map(function(x){if(gdKey(x)===k){hit=1;return nw}return x});if(!hit)p.gds.push(nw);
- p.gnotes=p.gnotes||{};Object.keys(p.gnotes).forEach(function(x){if(gdKey(x)===k){p.gnotes[nw]=p.gnotes[x];if(x!==nw)delete p.gnotes[x]}});
- D.items.forEach(function(i){if(gdKey(i.loc)===k)i.loc=nw});
- (D.docs||[]).forEach(function(d){if(gdKey(d.gd)===k)d.gd=nw;(d.lines||[]).forEach(function(l){if(gdKey(l.loc)===k)l.loc=nw})})}
-function gdUsed(n){var k=gdKey(n),c=0;D.items.forEach(function(i){if(gdKey(i.loc)===k)c++});(D.docs||[]).forEach(function(d){if(gdKey(d.gd)===k||(d.lines||[]).some(function(l){return gdKey(l.loc)===k}))c++});return c}
-function saveGodown(){var n=($('#gn').value||'').trim(),note=($('#gnt').value||'').trim(),old=gform&&gform.old;if(!n)return alert('Enter godown name');
- var dup=gdNames().find(function(x){return gdKey(x)===gdKey(n)});if(dup&&(!old||gdKey(dup)!==gdKey(old)))return alert('This godown name already exists');
- var p=PS();p.gnotes=p.gnotes||{};
- if(old){gdRename(old,n)}else gdReg(n);
- Object.keys(p.gnotes).forEach(function(x){if(gdKey(x)===gdKey(n)&&x!==n)delete p.gnotes[x]});
- if(note)p.gnotes[n]=note;else delete p.gnotes[n];
- save();gsel=n;gform=null;render()}
-function delGodown(n){var c=gdUsed(n);if(c>0)return alert('"'+n+'" is used in '+c+' purchase bills / items, so it cannot be deleted.\n\nTo fix a wrong name, press Edit and change the name instead.');
- if(!confirm('Delete godown "'+n+'" from the saved list?'))return;var p=PS(),k=gdKey(n);p.gds=(p.gds||[]).filter(function(x){return gdKey(x)!==k});if(p.gnotes)Object.keys(p.gnotes).forEach(function(x){if(gdKey(x)===k)delete p.gnotes[x]});save();gsel=null;render()}
-function csvGodowns(){var R=gdCalc(),rows=[];gdAllNames(R).forEach(function(n){gdItemsOf(R[gdKey(n)]||{items:{}}).forEach(function(x){rows.push([n,x.name,x.unit,rnd(x.now),rnd(x.recv)])})});csvOut('godown-stock',['Godown / Block','Item','Unit','Stock now (estimate)','Received so far'],rows)}
-function vGdForm(){var old=gform.old,note=old?((PS().gnotes||{})[old]||''):'';
- return '<button class="s mob" onclick="gform=null;render()">← Back</button><div class="card"><b>'+(old?'Edit godown':'Add godown')+'</b><input id="gn" placeholder="Godown / Block name * (example: Godown 1, Block A)" autocomplete="off" value="'+esc(old||'')+'"><textarea id="gnt" rows="2" placeholder="Note or address (optional)">'+esc(note)+'</textarea><div class="row" style="margin-top:6px"><button class="b" onclick="saveGodown()">Save</button><button class="s" onclick="gform=null;render()">Cancel</button></div></div>'+(old?'<div class="mu" style="margin:6px 2px">If you change the name, it is changed in all old purchase bills and items too.</div>':'')}
-function vGdProfile(name,R){var o=R[gdKey(name)]||{items:{},hist:[],last:0},its=gdItemsOf(o),isNo=gdKey(name)===gdKey(GNO),note=(PS().gnotes||{})[name]||'',inC=its.filter(function(x){return x.now>0.0001}).length;
- var h='<button class="s mob" onclick="gsel=null;render()">← Back</button><div class="card"><div class="row"><h2 style="font-size:18px;margin:0">'+esc(name)+'</h2>'+(isNo?'':'<span><button class="s" data-g="'+esc(name)+'" onclick="gform={old:this.dataset.g};render()">✎ Edit</button> <button class="s dlb" data-g="'+esc(name)+'" onclick="delGodown(this.dataset.g)">🗑 Delete</button></span>')+'</div>'
- +(note?'<div class="mu" style="margin-top:4px">'+nl2(note)+'</div>':'')+(isNo?'<div class="mu" style="margin-top:4px">Goods whose purchase bill had no godown / block written, or old stock with no place saved. Open the item and write its Godown / Block to move it.</div>':'')
- +'<div class="stats" style="margin-top:8px"><div><span class="mu">Different goods now</span><br><b>'+inC+'</b></div><div><span class="mu">Stock now (estimate)</span><br><b>'+gdUnits(o,'now')+'</b></div><div><span class="mu">Total received so far</span><br><b>'+gdUnits(o,'recv')+'</b></div><div><span class="mu">Last received</span><br><b>'+(o.last?dt(o.last):'-')+'</b></div></div></div>';
- h+='<div class="card"><b>Goods in this godown</b>'+tbl2(['Item','Stock now','Unit','Received so far'],its.map(function(x){return {k:"selI='"+x.id+"';nav('items')",c:[esc(x.name),'<b>'+rnd(x.now)+'</b>',esc(x.unit),rnd(x.recv)]}}),0)+'<div class="mu" style="margin-top:6px">Stock now is an estimate: an item\'s current stock is counted against its newest purchases first (oldest goods are assumed sold first). Older or opening stock is placed in the item\'s saved Godown / Block.</div></div>';
- var hs=(o.hist||[]).slice().sort(function(a,b){return b.d-a.d});
- h+='<div class="card"><b>History: goods received here</b>'+tbl2(['Date','Purchase','Supplier','Item','Qty','Rate','Status'],hs.map(function(x){return {k:"viewD='"+x.id+"';render()",c:[dt(x.d),'#'+x.no,esc(x.party),esc(x.item),x.qty+' '+esc(x.unit),money(x.rate),x.x?stH('Cancelled'):stH('Received')]}}),0)+'</div>';
- return h}
-function vGodowns(){var R=gdCalc(),names=gdAllNames(R),sel=gsel?names.find(function(n){return gdKey(n)===gdKey(gsel)}):null,cur=sel||(window.innerWidth>=900&&!gform&&names.length?names[0]:null),hide=!!(sel||gform);
- var L='<div class="row" style="margin-bottom:6px"><button class="b" onclick="gform={};render()">+ Add Godown</button><button class="s" onclick="csvGodowns()">Excel (CSV)</button></div><input placeholder="Find godown" oninput="flt(this.value)"><div class="card" style="padding:0">'+names.map(function(n){var o=R[gdKey(n)]||{items:{}},c=Object.keys(o.items).filter(function(k){return o.items[k].now>0.0001}).length;
-  return '<div class="row" data-n="'+esc(n.toLowerCase())+'" data-g="'+esc(n)+'" style="padding:10px;cursor:pointer;border-bottom:1px solid var(--bd);'+(cur&&gdKey(cur)===gdKey(n)&&!gform?'background:var(--ac2)':'')+'" onclick="gsel=this.dataset.g;gform=null;render()"><span>'+esc(n)+'<br><span class="mu">'+c+' goods</span></span><b style="text-align:right">'+gdUnits(o,'now')+'</b></div>'}).join('')+(names.length?'':'<p class="mu" style="padding:10px">No godowns yet. Press + Add Godown, or type a Godown / Block when you make a purchase bill.</p>')+'</div>';
- var Rt=gform?vGdForm():cur?vGdProfile(cur,R):'<div class="card mu">Click a godown to see its profile</div>';
- return '<div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+Rt+'</div></div>'}
-var _vPgd=vPage;
-vPage=function(){return pg==='gd'?'<h2 style="font-size:20px;margin:6px 0">Godowns / Blocks</h2>'+vGodowns():_vPgd()};
-
-/* ================= TRANSPORTERS / RIDERS (added) =================
-   - Transporter list (like Parties) with history of every dispatch given to them
-   - On the Dispatch screen: choose or add a transporter; on Save dispatch a
-     loading list (NO prices, with godown / block) opens in WhatsApp for them
-   - Can be switched on/off in Settings > General (setting key: trn)            */
-function TRS(){D.trs=D.trs||[];return D.trs}
-function DSP(){D.dsp=D.dsp||[];return D.dsp}
-TRS().forEach(function(t){if(!t.id)t.id='t'+uid()});DSP().forEach(function(t){if(!t.id)t.id='d'+uid()});
-['trs','dsp'].forEach(function(c){if(COLS.indexOf(c)<0)COLS.push(c)});
-var tsel=null,tform=null,trSel='',trNew={};
-function trDig(p){return String(p||'').replace(/\D/g,'').slice(-10)}
-function trByName(a,b){return String(a.name).toLowerCase()<String(b.name).toLowerCase()?-1:1}
-
-/* ---- WhatsApp message for the transporter (prices are NEVER included) ---- */
-function trMsg(d){
- var t=TRS().find(function(x){return x.id===d.tid})||{name:''};
- var m='Namaste '+t.name+',\n🚚 *LOADING ORDER* from '+D.shop+'\n\nBill #'+d.no+' · '+dt(d.date)+(t.veh?'\nVehicle: '+t.veh:'')+'\n\n*Deliver to:*\n'+d.cust+(d.cph?'\n📞 '+d.cph:'')+(d.addr?'\n📍 '+d.addr:'')+'\n\n*Goods to load:*\n';
- var its=d.items.slice().sort(function(a,b){return String(a.loc||'~').toLowerCase()<String(b.loc||'~').toLowerCase()?-1:String(a.loc||'~').toLowerCase()>String(b.loc||'~').toLowerCase()?1:0});
- its.forEach(function(x,i){m+=(i+1)+'. '+x.name+' - *'+x.q+' '+x.unit+'*\n'+(x.loc?'    📦 Godown / Block: '+x.loc+'\n':'')});
- return m+'\nPlease confirm after loading and delivery.\n- '+D.shop;
-}
-function sendTr(id){
- var d=DSP().find(function(x){return x.id===id});if(!d)return;
- var t=TRS().find(function(x){return x.id===d.tid});if(!t)return alert('Transporter not found');
- openWA(t,trMsg(d));
-}
-
-/* ---- Look & feel: same cards / blue accent / pill buttons as the rest of the app ---- */
-(function(){var st=document.createElement('style');st.textContent=
-'.dxi{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;flex:none}'+
-'.dx{display:block}.dxmain,.dxside{min-width:0}'+
-'.dxc{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.10);padding:14px 16px;margin:0 0 12px}'+
-'.dxh{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}'+
-'.dxk{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:#7b8194;font-weight:600}'+
-'.dxt{font-size:18px;font-weight:700;color:#1f2437;line-height:1.25;margin:3px 0 2px;word-break:break-word}'+
-'.dxm{color:#7b8194;font-size:13px}'+
-'.dxchip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:700;white-space:nowrap;flex:none}'+
-'.dxchip.r{background:#fdecee;color:#d92d3a}.dxchip.g{background:#e2f6ee;color:#12915d}.dxchip.b{background:#e8f0fe;color:#1a56b8}'+
-'.dxaddr{margin-top:10px;padding-top:10px;border-top:1px solid #eef0f5;display:grid;gap:6px;font-size:14px;color:#3b4258}'+
-'.dxaddr>div{display:flex;gap:8px;align-items:flex-start}.dxaddr .dxi{margin-top:2px;color:#7b8194}.dxaddr a{color:#1a56b8;text-decoration:none;font-weight:600}'+
-'.dxlh{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 8px;font-size:15px}'+
-'.dxsm{border:1px solid #cfd5e3;background:#fff;color:#1a56b8;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;min-height:36px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}'+
-'.dxsm.dxdel{color:#d92d3a;border-color:#f1c4c8}'+
-'.dxtick{display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0;cursor:pointer}'+
-'.dx input.dxck{appearance:none;-webkit-appearance:none;width:26px;height:26px;min-width:26px;padding:0;margin:1px 0 0;border:2px solid #b6bed1;border-radius:7px;background:#fff;display:grid;place-content:center;cursor:pointer;box-shadow:none}'+
-'.dx input.dxck:checked{background:#1a73e8;border-color:#1a73e8}.dx input.dxck:checked::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}'+
-'.dxdn{width:26px;height:26px;min-width:26px;border-radius:50%;background:#e2f6ee;color:#12915d;display:grid;place-content:center}'+
-'.dxnm{font-weight:700;font-size:15.5px;color:#1f2437;line-height:1.3;word-break:break-word}.dxnm small{display:block;font-weight:400;color:#7b8194;font-size:13px;margin-top:2px}'+
-'.dxpg{height:6px;border-radius:99px;background:#e9ecf4;margin:12px 0 10px;overflow:hidden}.dxpg i{display:block;height:100%;background:#1a73e8;border-radius:99px}.dxpg i.g{background:#17a56b}'+
-'.dxloc{display:flex;align-items:center;gap:7px;background:#eef4fe;color:#1a56b8;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px}.dxloc span{color:#5a6c92}.dxloc b{font-weight:700}'+
-'.dxsend{display:flex;gap:8px;align-items:stretch}.dxq{position:relative;flex:1;min-width:0}.dx .dxq input{margin:0;height:46px;padding:0 54px 0 12px}'+
-'.dxu{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#7b8194;font-size:13px;pointer-events:none;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'+
-'.dx input.dxbad{border-color:#d92d3a;background:#fff5f6}'+
-'.dxall{flex:none;min-width:76px;border:0;border-radius:8px;background:#e8f0fe;color:#1a56b8;font-weight:700;font-size:14px;cursor:pointer}'+
-'.dxtr{margin-top:12px;padding-top:10px;border-top:1px dashed #dfe3ee}.dxtrr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;font-size:14px;color:#3b4258}.dxtrr .dxi{color:#12915d;margin-right:6px}'+
-'.dxlnk{background:none;border:0;color:#1a56b8;font-weight:600;font-size:13px;padding:8px 8px;min-height:36px;cursor:pointer}.dxlnk.dxdel{color:#d92d3a}'+
-'.dxdone{background:#fafbfd}.dxdone .dxnm{color:#4b5266}'+
-'.dxl{display:block;font-size:12px;color:#7b8194;font-weight:600;margin:12px 0 2px}.dx select,.dx .dxnew input{margin:0;height:46px}.dxnew{margin-top:2px}'+
-'.dxinc{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.dxinc .dxchip{padding:4px 9px;font-size:12px}'+
-'.dxok{border-left:4px solid #17a56b}.dxokh{display:flex;align-items:center;gap:8px;color:#12915d;font-size:16px;margin-bottom:8px}.dxokr{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #eef0f5;font-size:14px}.dxokr:last-of-type{border-bottom:0}'+
-'.dxact{background:#fff;z-index:7;position:sticky;bottom:var(--mbh,66px);margin:0 -12px;padding:10px 12px 12px;box-shadow:0 -4px 14px rgba(25,35,80,.13)}'+
-'.dxsum{font-size:13px;color:#5d647a;margin:0 2px 8px;text-align:center}.dxsum b{color:#1f2437}'+
-'.dxbtns{display:flex;gap:8px;flex-wrap:wrap}.dxbtns>button{flex:1}'+
-'.dxpri{min-height:48px;border:0;border-radius:999px;background:#1a73e8;color:#fff;font-weight:700;font-size:15.5px;padding:0 18px;box-shadow:0 1px 3px rgba(26,115,232,.35);cursor:pointer;flex:2!important}'+
-'.dxsec{min-height:48px;border:1.5px solid #1a73e8;border-radius:999px;background:#fff;color:#1a56b8;font-weight:700;font-size:14.5px;padding:0 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}'+
-'.dxav{width:42px;height:42px;min-width:42px;border-radius:50%;background:#e8f0fe;color:#1a56b8;font-weight:700;font-size:15px;display:grid;place-content:center}.dxav.big{width:52px;height:52px;font-size:18px}'+
-'.dxtrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #eef0f5;cursor:pointer}.dxtrow:last-child{border-bottom:0}.dxtrow.on{background:#eaf2fd}'+
-'.dxtm{flex:1;min-width:0}.dxtm b{display:block;font-size:15px;color:#1f2437}.dxtm small{color:#7b8194;font-size:13px}'+
-'.dxst{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.dxst>div{background:#f4f6fb;border-radius:8px;padding:10px 12px}.dxst span{display:block;color:#7b8194;font-size:12.5px}.dxst b{font-size:19px;color:#1f2437}'+
-'.dxhi{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid #eef0f5;font-size:14px}.dxhi:first-of-type{margin-top:10px}.dxhi small{display:block;color:#1a56b8;font-weight:600;font-size:12.5px;margin-top:1px}'+
-'.dxfield{display:block}.dxfield input,.dxfield textarea{margin:0 0 4px}'+
-'@media(min-width:900px){.dxact{bottom:0;margin:0 -22px;padding:10px 22px 12px}}'+
-'@media(min-width:1100px){.dx{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;align-items:start}.dxside{position:sticky;top:78px}.dxact{position:static;margin:0;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.10)}}'+
-'@media(max-width:899px){#top{display:none!important}.dxback{display:none!important}.dxdesk{display:none!important}.dxc{padding:13px 14px}.dxt{font-size:17px}.dxact{position:fixed;left:0;right:0;bottom:var(--mbh,66px);margin:0}.dx{padding-bottom:96px}}'+
-'.dxq input[type=number]{-moz-appearance:textfield}.dxq input::-webkit-outer-spin-button,.dxq input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}'+
-'.dxbtns>*{flex:1}.dxpri{flex:1.25!important}.dxsec,.dxsec span{white-space:nowrap}';
-document.head.appendChild(st)})();
-var DXI={pin:'<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',truck:'<path d="M3 6.5h11V16H3zM14 9.5h4l3 3V16h-7"/><circle cx="7.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/>',phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',chat:'<path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.7-5.2A8.5 8.5 0 1 1 21 12z"/>'};
-function dxI(n){return '<svg class="dxi" viewBox="0 0 24 24">'+DXI[n]+'</svg>'}
-function dxIni(n){var a=String(n||'?').trim().split(/\s+/);return esc((a[0].charAt(0)+(a[1]?a[1].charAt(0):'')).toUpperCase())}
-
-/* ---- Dispatch screen ---- */
-function dxAll(k,r){tickAll(k,r,true);var c=$('#ck'+k);if(c)c.checked=true;dxSum()}
-function dxSum(){
- var el=document.getElementById('dxsum');if(!el||!openB)return;var b=bl(openB);if(!b)return;var n=0,bad=0;
- b.lines.forEach(function(l,k){var e=document.getElementById('dq'+k);if(!e)return;var v=+e.value,over=v>rem(l)+1e-9;e.classList.toggle('dxbad',over);if(v>0){n++;if(over)bad++}});
- el.innerHTML=bad?'<span class="red">Quantity is more than what remains</span>':n?'Sending now: <b>'+n+' item'+(n>1?'s':'')+'</b>':'Tick an item or type the quantity you are sending';
-}
-var _tkA=tickAll;tickAll=function(k,r,v){_tkA(k,r,v);dxSum()};
-var _skS=syncTick;syncTick=function(k,r){_skS(k,r);dxSum()};
-var _tkE=tickEvery;tickEvery=function(){_tkE();dxSum()};
-function trPick(v){trSel=v;var e=document.getElementById('trnew');if(e)e.style.display=v==='__new'?'block':'none'}
-function trCard(){
- var o='<option value="">No transporter (customer pickup)</option>'+TRS().slice().sort(trByName).map(function(t){return '<option value="'+esc(t.id)+'"'+(trSel===t.id?' selected':'')+'>'+esc(t.name)+' · '+esc(t.phone||'')+'</option>'}).join('')+'<option value="__new"'+(trSel==='__new'?' selected':'')+'>+ Add new transporter</option>';
- return '<div class="dxc"><div class="dxh"><div><div class="dxk">Delivery</div><div class="dxt" style="font-size:16px">'+dxI('truck')+' Transporter / Rider</div></div><span class="dxchip b">Optional</span></div>'
- +'<label class="dxl">Assign this dispatch to</label><select id="trs_sel" onchange="trPick(this.value)">'+o+'</select>'
- +'<div id="trnew" class="dxnew" style="display:'+(trSel==='__new'?'block':'none')+'"><label class="dxl">Name</label><input id="trn_n" placeholder="Transporter name" value="'+esc(trNew.n||'')+'" oninput="trNew.n=this.value"><label class="dxl">WhatsApp number</label><input id="trn_p" type="tel" inputmode="tel" placeholder="10 digit number" value="'+esc(trNew.p||'')+'" oninput="trNew.p=this.value"><label class="dxl">Vehicle number (optional)</label><input id="trn_v" placeholder="MH 15 AB 1234" value="'+esc(trNew.v||'')+'" oninput="trNew.v=this.value"></div>'
- +'<div class="dxm" style="margin-top:12px">On Save, a loading list opens in WhatsApp for the transporter with:</div><div class="dxinc"><span class="dxchip g">✓ Goods &amp; quantity</span><span class="dxchip g">✓ Godown / block</span><span class="dxchip g">✓ Customer address</span><span class="dxchip r">✕ No prices</span></div></div>';
-}
-vDispatch=function(){
- var b=bl(openB);if(!b){openB=null;return vBill2()}
- var p=P(b.pid)||{name:'?'},ad=bAddr(b),addr=ad.s||ad.a||'',pend=b.lines.filter(function(l){return rem(l)>0}),done=!pend.length;
- var h='<button class="s dxback" onclick="lastDisp=null;openB=null;render()">← Back</button><div class="dx"><div class="dxmain">';
- h+='<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">Dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">'+dt(b.date)+' · '+b.lines.length+' item'+(b.lines.length>1?'s':'')+'</div></div>'+(done?'<span class="dxchip g">'+dxI('check')+' All dispatched</span>':'<span class="dxchip r">'+pend.length+' pending</span>')+'</div>'
-  +((addr||p.phone)?'<div class="dxaddr">'+(addr?'<div>'+dxI('pin')+'<span>'+nl2(addr)+'</span></div>':'')+(p.phone?'<div>'+dxI('phone')+'<a href="tel:'+esc(String(p.phone).replace(/[^\d+]/g,''))+'">'+esc(p.phone)+'</a></div>':'')+'</div>':'')+'</div>';
- if(lastDisp&&lastDisp.no===b.no){
-  h+='<div class="dxc dxok"><div class="dxokh">'+dxI('check')+'<b>Dispatch saved</b></div>'+lastDisp.items.map(function(x){return '<div class="dxokr"><span>'+esc(x.name)+'</span><b>'+x.q+' '+esc(x.unit)+'</b></div>'}).join('')
-   +'<div class="dxbtns" style="margin-top:10px"><button class="dxsec" onclick="waRem('+b.no+',1)">'+dxI('chat')+' WhatsApp customer</button>'+(lastDisp.dspId?'<button class="dxsec" data-d="'+esc(lastDisp.dspId)+'" onclick="sendTr(this.dataset.d)">'+dxI('truck')+' Send to transporter again</button>':'')+'</div></div>';
- }
- h+='<div class="dxlh"><b>'+(done?'Items':'Items to dispatch')+'</b>'+(done?'':'<button class="dxsm" onclick="tickEvery()">Select all remaining</button>')+'</div>';
- b.lines.forEach(function(l,k){
-  var r=rem(l),sent=dq(l),pct=l.qty>0?Math.min(100,Math.round(sent/l.qty*100)):0,tr=l.trips||[],loc=itemLoc(l),sub='<small>Sold '+l.qty+' '+esc(l.unit)+' · Sent '+sent+'</small>';
-  h+='<div class="dxc'+(r<=0?' dxdone':'')+'"><div class="dxh">';
-  if(r>0)h+='<label class="dxtick"><input type="checkbox" class="dxck" id="ck'+k+'" onchange="tickAll('+k+','+r+',this.checked)"><span class="dxnm">'+esc(l.name)+sub+'</span></label><span class="dxchip r">'+r+' '+esc(l.unit)+' left</span>';
-  else h+='<div class="dxtick" style="cursor:default"><span class="dxdn">'+dxI('check')+'</span><span class="dxnm">'+esc(l.name)+sub+'</span></div><span class="dxchip g">All sent</span>';
-  h+='</div><div class="dxpg"><i'+(r<=0?' class="g"':'')+' style="width:'+pct+'%"></i></div>';
-  if(loc)h+='<div class="dxloc">'+dxI('pin')+'<span>Godown / Block</span><b>'+esc(loc)+'</b></div>';
-  if(r>0)h+='<div class="dxsend"><div class="dxq"><input id="dq'+k+'" type="number" inputmode="decimal" min="0" placeholder="Send now (max '+r+')" oninput="syncTick('+k+','+r+')"><span class="dxu">'+esc(l.unit)+'</span></div><button class="dxall" onclick="dxAll('+k+','+r+')">All '+r+'</button></div>';
-  if(tr.length)h+='<div class="dxtr"><div class="dxk">Earlier trips</div>'+tr.map(function(t,j){return '<div class="dxtrr"><span>'+dxI('check')+dt(t.d)+' · <b>'+t.q+' '+esc(l.unit)+'</b></span><span><button class="dxlnk" onclick="editTrip('+b.no+','+k+','+j+')">Edit</button><button class="dxlnk dxdel" onclick="delTrip('+b.no+','+k+','+j+')">Delete</button></span></div>'}).join('')+'</div>';
-  else if(sent>0)h+='<button class="dxlnk" onclick="fixSent('+b.no+','+k+')">Fix sent quantity</button>';
-  h+='</div>';
- });
- h+='</div><div class="dxside">'+((!done&&op('trn'))?trCard():'')
-  +'<div class="dxact">'+(done?'':'<div class="dxsum" id="dxsum"></div>')+'<div class="dxbtns">'+(done?'':'<button class="dxpri" onclick="saveDisp('+b.no+')">Save dispatch</button>')+'<button class="dxsec" onclick="waRem('+b.no+')">'+dxI('chat')+'<span>Update customer</span></button></div></div></div></div>';
- return h;
-};
-var _sdT=saveDisp;
-saveDisp=function(no){
- function gv(i){var e=document.getElementById(i);return e?e.value:''}
- var on=op('trn'),sel=on?gv('trs_sel'):'',tr=null,isNew=false;
- if(sel==='__new'){
-  var n=gv('trn_n').trim(),ph=gv('trn_p').trim(),vh=gv('trn_v').trim();
-  if(!n||trDig(ph).length<10)return alert('Write the transporter name and a 10 digit WhatsApp number, or choose "No transporter".');
-  tr=TRS().find(function(x){return trDig(x.phone)===trDig(ph)});
-  if(!tr){tr={id:uid(),name:n,phone:ph,veh:vh,date:Date.now()};isNew=true}
- }else if(sel){tr=TRS().find(function(x){return x.id===sel})}
- lastDisp=null;
- _sdT(no);
- if(!(lastDisp&&lastDisp.no===no))return;      /* quantity check failed, nothing saved */
- window.scrollTo(0,0);
- if(!tr)return;
- if(isNew)TRS().push(tr);
- var b=bl(no),p=P(b.pid)||{},a=bAddr(b);
- var rec={id:uid(),no:no,tid:tr.id,date:Date.now(),cust:p.name||'',cph:p.phone||'',addr:a.s||a.a||'',
-  items:lastDisp.items.map(function(x){var l=b.lines.find(function(z){return z.name===x.name});return {name:x.name,unit:x.unit,q:x.q,loc:l?itemLoc(l):''}})};
- DSP().push(rec);lastDisp.dspId=rec.id;trSel='';trNew={};
- save();render();window.scrollTo(0,0);sendTr(rec.id);
-};
-
-/* ---- Transporter list page (same card style, cards instead of tables so it works on a phone) ---- */
-function trCnt(t){return DSP().filter(function(d){return d.tid===t.id}).length}
-function vTrForm(){
- var o=tform.old?TRS().find(function(x){return x.id===tform.old}):null;
- return '<button class="s dxback" onclick="tform=null;render()">← Back</button><div class="dxc"><div class="dxk">'+(o?'Edit':'New')+'</div><div class="dxt" style="margin-bottom:6px">'+(o?'Edit transporter':'Add transporter')+'</div>'
- +'<label class="dxl">Name *</label><input id="tn_n" placeholder="Transporter / rider name" autocomplete="off" value="'+esc(o?o.name:'')+'">'
- +'<label class="dxl">WhatsApp number *</label><input id="tn_p" type="tel" inputmode="tel" placeholder="10 digit number" value="'+esc(o?o.phone:'')+'">'
- +'<label class="dxl">Vehicle number</label><input id="tn_v" placeholder="Optional" value="'+esc(o?o.veh||'':'')+'">'
- +'<label class="dxl">Note</label><textarea id="tn_x" rows="2" placeholder="Optional">'+esc(o?o.note||'':'')+'</textarea>'
- +'<div class="dxbtns" style="margin-top:14px"><button class="dxpri" onclick="saveTr()">Save</button><button class="dxsec" onclick="tform=null;render()">Cancel</button></div></div>';
-}
-function saveTr(){
- var g=function(i){return ($('#'+i)||{value:''}).value.trim()},n=g('tn_n'),ph=g('tn_p'),old=tform&&tform.old;
- if(!n)return alert('Enter transporter name');
- if(trDig(ph).length<10)return alert('Enter a 10 digit WhatsApp number');
- var dup=TRS().find(function(x){return x.id!==old&&x.name.trim().toLowerCase()===n.toLowerCase()});
- if(dup)return alert('A transporter with this name already exists');
- var o=old?TRS().find(function(x){return x.id===old}):null;
- if(o){o.name=n;o.phone=ph;o.veh=g('tn_v');o.note=g('tn_x')}
- else{o={id:uid(),name:n,phone:ph,veh:g('tn_v'),note:g('tn_x'),date:Date.now()};TRS().push(o)}
- save();tsel=o.id;tform=null;render();
-}
-function delTr(id){
- var t=TRS().find(function(x){return x.id===id});if(!t)return;
- if(trCnt(t)>0)return alert('"'+t.name+'" has dispatch history, so it cannot be deleted.\n\nTo fix a wrong name or number, press Edit.');
- if(!confirm('Delete transporter "'+t.name+'"?'))return;
- delRec('trs',t);tsel=null;save();render();
-}
-function vTrProfile(t){
- var hs=DSP().filter(function(d){return d.tid===t.id}).sort(function(a,b){return b.date-a.date}),ph=trDig(t.phone);
- var h='<button class="s dxback" onclick="tsel=null;render()">← Back</button><div class="dxc"><div class="dxh"><div style="display:flex;gap:12px;align-items:center;min-width:0"><span class="dxav big">'+dxIni(t.name)+'</span><div style="min-width:0"><div class="dxt" style="margin:0">'+esc(t.name)+'</div><div class="dxm">'+esc(t.phone||'')+(t.veh?' · '+esc(t.veh):'')+'</div></div></div></div>'
- +(t.note?'<div class="dxm" style="margin-top:10px">'+nl2(t.note)+'</div>':'')
- +'<div class="dxbtns" style="margin-top:12px"><a class="dxsec" href="tel:'+esc(ph)+'">'+dxI('phone')+' Call</a><a class="dxsec" target="_blank" rel="noopener" href="https://wa.me/91'+esc(ph)+'">'+dxI('chat')+' WhatsApp</a></div>'
- +'<div class="dxst"><div><span>Dispatches given</span><b>'+hs.length+'</b></div><div><span>Last assigned</span><b>'+(hs.length?dt(hs[0].date):'-')+'</b></div></div>'
- +'<div class="dxbtns" style="margin-top:12px;gap:8px"><button class="dxsm" style="flex:1;justify-content:center" data-t="'+esc(t.id)+'" onclick="tform={old:this.dataset.t};render()">✎ Edit</button><button class="dxsm dxdel" style="flex:1;justify-content:center" data-t="'+esc(t.id)+'" onclick="delTr(this.dataset.t)">🗑 Delete</button></div></div>';
- h+='<div class="dxlh"><b>History</b><span class="dxm">'+hs.length+' dispatch'+(hs.length===1?'':'es')+'</span></div>';
- if(!hs.length)return h+'<div class="dxc dxm">Nothing assigned yet. Choose this transporter on the Dispatch screen.</div>';
- hs.forEach(function(d){
-  h+='<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">Bill #'+d.no+' · '+dt(d.date)+'</div><div class="dxt" style="font-size:16px">'+esc(d.cust)+'</div></div><button class="dxsm" data-d="'+esc(d.id)+'" onclick="sendTr(this.dataset.d)">'+dxI('chat')+' Resend</button></div>'
-  +(d.addr?'<div class="dxaddr"><div>'+dxI('pin')+'<span>'+nl2(d.addr)+'</span></div></div>':'')
-  +d.items.map(function(x){return '<div class="dxhi"><div>'+esc(x.name)+(x.loc?'<small>📍 '+esc(x.loc)+'</small>':'')+'</div><b>'+x.q+' '+esc(x.unit)+'</b></div>'}).join('')+'</div>';
- });
- return h;
-}
-function vTransporters(){
- if(!op('trn'))return '<div class="dxc">The transporter feature is switched off. Turn it on in <a style="cursor:pointer;color:#1a73e8;font-weight:600" onclick="sTab=\'gen\';nav(\'set\')">Settings → General</a>.</div>';
- var list=TRS().slice().sort(trByName),sel=tsel?list.find(function(x){return x.id===tsel}):null,cur=sel||(window.innerWidth>=900&&!tform&&list.length?list[0]:null),hide=!!(sel||tform);
- var L='<div class="dxdesk" style="margin-bottom:8px"><button class="b" onclick="tform={};tsel=null;render()">+ Add Transporter</button></div>'+(list.length?'<input placeholder="Find transporter" oninput="flt(this.value)" style="margin:0 0 10px">':'')+'<div class="dxc" style="padding:0;overflow:hidden">'
- +list.map(function(t){var n=trCnt(t);return '<div class="dxtrow'+(cur&&cur.id===t.id&&!tform?' on':'')+'" data-n="'+esc((t.name+' '+(t.phone||'')).toLowerCase())+'" data-t="'+esc(t.id)+'" onclick="tsel=this.dataset.t;tform=null;render()"><span class="dxav">'+dxIni(t.name)+'</span><span class="dxtm"><b>'+esc(t.name)+'</b><small>'+esc(t.phone||'')+(t.veh?' · '+esc(t.veh):'')+'</small></span><span class="dxchip b">'+n+' dispatch'+(n===1?'':'es')+'</span></div>'}).join('')
- +(list.length?'':'<div class="dxm" style="padding:16px">No transporters yet. Add one here, or while dispatching goods.</div>')+'</div>';
- var Rt=tform?vTrForm():cur?vTrProfile(cur):'<div class="dxc dxm dxdesk">Click a transporter to see details and history</div>';
- return '<h2 class="dxdesk" style="font-size:20px;margin:6px 0">Transporters / Riders</h2><div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+Rt+'</div></div>';
-}
-var _vPtr=vPage;
-vPage=function(){return pg==='trn'?vTransporters():_vPtr()};
-var _lvT=leave;leave=function(){_lvT();tsel=null;tform=null};
-
-/* ---- menu entries (desktop side menu + phone "More") ---- */
-buildNav=function(){var g=grpOf(pg),L=[['home','Home'],['party','Parties'],['items','Items'],['gd','Godowns']];
- if(op('trn'))L.push(['trn','Transporters']);
- L=L.concat([['sale','Sale'],['pur','Purchase'],['rep','Reports'],['bk','Backup'],['set','Settings']]);var h='';
- L.forEach(function(x){var grp=!!GR[x[0]],act=grp?g===x[0]:pg===x[0];h+='<button class="'+(act?(grp?'gon':'on'):'')+'" onclick="nav(\''+x[0]+'\')">'+x[1]+'</button>';
-  if(grp&&g===x[0])GR[x[0]].forEach(function(s){h+='<button class="sb'+(pg===s[0]?' on':'')+'" onclick="nav(\''+s[0]+'\')">'+s[1]+'</button>'})});
- $('nav').innerHTML=h};
-var _vMoT=vMore;
-vMore=function(){var h=_vMoT();if(!op('trn'))return h;var k='<span>Godowns</span><span class="mrc">›</span></div>',i=h.indexOf(k);
- return i<0?h:h.slice(0,i+k.length)+'<div class="mr" onclick="nav(\'trn\')"><span>Transporters</span><span class="mrc">›</span></div>'+h.slice(i+k.length)};
-var _mbT=mBar;
-mBar=function(){_mbT();
- var t=document.querySelector('#mtop .mttl');
- if(t&&openB&&pg!=='trn'&&!form&&!sub)t.textContent='Dispatch · Bill #'+openB;
- if(pg!=='trn')return;
- if(t){var c=tsel&&TRS().find(function(x){return x.id===tsel});t.textContent=tform?(tform.old?'Edit transporter':'New transporter'):c?c.name:'Transporters'}
- var fab=document.getElementById('mfab');
- if(fab&&op('trn')&&!tsel&&!tform){fab.textContent='＋ Add New Transporter';fab.onclick=function(){tform={};tsel=null;render()};fab.classList.add('show')}};
-var _rDx=render;
-render=function(){_rDx();try{var mb=document.getElementById('mbar');if(mb&&mb.offsetHeight)document.documentElement.style.setProperty('--mbh',mb.offsetHeight+'px');if(openB&&!form&&!sub)dxSum()}catch(e){}};
-
-/* ---- Settings > General: on / off switch ---- */
-var _vStT=vSettings;
-vSettings=function(){var h=_vStT();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');
- return k<0?h:h.slice(0,k)+'<div class="sec"><h3>Transporter / Rider</h3>'+ck('trn','Assign a transporter when dispatching goods','Adds a Transporters list. On the Dispatch screen you pick or add a transporter, and a loading list without prices, with godown / block and the customer address, is sent to them on WhatsApp. Untick to hide everything; saved data is kept.')+'</div>'+h.slice(k)};
-
-/* ================= DISPATCH HISTORY (added) =================
-   - "Remaining dispatch" block on Home opens this page (also when nothing is pending)
-   - Lists every dispatch (one row = one Save dispatch on a bill), newest first
-   - Each dispatch can be viewed, edited (quantity, date, transporter, remove item) or deleted
-   - Same cards / blue accent / pill buttons as Dispatch + Transporters screens         */
-var dhSel=null,dhEd=false,dhQ='',dhAuto=null;PER.dh={v:'all',a:'',b:''};
-(function(){var st=document.createElement('style');st.textContent=
-'.dhbk{display:none!important}'+
-'.dhgh{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7b8194;font-weight:600;margin:14px 4px 6px}.dhgrp:first-child .dhgh{margin-top:2px}'+
-'.dhlink{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:8px;background:#eef4fe;color:#1a56b8;font-weight:700}'+
-'.dhlink small{display:block;color:#5a6c92;font-weight:400;font-size:12.5px;margin-top:1px}.dhlink>span:first-child{display:flex;align-items:center;gap:10px;min-width:0}.dhlink .dxi{width:20px;height:20px}'+
-'.dhch{color:#1a73e8;font-size:22px;line-height:1;flex:none}'+
-'.dhfilt{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}.dhfilt input{flex:1;min-width:150px;margin:0}.dhfilt select{margin:0}'+
-'.dh .dxq input{margin:0;height:46px;padding:0 54px 0 12px}.dh select,.dh input[type=date]{margin:0;height:46px}.dh input.dxbad{border-color:#d92d3a;background:#fff5f6}'+
-'.dhit{padding:12px 0;border-top:1px solid #eef0f5}.dhit:first-of-type{border-top:0;padding-top:4px}.dhit .dxnm{margin-bottom:8px}'+
-'.dhrm{flex:none;min-width:84px;border:0;border-radius:8px;background:#fdecee;color:#d92d3a;font-weight:700;font-size:14px;cursor:pointer}'+
-'.dh .dxc>.dxhi:first-child{margin-top:0;border-top:0;padding-top:0}'+
-'@media(max-width:899px){.dh.ed{padding-bottom:86px}.dhact{position:fixed;left:0;right:0;bottom:var(--mbh,66px);z-index:7;background:#fff;margin:0;padding:10px 12px 12px;box-shadow:0 -4px 14px rgba(25,35,80,.13)}}'+
-'@media(min-width:900px){.dhact{margin-top:4px}}';
-document.head.appendChild(st)})();
-DXI.hist='<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.8v4.7h4.7M12 7.5V12l3 2"/>';
-DXI.edit='<path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/>';
-DXI.trash='<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.9 12.5h9.2L17.5 7M10 11v5M14 11v5"/>';
-DXI.bill='<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>';
-
-function rnd2(n){return Math.round(n*100)/100}
-function dhDayStr(d){var x=new Date(d),p=function(n){return (n<10?'0':'')+n};return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())}
-function dhDayLbl(d){var t=dhDayStr(Date.now()),y=dhDayStr(Date.now()-864e5),k=dhDayStr(d);
- if(k===t)return 'Today';if(k===y)return 'Yesterday';
- return new Date(d).toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})}
-function dhTime(d){var x=new Date(d);if(x.getHours()===12&&!x.getMinutes()&&!x.getSeconds())return '';
- return x.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}).toLowerCase()}
-
-/* every "Save dispatch" = one entry: same bill + same time */
-function dhList(){
- var M={},A=[];
- D.bills.forEach(function(b){if(b.x)return;
-  b.lines.forEach(function(l,k){var tr=l.trips||[];
-   function add(t,leg){var d=+t.d||b.date,key=b.no+'|'+(leg?'L':'')+d,e=M[key];
-    if(!e){e=M[key]={id:key,no:b.no,d:d,b:b,items:[]};A.push(e)}
-    e.items.push({l:l,k:k,t:t,q:+t.q,name:l.name,unit:l.unit,leg:!!leg})}
-   if(tr.length)tr.forEach(function(t){add(t,0)});
-   else if(dq(l)>0)add({d:l.sentOn||b.date,q:dq(l)},1)})});
- return A.sort(function(a,b){return b.d-a.d||b.no-a.no})}
-function dhFind(id){return dhList().find(function(e){return e.id===id})}
-function dhRec(e){if(e.items[0]&&e.items[0].leg)return null;
- return DSP().find(function(r){return r.no===e.no&&Math.abs((+r.date||0)-e.d)<15000})||null}
-function dhTrName(e){var r=dhRec(e),t=r&&TRS().find(function(x){return x.id===r.tid});return t?t.name:''}
-function dhSum(e){var f=e.items[0];return esc(f.name)+' '+f.q+' '+esc(f.unit)+(e.items.length>1?' +'+(e.items.length-1)+' more':'')}
-
-function dhOpen(){leave();pg='dh';dhSel=null;dhEd=false;dhQ='';render();window.scrollTo(0,0)}
-function dhPick(id){dhSel=id;dhEd=false;render();window.scrollTo(0,0)}
-function dhBack(){if(dhEd)dhEd=false;else dhSel=null;render();window.scrollTo(0,0)}
-
-function dhRows(){
- var L=dhList().filter(function(e){return inPer('dh',e.d)}),q=dhQ.toLowerCase().trim(),cur=dhCur(L),h='',day='',open=false;
- L=L.filter(function(e){if(!q)return true;var p=P(e.b.pid);return (e.no+' '+(p?p.name:'')+' '+e.items.map(function(x){return x.name}).join(' ')+' '+dhTrName(e)).toLowerCase().indexOf(q)>=0});
- L.forEach(function(e){var dl=dhDayLbl(e.d),p=P(e.b.pid)||{name:'?'},tn=dhTrName(e),n=e.items.length;
-  if(dl!==day){if(open)h+='</div></div>';day=dl;open=true;h+='<div class="dhgrp"><div class="dhgh">'+esc(dl)+'</div><div class="dxc" style="padding:0;overflow:hidden">'}
-  h+='<div class="dxtrow dhrow'+(cur&&cur.id===e.id?' on':'')+'" data-id="'+esc(e.id)+'" onclick="dhPick(this.dataset.id)"><span class="dxav">'+dxIni(p.name)+'</span><span class="dxtm"><b>'+esc(p.name)+'</b><small>Bill #'+e.no+' · '+dhSum(e)+(tn?' · 🚚 '+esc(tn):'')+'</small></span><span class="dxchip b">'+n+' item'+(n===1?'':'s')+'</span></div>'});
- if(open)h+='</div></div>';
- return h||'<div class="dxc dxm">'+(dhQ||pv('dh').v!=='all'?'No dispatches match your search.':'No dispatches yet. When you press <b>Save dispatch</b> on a bill, it is listed here.')+'</div>'}
-function dhCur(L){var s=dhSel&&L.find(function(e){return e.id===dhSel});return s||(!isM()&&!dhSel&&L.length?L[0]:null)}
-function dhSearch(v){dhQ=v;var e=document.getElementById('dhl');if(e)e.innerHTML=dhRows()}
-
-function vDH(){
- var all=dhList(),L=all.filter(function(e){return inPer('dh',e.d)}),cur=dhCur(L),sel=!!(dhSel&&L.find(function(e){return e.id===dhSel})),
-  bills={};L.forEach(function(e){bills[e.no]=1});
-
- dhAuto=(!dhSel&&cur)?cur.id:null;
- var h=(sel?'':'<button class="s dhbk" onclick="nav(\'home\')">← Back</button>')
-  +'<div class="dxdesk" style="display:flex;justify-content:space-between;align-items:center;margin:6px 0"><h2 style="font-size:20px;margin:0">Dispatch History</h2><button class="s" onclick="nav(\'home\')">'+dxI('truck')+' Remaining dispatch</button></div>';
- var Lt='<div class="dxst" style="margin:0 0 12px"><div><span>Dispatches</span><b>'+L.length+'</b></div><div><span>Last dispatch</span><b>'+(L.length?dt(L[0].d):'-')+'</b></div></div>'
-  +'<div class="dhfilt"><input placeholder="Search party, bill no or item" value="'+esc(dhQ)+'" oninput="dhSearch(this.value)">'+perUI('dh')+'</div><div id="dhl">'+dhRows()+'</div>';
- var R=cur?(dhEd?dhForm(cur):dhView(cur)):'<div class="dxc dxm dxdesk">Click a dispatch to see its details</div>';
- return h+'<div class="split"><div class="'+(sel?'hid':'')+'">'+Lt+'</div><div>'+R+'</div></div>'}
-
-function dhView(e){
- var b=e.b,p=P(b.pid)||{name:'?'},ad=bAddr(b),addr=ad.s||ad.a||'',rec=dhRec(e),tr=rec&&TRS().find(function(x){return x.id===rec.tid}),
-  left=b.lines.filter(function(l){return rem(l)>0}).length,tm=dhTime(e.d);
- var h='<button class="s dxback dhbk" onclick="dhBack()">← Back</button><div class="dh">'
- +'<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">Dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">'+dt(e.d)+(tm?' · '+tm:'')+'</div></div>'
- +(left?'<span class="dxchip r">'+left+' still pending</span>':'<span class="dxchip g">'+dxI('check')+' Bill fully sent</span>')+'</div>'
- +((addr||p.phone||tr)?'<div class="dxaddr">'+(addr?'<div>'+dxI('pin')+'<span>'+nl2(addr)+'</span></div>':'')+(p.phone?'<div>'+dxI('phone')+'<a href="tel:'+esc(String(p.phone).replace(/[^\d+]/g,''))+'">'+esc(p.phone)+'</a></div>':'')
-  +(tr?'<div>'+dxI('truck')+'<span>Transporter: <b>'+esc(tr.name)+'</b>'+(tr.veh?' · '+esc(tr.veh):'')+'</span></div>':'')+'</div>':'')+'</div>'
- +'<div class="dxlh"><b>Items sent</b><span class="dxm">'+e.items.length+' item'+(e.items.length===1?'':'s')+'</span></div><div class="dxc">'
- +e.items.map(function(x){var loc=itemLoc(x.l);return '<div class="dxhi"><div>'+esc(x.name)+'<small style="color:#7b8194;font-weight:400">Sold '+x.l.qty+' '+esc(x.unit)+' · Sent in total '+dq(x.l)+'</small>'+(loc?'<small>📍 '+esc(loc)+'</small>':'')+'</div><b>'+x.q+' '+esc(x.unit)+'</b></div>'}).join('')+'</div>'
- +'<div class="dxbtns"><button class="dxpri" onclick="dhEd=true;render();window.scrollTo(0,0)">'+dxI('edit')+' Edit dispatch</button><button class="dxsec" onclick="dhWA()">'+dxI('chat')+'<span>Update customer</span></button></div>'
- +'<div class="dxbtns" style="margin-top:8px"><button class="dxsec" onclick="viewB='+b.no+';render()">'+dxI('bill')+'<span>Open bill</span></button>'
- +(rec?'<button class="dxsec" data-d="'+esc(rec.id)+'" onclick="sendTr(this.dataset.d)">'+dxI('truck')+'<span>Resend to transporter</span></button>':(left?'<button class="dxsec" onclick="openB='+b.no+';render()">'+dxI('truck')+'<span>Dispatch the rest</span></button>':''))+'</div></div>';
- return h}
-
-function dhForm(e){
- var b=e.b,p=P(b.pid)||{name:'?'},rec=dhRec(e),min=dhDayStr(b.date),mx=dhDayStr(Date.now()>e.d?Date.now():e.d);
- var h='<button class="s dxback dhbk" onclick="dhBack()">← Back</button><div class="dh ed">'
- +'<div class="dxc"><div class="dxk">Edit dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">Change the quantity, the date, or remove an item. Quantity 0 removes the item.</div>'
- +'<label class="dxl">Dispatch date</label><input id="dhd" type="date" value="'+dhDayStr(e.d)+'" min="'+min+'" max="'+mx+'">'
- +(op('trn')?'<label class="dxl">Transporter / Rider</label><select id="dhtr"><option value="">No transporter (customer pickup)</option>'+TRS().slice().sort(trByName).map(function(t){return '<option value="'+esc(t.id)+'"'+(rec&&rec.tid===t.id?' selected':'')+'>'+esc(t.name)+' · '+esc(t.phone||'')+'</option>'}).join('')+'</select>':'')+'</div>'
- +'<div class="dxlh"><b>Items</b><span class="dxm">'+e.items.length+' item'+(e.items.length===1?'':'s')+'</span></div><div class="dxc">'
- +e.items.map(function(x,i){var m=rnd2(rem(x.l)+x.q);
-  return '<div class="dhit"><div class="dxnm">'+esc(x.name)+'<small>Sold '+x.l.qty+' '+esc(x.unit)+' · Most you can enter: '+m+'</small></div>'
-  +'<div class="dxsend"><div class="dxq"><input id="dhq'+i+'" type="number" inputmode="decimal" min="0" step="any" value="'+x.q+'" placeholder="Removed" oninput="dhChk('+i+','+m+')"><span class="dxu">'+esc(x.unit)+'</span></div><button class="dhrm" onclick="dhRm('+i+')">Remove</button></div></div>'}).join('')
- +'<button class="dxsm dxdel" style="width:100%;justify-content:center;margin-top:6px" onclick="dhDel()">'+dxI('trash')+' Delete this dispatch</button></div>'
- +'<div class="dxbtns dhact"><button class="dxpri" onclick="dhSave()">Save changes</button><button class="dxsec" onclick="dhEd=false;render()">Cancel</button></div></div>';
- return h}
-function dhChk(i,m){var el=document.getElementById('dhq'+i);if(el)el.classList.toggle('dxbad',+el.value>m+1e-9)}
-function dhRm(i){var el=document.getElementById('dhq'+i);if(el){el.value='';el.classList.remove('dxbad')}}
-
-function dhFix(ls){ls.forEach(function(l){var t=l.trips||[];t.sort(function(a,b){return a.d-b.d});reTrips(l)})}
-function dhSave(){
- var e=dhFind(dhSel||dhAuto);if(!e)return;var b=e.b,ds=($('#dhd')||{}).value||'',nd=e.d;
- if(ds&&ds!==dhDayStr(e.d)){var a=ds.split('-'),c=new Date(+a[0],+a[1]-1,+a[2],12).getTime();
-  if(isNaN(c))return alert('Pick a valid date');
-  if(ds<dhDayStr(b.date))return alert('Dispatch date cannot be before the bill date ('+dt(b.date)+')');
-  if(ds>dhDayStr(Date.now()))return alert('Dispatch date cannot be in the future');nd=c}
- var keep=[],gone=[],bad='';
- e.items.forEach(function(x,i){var el=document.getElementById('dhq'+i),v=el?+el.value:x.q;if(el&&el.value==='')v=0;
-  if(!(v>0)){gone.push(x);return}
-  var m=rnd2(rem(x.l)+x.q);if(v>m+1e-9){bad=x.name+' (most you can enter is '+m+')';return}keep.push({x:x,v:rnd2(v)})});
- if(bad)return alert('Quantity is too high for '+bad);
- if(!keep.length)return dhDel();
- if(gone.length&&!confirm('Remove '+gone.map(function(x){return x.name}).join(', ')+' from this dispatch?'))return;
- var rec=dhRec(e),tsel=document.getElementById('dhtr'),touched=[];
- keep.forEach(function(c){var x=c.x,l=x.l;if(x.leg)l.trips=[{d:nd,q:c.v}];else{x.t.q=c.v;x.t.d=nd}touched.push(l)});
- gone.forEach(function(x){var l=x.l;if(x.leg)l.trips=[];else{var i=(l.trips||[]).indexOf(x.t);if(i>=0)l.trips.splice(i,1)}touched.push(l)});
- dhFix(touched);
- var alive=false;
- if(rec){rec.date=nd;
-  gone.forEach(function(x){rec.items=rec.items.filter(function(r){return r.name!==x.name})});
-  keep.forEach(function(c){var r=rec.items.find(function(z){return z.name===c.x.name});if(r)r.q=c.v});
-  if(rec.items.length)alive=true;else delRec('dsp',rec)}
- if(tsel){var tv=tsel.value;
-  if(alive&&!tv){delRec('dsp',rec);alive=false}
-  else if(alive&&tv)rec.tid=tv;
-  else if(!alive&&tv){var p=P(b.pid)||{},ad=bAddr(b);
-   DSP().push({id:uid(),no:b.no,tid:tv,date:nd,cust:p.name||'',cph:p.phone||'',addr:ad.s||ad.a||'',items:keep.map(function(c){return {name:c.x.name,unit:c.x.unit,q:c.v,loc:itemLoc(c.x.l)}})})}}
- save();dhSel=b.no+'|'+nd;dhEd=false;lastDisp=null;render();window.scrollTo(0,0)}
-function dhDel(){
- var e=dhFind(dhSel||dhAuto);if(!e)return;
- if(!confirm('Delete this dispatch of Bill #'+e.no+'?\n\nThe '+e.items.length+' item'+(e.items.length===1?'':'s')+' will go back to "Remaining dispatch".'))return;
- var rec=dhRec(e),touched=[];
- e.items.forEach(function(x){var l=x.l;if(x.leg)l.trips=[];else{var i=(l.trips||[]).indexOf(x.t);if(i>=0)l.trips.splice(i,1)}touched.push(l)});
- dhFix(touched);if(rec)delRec('dsp',rec);
- save();dhSel=null;dhEd=false;lastDisp=null;render();window.scrollTo(0,0)}
-function dhWA(){
- var e=dhFind(dhSel||dhAuto);if(!e)return;
- lastDisp={no:e.no,items:e.items.map(function(x){return {name:x.name,unit:x.unit,q:x.q}})};
- try{waRem(e.no,1)}finally{lastDisp=null}}
-
-/* page, titles, menu highlight */
-var _vPdh=vPage;vPage=function(){return pg==='dh'?vDH():_vPdh()};
-var _bnDh=buildNav;buildNav=function(){_bnDh();if(pg==='dh'){var b=document.querySelector('nav button');if(b)b.className='on'}};
-var _mbDh=mBar;mBar=function(){_mbDh();if(pg!=='dh')return;
- var t=document.querySelector('#mtop .mttl');
- if(t&&!viewB&&!openB&&!form&&!sub){var L=dhList(),c=dhSel&&L.find(function(x){return x.id===dhSel});t.textContent=c?(dhEd?'Edit dispatch':'Dispatch · Bill #'+c.no):'Dispatch History'}
- var bs=document.querySelectorAll('#mbar button');for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',i===0);
- var f=document.getElementById('mfab');if(f)f.classList.remove('show')};
-
-/* ================= PRINT SETTINGS (added) =================
-   Settings > Print now has the print options that matter for a bill:
-   page, header, item table, totals, footer. Every option is saved in D.ps
-   and used by every printout. Defaults match the old print, so nothing
-   changes until an option is switched.                                      */
-function setPq(k,v){PS()[k]=v;save()}
-function prName(v){v=String(v).trim();PS().name=v;if(v){D.shop=v;var s=document.getElementById('sh');if(s)s.textContent=v}save()}
-function pr(k,d){var v=PS()[k];return v==null?d:v}
-function prSel(k,lb,opts,def){var v=pr(k,def);
- return '<div class="ck" style="cursor:default"><span style="flex:1">'+lb+'</span><select style="width:auto;max-width:55%;margin:0" onchange="setP(\''+k+'\',this.value)">'+opts.map(function(o){return '<option value="'+o[0]+'"'+(String(v)===String(o[0])?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></div>'}
-function prTx(k,lb,rows,ph,fn){var v=PS()[k]||'',h='<label class="mu" style="display:block;margin-top:8px">'+lb+'</label>',oc=fn?fn+'(this.value)':'setPq(\''+k+'\',this.value.trim())';
- return h+(rows?'<textarea rows="'+rows+'" placeholder="'+esc(ph||'')+'" onchange="'+oc+'">'+esc(v)+'</textarea>':'<input placeholder="'+esc(ph||'')+'" value="'+esc(v)+'" onchange="'+oc+'">')}
-function prLogo(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();
- r.onload=function(){var im=new Image();im.onload=function(){var s=Math.min(1,300/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*s));c.height=Math.max(1,Math.round(im.height*s));
-  c.getContext('2d').drawImage(im,0,0,c.width,c.height);var u=c.toDataURL('image/png');if(u.length>250000)u=c.toDataURL('image/jpeg',.85);
-  PS().logo=u;save();render()};im.onerror=function(){alert('Could not read this picture. Try a PNG or JPG file.')};im.src=r.result};r.readAsDataURL(f)}
-function prLogoDel(){delete PS().logo;save();render()}
-function prTest(){var b=D.bills.filter(function(x){return !x.x}).slice(-1)[0];if(b)printBill(b.no);else testPrint()}
-
-var _vSpr=vSettings;
-vSettings=function(){
- if(sTab!=='prt')return _vSpr();
- var s0=sTab;sTab='gen';var h0;try{h0=_vSpr()}finally{sTab=s0}
- var i=h0.indexOf('<div class="sgrid">');if(i<0)return h0;
- var pre=h0.slice(0,i).replace('style="background:#1a73e8;color:#fff"','style=""').replace(/(<button class="s" style=")(" onclick="sTab='prt')/,'$1background:#1a73e8;color:#fff$2'),
-  p=PS(),sig=!p.nosign;
- var ck2=function(k,lb,hp){return ck(k,lb,hp)},ckO=function(k,lb,hp){return ck(k,lb,hp,1)};
- var B='<div class="sec"><h3>Business details</h3><div class="hint">Printed at the top of every bill. Changes save when you leave a box.</div>'
-  +prTx('name','Firm name',0,'Your shop name','prName').replace('value=""','value="'+esc(p.name||D.shop)+'"')
-  +prTx('tag','Line under name',0,'Example: Tiles & Sanitaryware')
-  +prTx('addr','Address',3,'Shop address, city')
-  +prTx('phone','Phone number(s)',0,'')
-  +prTx('email','Email',0,'Optional')
-  +prTx('extra','Extra line',0,'Example: GST / Reg. no.')
-  +'<label class="mu" style="display:block;margin-top:10px">Logo</label><div class="row" style="justify-content:flex-start;gap:12px">'+(p.logo?'<img src="'+p.logo+'" alt="Logo" style="max-height:48px;max-width:120px;border:1px solid var(--bd);border-radius:6px;padding:3px;background:#fff">':'')
-  +'<label class="s" style="display:inline-flex;align-items:center;padding:8px 14px;border-radius:999px;background:#eaf2fe;color:#1a56b8;font-weight:500;cursor:pointer">'+(p.logo?'Change logo':'Upload logo')+'<input type="file" accept="image/*" style="display:none" onchange="prLogo(this)"></label>'+(p.logo?'<button class="s dlb" onclick="prLogoDel()">Remove</button>':'')+'</div></div>';
- var P1='<div class="sec"><h3>Page</h3>'
-  +prSel('size','Paper size',[['A4','A4 (big paper)'],['A5','A5 (half paper)']],'A4')
-  +prSel('pr_or','Orientation',[['port','Portrait'],['land','Landscape']],'port')
-  +prSel('pr_fs','Text size',[['S','Small'],['M','Medium'],['L','Large']],'M')
-  +'<div class="ck" style="cursor:default"><span style="flex:1">Blank space on top (mm)</span><input type="number" inputmode="numeric" min="0" max="80" step="5" style="width:84px;margin:0" value="'+(+p.pr_top||0)+'" onchange="setPq(\'pr_top\',Math.max(0,Math.min(80,+this.value||0)))"></div><div class="hint">Use this if your paper already has a printed letterhead.</div>'
-  +'<div style="margin-top:10px"><button class="b" onclick="prTest()">Test print</button></div><div class="hint">Prints your latest bill with these settings.</div></div>';
- var H='<div class="sec"><h3>Header</h3>'
-  +ck2('pr_nm','Firm name')+ck2('pr_logo','Logo','Shown only after you upload a logo.')+ck2('pr_ad','Address')+ck2('pr_ph','Phone number')+ck2('pr_em','Email')+ck2('pr_ex','Extra line (GST / Reg. no.)')+'</div>';
- var T='<div class="sec"><h3>Item table</h3>'
-  +ck2('pr_sn','Serial number (#)')+ck2('pr_rate','Rate column')+ck2('hloc','Godown / Block under item name','So dispatch staff can find the goods.')+ckO('pr_tq','Total quantity','Adds a line with the total quantity below the table.')+'</div>';
- var TT='<div class="sec"><h3>Totals</h3>'
-  +ck2('pr_disc','Discount')+ck2('pr_rcv','Received amount')+ck2('pr_bal','Balance amount')+ckO('pr_cb','Current balance of party','Shows how much the party owes in total, after this bill.')+ckO('pr_wd','Total amount in words','Example: Rupees Twelve Thousand Five Hundred Only.')+'</div>';
- var F='<div class="sec"><h3>Footer</h3>'
-  +ck2('pr_tm','Terms and notes')+prTx('terms','Terms and notes text',3,'Example: Goods once sold will not be taken back.')
-  +ckO('pr_bk','Bank details','Prints your bank / UPI details at the bottom.')+prTx('bank','Bank details text',3,'Bank name, account no., IFSC, UPI id')
-  +'<label class="ck"><input type="checkbox" '+(sig?'checked':'')+' onchange="setP(\'nosign\',this.checked?0:1)"><span>Signature box</span></label>'+prTx('sigtx','Signature text',0,'Authorised Signatory')+'</div>';
- return pre+'<div class="sgrid">'+B+P1+H+T+TT+F+'</div>'};
-
-/* printed header + footer follow the options */
-letterhead=function(){var p=PS(),n=p.name||D.shop,
- c=[op('pr_ph')&&p.phone&&'Phone: '+esc(p.phone),op('pr_em')&&p.email&&esc(p.email),op('pr_ex')&&p.extra&&esc(p.extra)].filter(Boolean).join(' &nbsp;|&nbsp; '),
- lg=(op('pr_logo')&&p.logo)?'<img class="lgo" src="'+p.logo+'" alt="">':'',
- tx=(op('pr_nm')?'<div class="lhn">'+esc(n)+'</div>'+(p.tag?'<div class="lht">'+esc(p.tag)+'</div>':''):'')+(op('pr_ad')&&p.addr?'<div>'+esc(p.addr).replace(/\n/g,'<br>')+'</div>':'')+(c?'<div>'+c+'</div>':'');
- return (lg||tx)?'<div class="lh">'+lg+'<div class="lhx">'+tx+'</div></div>':''};
-printHtml=function(title,body){var p=PS(),n=p.name||D.shop,w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');
- body=body.replace(/^<h2>[\s\S]*?<\/h2>/,'');
- var fs={S:11,M:13,L:15}[pr('pr_fs','M')]||13,land=pr('pr_or','port')==='land',top=+p.pr_top||0,left=[];
- if(op('pr_tm')&&(p.terms==null||p.terms))left.push('<div class="ftt">'+esc(p.terms||'Thank you for your business!').replace(/\n/g,'<br>')+'</div>');
- if(p.pr_bk&&p.bank)left.push('<div class="ftt bk"><b>Bank details</b><br>'+esc(p.bank).replace(/\n/g,'<br>')+'</div>');
- var ft=(left.length||!p.nosign)?'<div class="ft"><div class="ftl">'+left.join('')+'</div>'+(p.nosign?'':'<div class="sg">For '+esc(n)+'<br><br><br>'+esc(p.sigtx||'Authorised Signatory')+'</div>')+'</div>':'';
- var css='@page{size:'+(p.size==='A5'?'A5':'A4')+(land?' landscape':'')+';margin:12mm}*{box-sizing:border-box}body{font-family:Roboto,Arial,sans-serif;color:#1a1d2e;font-size:'+fs+'px;margin:0;padding:'+top+'mm 0 0}.lh{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:3px solid #1d3a8a;padding-bottom:10px;margin-bottom:14px}.lhx{text-align:center}.lgo{max-height:72px;max-width:170px;object-fit:contain}.lhn{font-size:'+(fs+13)+'px;font-weight:700;color:#1d3a8a;letter-spacing:.5px}.lht{font-style:italic;color:#555;margin:2px 0}h3{margin:6px 0 10px;font-size:'+(fs+4)+'px;letter-spacing:1px;text-transform:uppercase;color:#1d3a8a}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#e8edf9;color:#1d3a8a;text-align:left;padding:8px 6px;border-top:1px solid #b9c4e6;border-bottom:1px solid #b9c4e6;font-size:'+(fs-1)+'px}td{border-bottom:1px solid #dde2ee;padding:7px 6px;vertical-align:top}thead{display:table-header-group}tr{page-break-inside:avoid}.r{text-align:right}.m{color:#666;font-size:'+(fs-1.5)+'px}.bx{display:flex;gap:8px;margin:10px 0}.bx div{flex:1;border:1px solid #c9d2ec;border-radius:6px;padding:8px 10px}.bx small{display:block;color:#667;font-size:'+(fs-2)+'px;text-transform:uppercase}.bx b{font-size:'+(fs+3)+'px}.big{background:#1d3a8a;color:#fff;border-color:#1d3a8a!important}.big small{color:#cfd8f6}.sum{border:2px solid #1d3a8a;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:'+(fs+2)+'px;text-align:center}.ft{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:28px;border-top:1px solid #ccd;padding-top:10px;page-break-inside:avoid}.ftl{max-width:62%}.ftt{color:#555;font-size:'+(fs-1)+'px;margin-bottom:6px}.ftt.bk{color:#1a1d2e}.sg{text-align:center;font-size:'+(fs-1)+'px;border-top:1px solid #333;padding-top:4px;min-width:170px;margin-left:auto}.wd{margin:6px 0;font-size:'+fs+'px}';
- w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+letterhead()+body+ft+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},700)};
-
-/* amount in words (Indian system) */
-function inWords(n){n=Math.round((+n||0)*100)/100;var r=Math.floor(n),ps=Math.round((n-r)*100),
- a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],t=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
- function two(x){return x<20?a[x]:t[Math.floor(x/10)]+(x%10?' '+a[x%10]:'')}
- function three(x){return (x>=100?a[Math.floor(x/100)]+' Hundred'+(x%100?' ':''):'')+(x%100?two(x%100):'')}
- function big(x){if(!x)return '';var o=[],cr=Math.floor(x/1e7),lk=Math.floor(x/1e5)%100,th=Math.floor(x/1e3)%100,rest=x%1000;
-  if(cr)o.push(three(cr)+' Crore');if(lk)o.push(two(lk)+' Lakh');if(th)o.push(two(th)+' Thousand');if(rest)o.push(three(rest));return o.join(' ')}
- var s=r?'Rupees '+big(r):'';if(ps)s+=(s?' and ':'')+two(ps)+' Paise';return (s||'Zero Rupees')+' Only'}
-
-/* options that change the bill / document body */
-function prOpts(h,rec){
- if(!rec||!rec.lines)return h;
- var d=document.createElement('div');d.innerHTML=h;var t=d.querySelector('table'),p=P(rec.pid);
- if(t){
-  if(!op('pr_rate')){var ix=-1,hr=t.rows[0];if(hr)[].forEach.call(hr.cells,function(c,k){if(/^rate$/i.test(c.textContent.trim()))ix=k});
-   if(ix>=0)[].forEach.call(t.rows,function(r){if(r.cells.length>ix)r.deleteCell(ix)})}
-  if(!op('pr_sn')&&t.rows[0]&&t.rows[0].cells[0]&&t.rows[0].cells[0].textContent.trim()==='#')[].forEach.call(t.rows,function(r){if(r.cells.length)r.deleteCell(0)});
-  if(PS().pr_tq){var u={};rec.lines.forEach(function(l){u[l.unit]=(u[l.unit]||0)+(+l.qty||0)});
-   t.insertAdjacentHTML('afterend','<p class="m">Total quantity: <b>'+Object.keys(u).map(function(k){return Math.round(u[k]*100)/100+' '+esc(k)}).join(', ')+'</b></p>')}}
- [].forEach.call(d.querySelectorAll('p.r'),function(q){
-  if(!op('pr_disc')&&/^Discount/.test(q.textContent.trim()))q.remove();
-  else if(q.querySelector('b')&&/^Total/.test(q.textContent.trim())){
-   var x=q.innerHTML;if(!op('pr_rcv'))x=x.replace(/<br>Received [^<]*/,'');if(!op('pr_bal'))x=x.replace(/<br>Balance [^<]*/,'');q.innerHTML=x;
-   var add='';
-   if(PS().pr_wd&&rec.total!=null)add+='<p class="wd"><b>Amount in words:</b> '+inWords(rec.total)+'</p>';
-   if(PS().pr_cb&&p){var bb=bal(p);add+='<p class="r m">Current balance of '+esc(p.name)+': <b>'+(bb>0.009?money(bb)+' to receive':bb<-0.009?money(-bb)+' to pay':'Nil')+'</b></p>'}
-   if(add)q.insertAdjacentHTML('afterend',add)}});
- return d.innerHTML}
-var _bhPr=billHtml;billHtml=function(b){return prOpts(_bhPr(b),b)};
-var _dhPr=docHtml;docHtml=function(d){return prOpts(_dhPr(d),d)};
-
-/* ================= WHATSAPP MESSAGES (added) =================
-   Settings > Messages: edit the text of every automatic WhatsApp message.
-   A message is plain text with {placeholders}. A line whose placeholder has
-   nothing to show (example {received} when nothing is received) is left out.
-   The default text is the same message the app always sent.                  */
-var MSGK=[
- {k:'sale',t:'Sale invoice',d:'Sent from a sale bill (WhatsApp button).',
-  ph:[['party','Party name'],['no','Bill number'],['date','Bill date'],['items','Item list'],['total','Bill total'],['received','Received (hidden if 0)'],['due','Due on this bill'],['balance','Total pending of party'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\nBill #{no} ({date}) from {shop}\n\n{items}\n\nBill total: {total}\nReceived: {received}\nDue on this bill: {due}\nTotal pending balance (all bills): {balance}\n\n{closing}'},
- {k:'pin',t:'Payment received (Payment-In)',d:'Receipt sent after you receive money from a party.',
-  ph:[['party','Party name'],['amount','Amount received'],['bill','Bill number (if against a bill)'],['bill_due','Pending on that bill'],['balance_line','Pending / advance line'],['balance','Pending balance'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\nReceived {amount} with thanks.\nAgainst bill #{bill}\nPending on this bill: {bill_due}\n{balance_line}\n- {shop}'},
- {k:'pout',t:'Payment made (Payment-Out)',d:'Sent after you pay money to a supplier or party.',
-  ph:[['party','Party name'],['amount','Amount paid'],['balance_line','Pending / advance line'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\nWe have paid {amount} to you.\n{balance_line}\n- {shop}'},
- {k:'rem',t:'Payment reminder',d:'Sent from a party when you ask for pending money.',
-  ph:[['party','Party name'],['balance','Pending balance'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\nYour pending balance with {shop} is {balance}. Kindly clear it at your earliest convenience. {closing}'},
- {k:'disp',t:'Dispatch update (to customer)',d:'Tells the customer what was sent and what is still to come.',
-  ph:[['party','Party name'],['no','Bill number'],['sent_block','Sent items with heading'],['remaining_block','Remaining items with heading'],['sent','Sent items only'],['remaining','Remaining items only'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\nUpdate on bill #{no} from {shop}\n\n{sent_block}\n\n{remaining_block}\n\n{closing}'},
- {k:'trn',t:'Dispatch to transporter',d:'Loading order sent to the transporter. Prices are never included.',
-  ph:[['transporter','Transporter name'],['no','Bill number'],['date','Date'],['vehicle','Vehicle number'],['customer','Customer name'],['phone','Customer phone'],['address','Delivery address'],['items','Goods to load'],['shop','Your shop name']],
-  tpl:'{greeting} {transporter},\n🚚 *LOADING ORDER* from {shop}\n\nBill #{no} · {date}\nVehicle: {vehicle}\n\n*Deliver to:*\n{customer}\n📞 {phone}\n📍 {address}\n\n*Goods to load:*\n{items}\nPlease confirm after loading and delivery.\n- {shop}'},
- {k:'sret',t:'Sale return',d:'Sent when goods come back from a customer.',
-  ph:[['party','Party name'],['amount','Return amount'],['items','Returned items'],['balance_line','Pending / advance line'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\nSale return of {amount} has been credited to your account.\n{items}\n{balance_line}\n- {shop}'},
- {k:'pur',t:'Purchase bill',d:'Sent from a purchase bill.',
-  ph:[['party','Supplier name'],['doc','Document name'],['no','Number'],['date','Date'],['items','Item list'],['total','Total'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\n{doc} #{no} ({date}) from {shop}\n\n{items}\n\nTotal: {total}\n\n{closing}'},
- {k:'doc',t:'Estimate, order, challan, purchase return',d:'Sent from these other documents.',
-  ph:[['party','Party name'],['doc','Document name'],['no','Number'],['date','Date'],['items','Item list'],['total','Total'],['shop','Your shop name']],
-  tpl:'{greeting} {party},\n{doc} #{no} ({date}) from {shop}\n\n{items}\n\nTotal: {total}\n\n{closing}'}
-];
-var msgSel=null;
-function msgDef(k){return MSGK.find(function(x){return x.k===k})}
-function msgTpl(k){var c=(PS().msgs||{})[k];return typeof c==='string'?c:msgDef(k).tpl}
-function msgRender(tpl,v){var out=[];
- String(tpl).split('\n').forEach(function(line){var drop=false;
-  var r=line.replace(/\{(\w+)\}/g,function(m,k){if(!(k in v))return m;var x=v[k];if(x===''||x==null){drop=true;return ''}return x});
-  if(!drop)out.push(r)});
- return out.join('\n').replace(/\n{3,}/g,'\n\n').trim()}
-function msgCom(){var p=PS();return {shop:D.shop,greeting:p.msg_g||'Namaste',closing:p.msg_c||'Thank you!'}}
-function mt(k,v){var o=msgCom(),x;for(x in v)o[x]=v[x];return msgRender(msgTpl(k),o)}
-function msgLines(ls){return ls.map(function(l){return l.name+': '+l.qty+' '+l.unit+' × '+l.rate+' = '+money(l.amt)}).join('\n')}
-function msgBal(p){var b=bal(p);return b>=0?'Pending balance: '+money(b):'Advance with us: '+money(-b)}
-
-/* builders (real data) */
-function msgSaleV(b,p){var pd=paidOn(b);return {party:p.name,no:b.no,date:dt(b.date),items:msgLines(b.lines),total:money(b.total),received:pd>0?money(pd):'',due:money(Math.max(b.total-pd,0)),balance:money(Math.max(bal(p),0))}}
-function msgPayInV(p,a,no,bd){return {party:p.name,amount:money(a),bill:no||'',bill_due:no?money(bd):'',balance_line:msgBal(p),balance:money(Math.max(bal(p),0))}}
-function msgPayIn(p,a,no,bd){return mt('pin',msgPayInV(p,a,no,bd))}
-function msgDispV(b,p,now){
- var sd=now?now:b.lines.filter(function(l){return dq(l)>0}).map(function(l){return {name:l.name,unit:l.unit,q:dq(l),of:l.qty}}),
-  r=b.lines.filter(function(l){return rem(l)>0}),
-  sl=sd.map(function(x){return '✔ '+x.name+': '+(x.of?x.q+' of '+x.of:x.q)+' '+x.unit}).join('\n'),
-  rl=r.map(function(l){return '• '+l.name+': '+rem(l)+' '+l.unit}).join('\n');
- return {party:p.name,no:b.no,sent:sl,remaining:rl,sent_block:sl?(now?'Sent now:\n':'Sent so far:\n')+sl:'',remaining_block:r.length?'Remaining to be sent:\n'+rl:'All items dispatched.'}}
-function msgTrV(d){var t=TRS().find(function(x){return x.id===d.tid})||{name:''},
- its=d.items.slice().sort(function(a,b){var x=String(a.loc||'~').toLowerCase(),y=String(b.loc||'~').toLowerCase();return x<y?-1:x>y?1:0});
- return {transporter:t.name,no:d.no,date:dt(d.date),vehicle:t.veh||'',customer:d.cust,phone:d.cph||'',address:d.addr||'',items:its.map(function(x,i){return (i+1)+'. '+x.name+' - *'+x.q+' '+x.unit+'*'+(x.loc?'\n    📦 Godown / Block: '+x.loc:'')}).join('\n')+'\n'}}
-
-/* live message functions now use the templates */
-wa=function(no){var b=bl(no),p=b&&P(b.pid);if(!p)return;openWA(p,mt('sale',msgSaleV(b,p)))};
-waRem=function(no,now){var b=bl(no),p=b&&P(b.pid);if(!p)return;
- var n=(now&&lastDisp&&lastDisp.no===no)?lastDisp.items.map(function(x){return {name:x.name,unit:x.unit,q:x.q}}):null;
- openWA(p,mt('disp',msgDispV(b,p,n)))};
-trMsg=function(d){return mt('trn',msgTrV(d))};
-docWA=function(id){var d=docById(id),p=d&&P(d.pid);if(!p)return;
- openWA(p,mt(d.t==='pur'?'pur':'doc',{party:p.name,doc:DT[d.t].s,no:d.no,date:dt(d.date),items:msgLines(d.lines),total:money(d.total)}))};
-payWA=function(id){var x=D.pays.find(function(q){return q.id===id}),p=x&&P(x.pid);if(!p)return;
- var v={party:p.name,amount:money(x.amt),balance_line:msgBal(p),balance:money(Math.max(bal(p),0)),
-  items:(x.lines||[]).map(function(l){return '• '+l.name+': '+l.qty+' '+l.unit}).join('\n'),bill:'',bill_due:''};
- openWA(p,mt(x.ret?'sret':x.out?'pout':'pin',v))};
-remindP=function(id){var p=P(id),b=bal(p);if(b>0)openWA(p,mt('rem',{party:p.name,balance:money(b)}));else alert('No pending balance to remind')};
-remind=function(){remindP(openP)};
-
-/* ---- settings page ---- */
-(function(){var st=document.createElement('style');st.textContent=
-'.msgb{background:#e7f6ee;border-radius:10px 10px 10px 2px;padding:11px 13px;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.45;color:#1f2437;border:1px solid #cfe9db}'+
-'.msgta{width:100%;min-height:210px;font-family:inherit;line-height:1.45;resize:vertical}'+
-'.msgph{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}.msgph button{border:1px solid #cfd5e3;background:#fff;color:#1a56b8;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;min-height:34px;cursor:pointer}'+
-'.msgph button small{color:#7b8194;font-weight:400;margin-left:4px}'+
-'.msgcm{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:520px){.msgcm{grid-template-columns:1fr}}';
-document.head.appendChild(st)})();
-function msgSample(k){
- var p={name:'Ramesh Patil',id:'x'},b=D.bills.filter(function(x){return !x.x}).slice(-1)[0],bp=b&&P(b.pid),
-  fl=[{name:'Glossy Tile 2x2',qty:20,unit:'box',rate:500,amt:10000},{name:'Cement',qty:10,unit:'bag',rate:300,amt:3000}],o=msgCom(),x;
- var V;
- if(k==='sale')V=b&&bp?msgSaleV(b,bp):{party:p.name,no:12,date:dt(Date.now()),items:msgLines(fl),total:money(13000),received:money(5000),due:money(8000),balance:money(8000)};
- else if(k==='pin')V={party:p.name,amount:money(5000),bill:12,bill_due:money(8000),balance_line:'Pending balance: '+money(8000),balance:money(8000)};
- else if(k==='pout')V={party:'Sunil Traders',amount:money(5000),balance_line:'Pending balance: '+money(0)};
- else if(k==='rem')V={party:p.name,balance:money(8000)};
- else if(k==='disp')V=b&&bp?msgDispV(b,bp,null):{party:p.name,no:12,sent:'✔ Glossy Tile 2x2: 10 of 20 box',remaining:'• Glossy Tile 2x2: 10 box\n• Cement: 10 bag',sent_block:'Sent so far:\n✔ Glossy Tile 2x2: 10 of 20 box',remaining_block:'Remaining to be sent:\n• Glossy Tile 2x2: 10 box\n• Cement: 10 bag'};
- else if(k==='trn')V={transporter:'Ganesh Transport',no:12,date:dt(Date.now()),vehicle:'MH 15 AB 1234',customer:p.name,phone:'9876543210',address:'Plot 4, Nashik',items:'1. Glossy Tile 2x2 - *20 box*\n    📦 Godown / Block: Godown 1\n'};
- else if(k==='sret')V={party:p.name,amount:money(3000),items:'• Glossy Tile 2x2: 6 box',balance_line:'Pending balance: '+money(5000)};
- else V={party:'Sunil Traders',doc:k==='pur'?'Purchase':'Estimate',no:7,date:dt(Date.now()),items:msgLines(fl),total:money(13000)};
- for(x in V)o[x]=V[x];return o}
-function msgPreview(k){return esc(msgRender(msgTpl(k),msgSample(k)))}
-function msgPick(k){msgSel=k;render();window.scrollTo(0,0)}
-function msgEdit(k,v){var m=PS().msgs=PS().msgs||{};m[k]=v;save();var e=document.getElementById('msgpv');if(e)e.innerHTML=msgPreview(k);var c=document.getElementById('msgst');if(c)c.textContent=v===msgDef(k).tpl?'Default':'Edited'}
-function msgIns(tok){var ta=document.getElementById('msgta');if(!ta)return;var s=ta.selectionStart==null?ta.value.length:ta.selectionStart,e=ta.selectionEnd==null?s:ta.selectionEnd;
- ta.value=ta.value.slice(0,s)+tok+ta.value.slice(e);var pos=s+tok.length;ta.focus();try{ta.setSelectionRange(pos,pos)}catch(x){}msgEdit(msgSel||msgAuto,ta.value)}
-function msgReset(k){var m=PS().msgs||{};delete m[k];save();render()}
-function msgCommon(k,v){PS()[k]=v.trim();save();var e=document.getElementById('msgpv');if(e&&msgSel)e.innerHTML=msgPreview(msgSel)}
-function msgEdited(k){var c=(PS().msgs||{})[k];return typeof c==='string'&&c!==msgDef(k).tpl}
-function vMsgList(){
- return '<div class="dxc" style="padding:0;overflow:hidden">'+MSGK.map(function(m){
-  return '<div class="dxtrow'+(msgSel===m.k?' on':'')+'" onclick="msgPick(\''+m.k+'\')"><span class="dxav">'+dxI('chat')+'</span><span class="dxtm"><b>'+esc(m.t)+'</b><small>'+esc(m.d)+'</small></span>'+(msgEdited(m.k)?'<span class="dxchip b">Edited</span>':'')+'<span class="dhch">›</span></div>'}).join('')+'</div>'}
-function vMsgEd(k){var m=msgDef(k),v=msgTpl(k),p=PS();
- return '<button class="s dxback dhbk" onclick="msgSel=null;render()">← Back</button>'
- +'<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">WhatsApp message</div><div class="dxt">'+esc(m.t)+'</div><div class="dxm">'+esc(m.d)+'</div></div><span class="dxchip b" id="msgst">'+(msgEdited(k)?'Edited':'Default')+'</span></div>'
- +'<label class="dxl">Message text</label><textarea id="msgta" class="msgta" oninput="msgEdit(\''+k+'\',this.value)" spellcheck="false">'+esc(v)+'</textarea>'
- +'<div class="dxm" style="margin-top:8px">Tap a word below to add it where your cursor is. It is replaced with the real value when the message is sent. A line is left out when its value is empty.</div>'
- +'<div class="msgph">'+m.ph.map(function(x){return '<button type="button" onmousedown="event.preventDefault()" onclick="msgIns(\'{'+x[0]+'}\')">{'+x[0]+'}<small>'+esc(x[1])+'</small></button>'}).join('')+'<button type="button" onmousedown="event.preventDefault()" onclick="msgIns(\'{greeting}\')">{greeting}</button><button type="button" onmousedown="event.preventDefault()" onclick="msgIns(\'{closing}\')">{closing}</button></div></div>'
- +'<div class="dxlh"><b>Preview</b><span class="dxm">With sample details</span></div><div class="dxc"><div class="msgb" id="msgpv">'+msgPreview(k)+'</div></div>'
- +'<div class="dxbtns"><button class="dxsec" onclick="msgReset(\''+k+'\')">Reset to default</button></div>'}
-function vMsg(){
- var p=PS(),cm='<div class="dxc"><div class="dxk">For all messages</div><div class="dxm" style="margin-bottom:4px">Used wherever a message has {greeting} or {closing}.</div><div class="msgcm"><div><label class="dxl">Greeting</label><input value="'+esc(p.msg_g||'Namaste')+'" placeholder="Namaste" onchange="msgCommon(\'msg_g\',this.value)"></div><div><label class="dxl">Closing line</label><input value="'+esc(p.msg_c||'Thank you!')+'" placeholder="Thank you!" onchange="msgCommon(\'msg_c\',this.value)"></div></div></div>';
- var L=cm+vMsgList(),R=msgSel?vMsgEd(msgSel):'<div class="dxc dxm dxdesk">Pick a message on the left to edit it</div>';
- var cur=msgSel||(!isM()?MSGK[0].k:null);if(!msgSel&&cur)R=vMsgEd(cur),msgAuto=cur;else msgAuto=null;
- return '<div class="split"><div class="'+(msgSel?'hid':'')+'">'+L+'</div><div>'+R+'</div></div>'}
-var msgAuto=null;
-
-/* tab in Settings */
-function msgPills(h){var on=sTab==='msg';if(on)h=h.replace('style="background:#1a73e8;color:#fff"','style=""');
- return h.replace("onclick=\"sTab='prt';render()\">Print</button>","onclick=\"sTab='prt';render()\">Print</button><button class=\"s\" style=\""+(on?'background:#1a73e8;color:#fff':'')+"\" onclick=\"sTab='msg';msgSel=null;render()\">Messages</button>")}
-var _vSm=vSettings;
-vSettings=function(){
- if(sTab==='msg'){var s0=sTab,h;sTab='gen';try{h=_vSm()}finally{sTab=s0}
-  var i=h.indexOf('<div class="sgrid">');if(i<0)return h;return msgPills(h.slice(0,i))+vMsg()}
- return msgPills(_vSm())};
-var _gbM=goBack;goBack=function(){if(pg==='set'&&sTab==='msg'&&msgSel){msgSel=null;render();window.scrollTo(0,0);return}_gbM()};
 
 lockCk();
 render();
