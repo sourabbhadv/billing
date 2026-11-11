@@ -516,8 +516,10 @@ function waRem(no,now){
  openWA(p,t+'\nThank you!');
 }
 function vPendDisp(){
- var bs=D.bills.filter(function(b){return !b.x&&b.lines.some(function(l){return rem(l)>0})}),h='<div class="card"><b>Remaining dispatch</b> <span class="mu">('+bs.length+' bills)</span><div class="pend">';
- if(!bs.length)h+='<p class="grn">Nothing pending. All sent.</p>';
+ var bs=D.bills.filter(function(b){return !b.x&&b.lines.some(function(l){return rem(l)>0})}),hl=[];try{hl=dhList()}catch(e){}
+ var hn=hl.length,hint=hn?hn+' dispatch'+(hn===1?'':'es')+' · last '+dt(hl[0].d):'No dispatches recorded yet';
+ if(!bs.length)return '<div class="card clk" role="button" tabindex="0" style="cursor:pointer" onclick="dhOpen()" onkeydown="if(event.key===\'Enter\')dhOpen()"><div class="row"><span><b>Remaining dispatch</b> <span class="mu">(0 bills)</span></span></div><p class="grn" style="margin:8px 0 0">✔ Nothing pending. All sent.</p><div class="dhlink"><span>'+dxI('hist')+'<span>View dispatch history<small>'+hint+'</small></span></span><span class="dhch">›</span></div></div>';
+ var h='<div class="card"><div class="row"><span><b>Remaining dispatch</b> <span class="mu">('+bs.length+' bills)</span></span><button class="s" onclick="dhOpen()">'+dxI('hist')+' History</button></div><div class="pend">';
  bs.forEach(function(b){var p=P(b.pid);h+='<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px;cursor:pointer" onclick="tab=\'bill\';viewB=null;openB='+b.no+';render()"><b>#'+b.no+' '+esc(p?p.name:'?')+'</b> <span class="mu">'+dt(b.date)+'</span>'+b.lines.filter(function(l){return rem(l)>0}).map(function(l){return '<div class="row mu" style="margin-top:2px"><span>'+esc(l.name)+locTag(l)+'</span><span class="red">'+rem(l)+' of '+l.qty+' '+esc(l.unit)+'</span></div>'}).join('')+'</div>'});
  return h+'</div></div>';
 }
@@ -2096,6 +2098,164 @@ render=function(){_rDx();try{var mb=document.getElementById('mbar');if(mb&&mb.of
 var _vStT=vSettings;
 vSettings=function(){var h=_vStT();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');
  return k<0?h:h.slice(0,k)+'<div class="sec"><h3>Transporter / Rider</h3>'+ck('trn','Assign a transporter when dispatching goods','Adds a Transporters list. On the Dispatch screen you pick or add a transporter, and a loading list without prices, with godown / block and the customer address, is sent to them on WhatsApp. Untick to hide everything; saved data is kept.')+'</div>'+h.slice(k)};
+
+/* ================= DISPATCH HISTORY (added) =================
+   - "Remaining dispatch" block on Home opens this page (also when nothing is pending)
+   - Lists every dispatch (one row = one Save dispatch on a bill), newest first
+   - Each dispatch can be viewed, edited (quantity, date, transporter, remove item) or deleted
+   - Same cards / blue accent / pill buttons as Dispatch + Transporters screens         */
+var dhSel=null,dhEd=false,dhQ='',dhAuto=null;PER.dh={v:'all',a:'',b:''};
+(function(){var st=document.createElement('style');st.textContent=
+'.dhbk{display:none!important}'+
+'.dhgh{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7b8194;font-weight:600;margin:14px 4px 6px}.dhgrp:first-child .dhgh{margin-top:2px}'+
+'.dhlink{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:8px;background:#eef4fe;color:#1a56b8;font-weight:700}'+
+'.dhlink small{display:block;color:#5a6c92;font-weight:400;font-size:12.5px;margin-top:1px}.dhlink>span:first-child{display:flex;align-items:center;gap:10px;min-width:0}.dhlink .dxi{width:20px;height:20px}'+
+'.dhch{color:#1a73e8;font-size:22px;line-height:1;flex:none}'+
+'.dhfilt{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}.dhfilt input{flex:1;min-width:150px;margin:0}.dhfilt select{margin:0}'+
+'.dh .dxq input{margin:0;height:46px;padding:0 54px 0 12px}.dh select,.dh input[type=date]{margin:0;height:46px}.dh input.dxbad{border-color:#d92d3a;background:#fff5f6}'+
+'.dhit{padding:12px 0;border-top:1px solid #eef0f5}.dhit:first-of-type{border-top:0;padding-top:4px}.dhit .dxnm{margin-bottom:8px}'+
+'.dhrm{flex:none;min-width:84px;border:0;border-radius:8px;background:#fdecee;color:#d92d3a;font-weight:700;font-size:14px;cursor:pointer}'+
+'.dh .dxc>.dxhi:first-child{margin-top:0;border-top:0;padding-top:0}'+
+'@media(max-width:899px){.dh.ed{padding-bottom:86px}.dhact{position:fixed;left:0;right:0;bottom:var(--mbh,66px);z-index:7;background:#fff;margin:0;padding:10px 12px 12px;box-shadow:0 -4px 14px rgba(25,35,80,.13)}}'+
+'@media(min-width:900px){.dhact{margin-top:4px}}';
+document.head.appendChild(st)})();
+DXI.hist='<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.8v4.7h4.7M12 7.5V12l3 2"/>';
+DXI.edit='<path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/>';
+DXI.trash='<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.9 12.5h9.2L17.5 7M10 11v5M14 11v5"/>';
+DXI.bill='<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>';
+
+function rnd2(n){return Math.round(n*100)/100}
+function dhDayStr(d){var x=new Date(d),p=function(n){return (n<10?'0':'')+n};return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())}
+function dhDayLbl(d){var t=dhDayStr(Date.now()),y=dhDayStr(Date.now()-864e5),k=dhDayStr(d);
+ if(k===t)return 'Today';if(k===y)return 'Yesterday';
+ return new Date(d).toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})}
+function dhTime(d){var x=new Date(d);if(x.getHours()===12&&!x.getMinutes()&&!x.getSeconds())return '';
+ return x.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}).toLowerCase()}
+
+/* every "Save dispatch" = one entry: same bill + same time */
+function dhList(){
+ var M={},A=[];
+ D.bills.forEach(function(b){if(b.x)return;
+  b.lines.forEach(function(l,k){var tr=l.trips||[];
+   function add(t,leg){var d=+t.d||b.date,key=b.no+'|'+(leg?'L':'')+d,e=M[key];
+    if(!e){e=M[key]={id:key,no:b.no,d:d,b:b,items:[]};A.push(e)}
+    e.items.push({l:l,k:k,t:t,q:+t.q,name:l.name,unit:l.unit,leg:!!leg})}
+   if(tr.length)tr.forEach(function(t){add(t,0)});
+   else if(dq(l)>0)add({d:l.sentOn||b.date,q:dq(l)},1)})});
+ return A.sort(function(a,b){return b.d-a.d||b.no-a.no})}
+function dhFind(id){return dhList().find(function(e){return e.id===id})}
+function dhRec(e){if(e.items[0]&&e.items[0].leg)return null;
+ return DSP().find(function(r){return r.no===e.no&&Math.abs((+r.date||0)-e.d)<15000})||null}
+function dhTrName(e){var r=dhRec(e),t=r&&TRS().find(function(x){return x.id===r.tid});return t?t.name:''}
+function dhSum(e){var f=e.items[0];return esc(f.name)+' '+f.q+' '+esc(f.unit)+(e.items.length>1?' +'+(e.items.length-1)+' more':'')}
+
+function dhOpen(){leave();pg='dh';dhSel=null;dhEd=false;dhQ='';render();window.scrollTo(0,0)}
+function dhPick(id){dhSel=id;dhEd=false;render();window.scrollTo(0,0)}
+function dhBack(){if(dhEd)dhEd=false;else dhSel=null;render();window.scrollTo(0,0)}
+
+function dhRows(){
+ var L=dhList().filter(function(e){return inPer('dh',e.d)}),q=dhQ.toLowerCase().trim(),cur=dhCur(L),h='',day='',open=false;
+ L=L.filter(function(e){if(!q)return true;var p=P(e.b.pid);return (e.no+' '+(p?p.name:'')+' '+e.items.map(function(x){return x.name}).join(' ')+' '+dhTrName(e)).toLowerCase().indexOf(q)>=0});
+ L.forEach(function(e){var dl=dhDayLbl(e.d),p=P(e.b.pid)||{name:'?'},tn=dhTrName(e),n=e.items.length;
+  if(dl!==day){if(open)h+='</div></div>';day=dl;open=true;h+='<div class="dhgrp"><div class="dhgh">'+esc(dl)+'</div><div class="dxc" style="padding:0;overflow:hidden">'}
+  h+='<div class="dxtrow dhrow'+(cur&&cur.id===e.id?' on':'')+'" data-id="'+esc(e.id)+'" onclick="dhPick(this.dataset.id)"><span class="dxav">'+dxIni(p.name)+'</span><span class="dxtm"><b>'+esc(p.name)+'</b><small>Bill #'+e.no+' · '+dhSum(e)+(tn?' · 🚚 '+esc(tn):'')+'</small></span><span class="dxchip b">'+n+' item'+(n===1?'':'s')+'</span></div>'});
+ if(open)h+='</div></div>';
+ return h||'<div class="dxc dxm">'+(dhQ||pv('dh').v!=='all'?'No dispatches match your search.':'No dispatches yet. When you press <b>Save dispatch</b> on a bill, it is listed here.')+'</div>'}
+function dhCur(L){var s=dhSel&&L.find(function(e){return e.id===dhSel});return s||(!isM()&&!dhSel&&L.length?L[0]:null)}
+function dhSearch(v){dhQ=v;var e=document.getElementById('dhl');if(e)e.innerHTML=dhRows()}
+
+function vDH(){
+ var all=dhList(),L=all.filter(function(e){return inPer('dh',e.d)}),cur=dhCur(L),sel=!!(dhSel&&L.find(function(e){return e.id===dhSel})),
+  bills={};L.forEach(function(e){bills[e.no]=1});
+
+ dhAuto=(!dhSel&&cur)?cur.id:null;
+ var h=(sel?'':'<button class="s dhbk" onclick="nav(\'home\')">← Back</button>')
+  +'<div class="dxdesk" style="display:flex;justify-content:space-between;align-items:center;margin:6px 0"><h2 style="font-size:20px;margin:0">Dispatch History</h2><button class="s" onclick="nav(\'home\')">'+dxI('truck')+' Remaining dispatch</button></div>';
+ var Lt='<div class="dxst" style="margin:0 0 12px"><div><span>Dispatches</span><b>'+L.length+'</b></div><div><span>Last dispatch</span><b>'+(L.length?dt(L[0].d):'-')+'</b></div></div>'
+  +'<div class="dhfilt"><input placeholder="Search party, bill no or item" value="'+esc(dhQ)+'" oninput="dhSearch(this.value)">'+perUI('dh')+'</div><div id="dhl">'+dhRows()+'</div>';
+ var R=cur?(dhEd?dhForm(cur):dhView(cur)):'<div class="dxc dxm dxdesk">Click a dispatch to see its details</div>';
+ return h+'<div class="split"><div class="'+(sel?'hid':'')+'">'+Lt+'</div><div>'+R+'</div></div>'}
+
+function dhView(e){
+ var b=e.b,p=P(b.pid)||{name:'?'},ad=bAddr(b),addr=ad.s||ad.a||'',rec=dhRec(e),tr=rec&&TRS().find(function(x){return x.id===rec.tid}),
+  left=b.lines.filter(function(l){return rem(l)>0}).length,tm=dhTime(e.d);
+ var h='<button class="s dxback dhbk" onclick="dhBack()">← Back</button><div class="dh">'
+ +'<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">Dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">'+dt(e.d)+(tm?' · '+tm:'')+'</div></div>'
+ +(left?'<span class="dxchip r">'+left+' still pending</span>':'<span class="dxchip g">'+dxI('check')+' Bill fully sent</span>')+'</div>'
+ +((addr||p.phone||tr)?'<div class="dxaddr">'+(addr?'<div>'+dxI('pin')+'<span>'+nl2(addr)+'</span></div>':'')+(p.phone?'<div>'+dxI('phone')+'<a href="tel:'+esc(String(p.phone).replace(/[^\d+]/g,''))+'">'+esc(p.phone)+'</a></div>':'')
+  +(tr?'<div>'+dxI('truck')+'<span>Transporter: <b>'+esc(tr.name)+'</b>'+(tr.veh?' · '+esc(tr.veh):'')+'</span></div>':'')+'</div>':'')+'</div>'
+ +'<div class="dxlh"><b>Items sent</b><span class="dxm">'+e.items.length+' item'+(e.items.length===1?'':'s')+'</span></div><div class="dxc">'
+ +e.items.map(function(x){var loc=itemLoc(x.l);return '<div class="dxhi"><div>'+esc(x.name)+'<small style="color:#7b8194;font-weight:400">Sold '+x.l.qty+' '+esc(x.unit)+' · Sent in total '+dq(x.l)+'</small>'+(loc?'<small>📍 '+esc(loc)+'</small>':'')+'</div><b>'+x.q+' '+esc(x.unit)+'</b></div>'}).join('')+'</div>'
+ +'<div class="dxbtns"><button class="dxpri" onclick="dhEd=true;render();window.scrollTo(0,0)">'+dxI('edit')+' Edit dispatch</button><button class="dxsec" onclick="dhWA()">'+dxI('chat')+'<span>Update customer</span></button></div>'
+ +'<div class="dxbtns" style="margin-top:8px"><button class="dxsec" onclick="viewB='+b.no+';render()">'+dxI('bill')+'<span>Open bill</span></button>'
+ +(rec?'<button class="dxsec" data-d="'+esc(rec.id)+'" onclick="sendTr(this.dataset.d)">'+dxI('truck')+'<span>Resend to transporter</span></button>':(left?'<button class="dxsec" onclick="openB='+b.no+';render()">'+dxI('truck')+'<span>Dispatch the rest</span></button>':''))+'</div></div>';
+ return h}
+
+function dhForm(e){
+ var b=e.b,p=P(b.pid)||{name:'?'},rec=dhRec(e),min=dhDayStr(b.date),mx=dhDayStr(Date.now()>e.d?Date.now():e.d);
+ var h='<button class="s dxback dhbk" onclick="dhBack()">← Back</button><div class="dh ed">'
+ +'<div class="dxc"><div class="dxk">Edit dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">Change the quantity, the date, or remove an item. Quantity 0 removes the item.</div>'
+ +'<label class="dxl">Dispatch date</label><input id="dhd" type="date" value="'+dhDayStr(e.d)+'" min="'+min+'" max="'+mx+'">'
+ +(op('trn')?'<label class="dxl">Transporter / Rider</label><select id="dhtr"><option value="">No transporter (customer pickup)</option>'+TRS().slice().sort(trByName).map(function(t){return '<option value="'+esc(t.id)+'"'+(rec&&rec.tid===t.id?' selected':'')+'>'+esc(t.name)+' · '+esc(t.phone||'')+'</option>'}).join('')+'</select>':'')+'</div>'
+ +'<div class="dxlh"><b>Items</b><span class="dxm">'+e.items.length+' item'+(e.items.length===1?'':'s')+'</span></div><div class="dxc">'
+ +e.items.map(function(x,i){var m=rnd2(rem(x.l)+x.q);
+  return '<div class="dhit"><div class="dxnm">'+esc(x.name)+'<small>Sold '+x.l.qty+' '+esc(x.unit)+' · Most you can enter: '+m+'</small></div>'
+  +'<div class="dxsend"><div class="dxq"><input id="dhq'+i+'" type="number" inputmode="decimal" min="0" step="any" value="'+x.q+'" placeholder="Removed" oninput="dhChk('+i+','+m+')"><span class="dxu">'+esc(x.unit)+'</span></div><button class="dhrm" onclick="dhRm('+i+')">Remove</button></div></div>'}).join('')
+ +'<button class="dxsm dxdel" style="width:100%;justify-content:center;margin-top:6px" onclick="dhDel()">'+dxI('trash')+' Delete this dispatch</button></div>'
+ +'<div class="dxbtns dhact"><button class="dxpri" onclick="dhSave()">Save changes</button><button class="dxsec" onclick="dhEd=false;render()">Cancel</button></div></div>';
+ return h}
+function dhChk(i,m){var el=document.getElementById('dhq'+i);if(el)el.classList.toggle('dxbad',+el.value>m+1e-9)}
+function dhRm(i){var el=document.getElementById('dhq'+i);if(el){el.value='';el.classList.remove('dxbad')}}
+
+function dhFix(ls){ls.forEach(function(l){var t=l.trips||[];t.sort(function(a,b){return a.d-b.d});reTrips(l)})}
+function dhSave(){
+ var e=dhFind(dhSel||dhAuto);if(!e)return;var b=e.b,ds=($('#dhd')||{}).value||'',nd=e.d;
+ if(ds&&ds!==dhDayStr(e.d)){var a=ds.split('-'),c=new Date(+a[0],+a[1]-1,+a[2],12).getTime();
+  if(isNaN(c))return alert('Pick a valid date');
+  if(ds<dhDayStr(b.date))return alert('Dispatch date cannot be before the bill date ('+dt(b.date)+')');
+  if(ds>dhDayStr(Date.now()))return alert('Dispatch date cannot be in the future');nd=c}
+ var keep=[],gone=[],bad='';
+ e.items.forEach(function(x,i){var el=document.getElementById('dhq'+i),v=el?+el.value:x.q;if(el&&el.value==='')v=0;
+  if(!(v>0)){gone.push(x);return}
+  var m=rnd2(rem(x.l)+x.q);if(v>m+1e-9){bad=x.name+' (most you can enter is '+m+')';return}keep.push({x:x,v:rnd2(v)})});
+ if(bad)return alert('Quantity is too high for '+bad);
+ if(!keep.length)return dhDel();
+ if(gone.length&&!confirm('Remove '+gone.map(function(x){return x.name}).join(', ')+' from this dispatch?'))return;
+ var rec=dhRec(e),tsel=document.getElementById('dhtr'),touched=[];
+ keep.forEach(function(c){var x=c.x,l=x.l;if(x.leg)l.trips=[{d:nd,q:c.v}];else{x.t.q=c.v;x.t.d=nd}touched.push(l)});
+ gone.forEach(function(x){var l=x.l;if(x.leg)l.trips=[];else{var i=(l.trips||[]).indexOf(x.t);if(i>=0)l.trips.splice(i,1)}touched.push(l)});
+ dhFix(touched);
+ var alive=false;
+ if(rec){rec.date=nd;
+  gone.forEach(function(x){rec.items=rec.items.filter(function(r){return r.name!==x.name})});
+  keep.forEach(function(c){var r=rec.items.find(function(z){return z.name===c.x.name});if(r)r.q=c.v});
+  if(rec.items.length)alive=true;else delRec('dsp',rec)}
+ if(tsel){var tv=tsel.value;
+  if(alive&&!tv){delRec('dsp',rec);alive=false}
+  else if(alive&&tv)rec.tid=tv;
+  else if(!alive&&tv){var p=P(b.pid)||{},ad=bAddr(b);
+   DSP().push({id:uid(),no:b.no,tid:tv,date:nd,cust:p.name||'',cph:p.phone||'',addr:ad.s||ad.a||'',items:keep.map(function(c){return {name:c.x.name,unit:c.x.unit,q:c.v,loc:itemLoc(c.x.l)}})})}}
+ save();dhSel=b.no+'|'+nd;dhEd=false;lastDisp=null;render();window.scrollTo(0,0)}
+function dhDel(){
+ var e=dhFind(dhSel||dhAuto);if(!e)return;
+ if(!confirm('Delete this dispatch of Bill #'+e.no+'?\n\nThe '+e.items.length+' item'+(e.items.length===1?'':'s')+' will go back to "Remaining dispatch".'))return;
+ var rec=dhRec(e),touched=[];
+ e.items.forEach(function(x){var l=x.l;if(x.leg)l.trips=[];else{var i=(l.trips||[]).indexOf(x.t);if(i>=0)l.trips.splice(i,1)}touched.push(l)});
+ dhFix(touched);if(rec)delRec('dsp',rec);
+ save();dhSel=null;dhEd=false;lastDisp=null;render();window.scrollTo(0,0)}
+function dhWA(){
+ var e=dhFind(dhSel||dhAuto);if(!e)return;
+ lastDisp={no:e.no,items:e.items.map(function(x){return {name:x.name,unit:x.unit,q:x.q}})};
+ try{waRem(e.no,1)}finally{lastDisp=null}}
+
+/* page, titles, menu highlight */
+var _vPdh=vPage;vPage=function(){return pg==='dh'?vDH():_vPdh()};
+var _bnDh=buildNav;buildNav=function(){_bnDh();if(pg==='dh'){var b=document.querySelector('nav button');if(b)b.className='on'}};
+var _mbDh=mBar;mBar=function(){_mbDh();if(pg!=='dh')return;
+ var t=document.querySelector('#mtop .mttl');
+ if(t&&!viewB&&!openB&&!form&&!sub){var L=dhList(),c=dhSel&&L.find(function(x){return x.id===dhSel});t.textContent=c?(dhEd?'Edit dispatch':'Dispatch · Bill #'+c.no):'Dispatch History'}
+ var bs=document.querySelectorAll('#mbar button');for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',i===0);
+ var f=document.getElementById('mfab');if(f)f.classList.remove('show')};
 
 lockCk();
 render();
