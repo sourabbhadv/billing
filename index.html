@@ -2506,7 +2506,7 @@ setInterval(function(){arRun(false,true)},15*60*1000);
 function sw(checked,fn,dis){return '<span class="sw"><input type="checkbox" '+(checked?'checked ':'')+(dis?'disabled ':'')+'onchange="'+fn+'"><i></i></span>'}
 function awPaint(){var e=$('#aws');if(e)e.innerHTML=awHtml()}
 function awHtml(){
- var m=!!PS().autoWA,h='<b style="font-size:16px">Automatic WhatsApp sending</b><div class="mu" style="margin:2px 0 4px">Choose which messages go to the Outbox and send by themselves. Anything switched off opens WhatsApp by hand, like before. Needs the sender program running on your laptop.</div>';
+ var m=!!PS().autoWA,h='<b style="font-size:16px">Automatic WhatsApp sending</b><div class="mu" style="margin:2px 0 4px">Choose which messages go to the Outbox and send by themselves. Anything switched off opens WhatsApp by hand, like before. Sends by itself when you press Save. Needs the cloud sender to be online.</div>';
  h+='<div class="setrow first"><div class="t"><b>Send automatically (master switch)</b><span class="mu">Turn off to stop all automatic sending</span></div>'+sw(m,"PS().autoWA=this.checked;save();awPaint()")+'</div>';
  h+='<div class="'+(m?'':'dis')+'">';
  AW_TYPES.forEach(function(t){h+='<div class="setrow"><div class="t"><b>'+t[1]+'</b><span class="mu">'+t[2]+'</span></div>'+sw(awOn(t[0]),"awSet('"+t[0]+"',this.checked)",!m)+'</div>'});
@@ -2530,7 +2530,7 @@ function arHtml(){
   '<div><label class="mu">Most reminders per day</label><input type="number" inputmode="numeric" value="'+esc(a.cap)+'" onchange="arSet(\'cap\',Math.max(1,+this.value||30))"></div></div>';
  h+='<label class="mu" style="margin-top:8px;display:block">Message ({name}, {shop}, {amount} and {days} are filled in for each party)</label><textarea rows="4" onchange="arSet(\'tpl\',this.value)">'+esc(a.tpl)+'</textarea>';
  h+='<div class="row" style="margin-top:8px;flex-wrap:wrap;justify-content:flex-start"><button type="button" class="s" onclick="arPreview()">Who is due now?</button><button type="button" class="b" onclick="arNow()">Send due reminders now</button></div><div id="arp"></div>';
- h+='<div class="mu" style="margin-top:10px">Reminders are added to the Outbox while this app is open on any of your devices (checked every 15 minutes), and the sender program on your laptop sends them. Nobody gets more than one reminder in 20 hours.</div></div>';
+ h+='<div class="mu" style="margin-top:10px">Reminders are added to the Outbox while this app is open on any of your devices (checked every 15 minutes), and the cloud sender sends them. Nobody gets more than one reminder in 20 hours.</div></div>';
  return h}
 function arDay(d){var a=AR().days.slice(),i=a.indexOf(d);if(i<0)a.push(d);else a.splice(i,1);arSet('days',a.sort(function(x,y){return x-y}));arPaint()}
 function arAddDay(){var e=$('#ard'),v=Math.floor(+(e&&e.value));if(!(v>=1&&v<=365))return alert('Write a number of days between 1 and 365');var a=AR().days.slice();if(a.indexOf(v)<0)a.push(v);arSet('days',a.sort(function(x,y){return x-y}));arPaint()}
@@ -2544,6 +2544,32 @@ function vOutbox(){
 var _vPo=vPage;vPage=function(){return pg==='out'?vOutbox():_vPo()};
 var _bn9=buildNav;buildNav=function(){_bn9();var n=$('nav');if(!n||n.querySelector('[data-out]'))return;var b=document.createElement('button');b.setAttribute('data-out','1');b.textContent='Outbox';if(pg==='out')b.className='on';b.onclick=function(){nav('out')};var bk=Array.prototype.find.call(n.children,function(x){return x.textContent==='Backup'});n.insertBefore(b,bk||null)};
 
+
+/* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
+function awGo(k,p){return !!(PS().autoWA&&awOn(k)&&obOk()&&p&&phone(p).length>=10)}
+/* payment receipts: the "Send on WhatsApp?" question is answered YES by itself when auto send is on */
+var _awQ=0,_cfAW=window.confirm;
+window.confirm=function(m){
+ if(/^(Saved\.|Payment saved\.) Send .*WhatsApp\?$/.test(String(m||''))&&PS().autoWA&&awOn('receipt')&&obOk()){_awQ=1;setTimeout(function(){_awQ=0},0);return true}
+ return _cfAW.call(window,m)};
+var _ow10=openWA;
+openWA=function(p,text){if(_awQ){_awQ=0;if(!(p&&phone(p).length>=10))return}_ow10(p,text)};
+/* new sale bill */
+var _sbAW=saveBill2;
+saveBill2=function(){var n0=D.bills.length;_sbAW();
+ if(D.bills.length>n0){var b=D.bills[D.bills.length-1],p=P(b.pid);if(awGo('bill',p))wa(b.no)}};
+/* dispatch (items sent) */
+var _sdAW=saveDisp;
+saveDisp=function(no){lastDisp=null;_sdAW(no);
+ if(lastDisp&&lastDisp.no===no){var b=bl(no),p=b&&P(b.pid);if(awGo('dispatch',p))waRem(no,1)}};
+/* sale return */
+var _srAW=saveRet;
+saveRet=function(){var p0=findP(rdraft.name),n0=D.pays.length;_srAW();
+ if(D.pays.length>n0){var x=D.pays[D.pays.length-1];if(x&&x.ret&&awGo('receipt',p0))payWA(x.id)}};
+/* new estimate / sale order / challan */
+var _sdcAW=saveDoc;
+saveDoc=function(){var n0=D.docs.length;_sdcAW();
+ if(D.docs.length>n0){var d=D.docs[D.docs.length-1],p=P(d.pid);if((d.t==='est'||d.t==='so'||d.t==='chal')&&awGo('other',p))docWA(d.id)}};
 
 lockCk();
 render();
