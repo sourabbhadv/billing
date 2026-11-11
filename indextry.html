@@ -54,21 +54,6 @@ button.dlb{background:#fdecee;color:#d21f30}button.dlb:hover{background:#fbd5da}
 .stat{border:0;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.10)}
 @media(min-width:900px){header,nav{background:#101338!important}header h1{font-size:17px}nav button{font-size:15px;transition:background .15s;padding:14px 16px!important}nav button:hover{background:#1b1f55!important}nav button.on{background:#1d2160!important;border-left:4px solid #e8213a!important}nav .sb{opacity:.9}
 #top{box-shadow:0 1px 3px rgba(25,35,80,.08);padding:10px 22px}#top input{border-radius:999px;border-color:transparent;background:#f1f3f8}#v{padding:18px 24px}}
-
-/* ===== Auto-send settings ===== */
-.sw{position:relative;width:46px;height:26px;flex:0 0 46px;margin:0;display:inline-block}
-.sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:1}
-.sw i{position:absolute;inset:0;background:#c5cbd9;border-radius:99px;transition:.2s}
-.sw i:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
-.sw input:checked+i{background:var(--ac)}.sw input:checked+i:before{transform:translateX(20px)}
-.setrow{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid var(--bd)}
-.setrow.first{border-top:0}.setrow .t{flex:1;min-width:0}.setrow .t b{font-weight:500;display:block}
-.dis{opacity:.45;pointer-events:none}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-.chip{padding:9px 15px;border-radius:999px;background:#eaf2fe;color:#1a56b8;border:0;font:inherit;font-size:14px;font-weight:500}
-.chip.on{background:var(--ac);color:#fff}
-.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:480px){.fgrid{grid-template-columns:1fr}}
 </style><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"></head><body>
 <header><h1 id="sh" onclick="rename()"></h1><span class="mu" id="sy">tap name to edit</span></header>
 <nav><button id="t-home" onclick="go('home')">Home</button><button id="t-bill" onclick="go('bill')">Sale</button><button id="t-party" onclick="go('party')">Parties</button><button id="t-stock" onclick="go('stock')">Items</button><button id="t-tx" onclick="go('tx')">Transactions</button><button id="t-rep" onclick="go('rep')">Reports</button><button id="t-bk" onclick="go('bk')">Backup</button></nav>
@@ -298,7 +283,7 @@ function local(){try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){}}
 function fail(k){return function(e){delete SM[k];setMsg(e&&e.code==='invalid_argument'?'View-only account: not saved to cloud':'Cloud save failed. Kept on this device.')}}
 function save(){
  local();if(!DB||!synced)return;
- COLS.forEach(function(c){D[c].forEach(function(r){var s=cs(r),k=c+'/'+r.id;if(SM[k]!==s){SM[k]=s;DB.doc(k).set(JSON.parse(JSON.stringify(r))).catch(fail(k))}})});
+ COLS.forEach(function(c){D[c].forEach(function(r){var s=csFast(r),k=c+'/'+r.id;if(SM[k]!==s){SM[k]=s;DB.doc(k).set(JSON.parse(JSON.stringify(r))).catch(fail(k))}})});
  var ms=cs({shop:D.shop,ps:D.ps||null});if(SM['meta/main']!==ms){SM['meta/main']=ms;DB.doc('meta/main').set({shop:D.shop,ps:D.ps||null}).catch(fail('meta/main'))}
 }
 function softRender(){var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)){dirty=1;return}render()}
@@ -531,8 +516,10 @@ function waRem(no,now){
  openWA(p,t+'\nThank you!');
 }
 function vPendDisp(){
- var bs=D.bills.filter(function(b){return !b.x&&b.lines.some(function(l){return rem(l)>0})}),h='<div class="card"><b>Remaining dispatch</b> <span class="mu">('+bs.length+' bills)</span><div class="pend">';
- if(!bs.length)h+='<p class="grn">Nothing pending. All sent.</p>';
+ var bs=D.bills.filter(function(b){return !b.x&&b.lines.some(function(l){return rem(l)>0})}),hl=[];try{hl=dhList()}catch(e){}
+ var hn=hl.length,hint=hn?hn+' dispatch'+(hn===1?'':'es')+' · last '+dt(hl[0].d):'No dispatches recorded yet';
+ if(!bs.length)return '<div class="card clk" role="button" tabindex="0" style="cursor:pointer" onclick="dhOpen()" onkeydown="if(event.key===\'Enter\')dhOpen()"><div class="row"><span><b>Remaining dispatch</b> <span class="mu">(0 bills)</span></span></div><p class="grn" style="margin:8px 0 0">✔ Nothing pending. All sent.</p><div class="dhlink"><span>'+dxI('hist')+'<span>View dispatch history<small>'+hint+'</small></span></span><span class="dhch">›</span></div></div>';
+ var h='<div class="card"><div class="row"><span><b>Remaining dispatch</b> <span class="mu">('+bs.length+' bills)</span></span><button class="s" onclick="dhOpen()">'+dxI('hist')+' History</button></div><div class="pend">';
  bs.forEach(function(b){var p=P(b.pid);h+='<div style="margin-top:10px;border-top:1px solid var(--bd);padding-top:8px;cursor:pointer" onclick="tab=\'bill\';viewB=null;openB='+b.no+';render()"><b>#'+b.no+' '+esc(p?p.name:'?')+'</b> <span class="mu">'+dt(b.date)+'</span>'+b.lines.filter(function(l){return rem(l)>0}).map(function(l){return '<div class="row mu" style="margin-top:2px"><span>'+esc(l.name)+locTag(l)+'</span><span class="red">'+rem(l)+' of '+l.qty+' '+esc(l.unit)+'</span></div>'}).join('')+'</div>'});
  return h+'</div></div>';
 }
@@ -1476,14 +1463,14 @@ var _rSort=render;render=function(){_rSort();try{decoSort()}catch(e){}};
 function goBack(){var b=[].find.call(document.querySelectorAll('#v button'),function(x){return /^←/.test(x.textContent.trim())});if(b){b.click();return}nav('home')}
 function mMore(){var s=$('#msheet'),h='<div><b style="font-size:17px">Menu</b>';
  function sec(t,L){h+='<h4>'+t+'</h4>'+L.map(function(x){return '<button onclick="$(\'#msheet\').classList.remove(\'open\');nav(\''+x[0]+'\')">'+x[1]+'</button>'}).join('')}
- sec('Sale',GR.sale);sec('Purchase',GR.pur);sec('More',[['rep','Reports'],['bk','Backup & Import'],['set','Settings']]);
+ sec('Sale',GR.sale);sec('Purchase',GR.pur);sec('More',[['rep','Reports'],['out','WhatsApp Outbox & Auto message'],['bk','Backup & Import'],['set','Settings']]);
  s.innerHTML=h+'</div>';s.classList.add('open')}
 function mBar(){
  var g=grpOf(pg),on=function(k){return (g===k||pg===k)?'on':''},bar=$('#mbar'),top=$('#mtop');if(!bar)return;
  bar.innerHTML='<button class="'+on('home')+'" onclick="nav(\'home\')"><b>🏠</b>Home</button><button class="'+(g==='sale'?'on':'')+'" onclick="nav(\'sale\')"><b>🧾</b>Sale</button><button class="'+on('party')+'" onclick="nav(\'party\')"><b>👥</b>Parties</button><button class="'+on('items')+'" onclick="nav(\'items\')"><b>📦</b>Items</button><button onclick="mMore()"><b>☰</b>More</button>';
  var detail=!!(form||sub||viewB||openB||viewD||pg!=='home');
  top.style.display=(detail?'':'none');bar.style.display=form?'none':'';
- var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',bk:'Backup',set:'Settings'};
+ var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings'};
  var tt=$('#mtt');if(tt)tt.textContent=form?'New Sale':(nm[pg]||'')}
 var _r8=render;render=function(){_r8();try{mBar()}catch(e){}};
 var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTimeout(_sr8,400)};
@@ -2112,6 +2099,265 @@ var _vStT=vSettings;
 vSettings=function(){var h=_vStT();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');
  return k<0?h:h.slice(0,k)+'<div class="sec"><h3>Transporter / Rider</h3>'+ck('trn','Assign a transporter when dispatching goods','Adds a Transporters list. On the Dispatch screen you pick or add a transporter, and a loading list without prices, with godown / block and the customer address, is sent to them on WhatsApp. Untick to hide everything; saved data is kept.')+'</div>'+h.slice(k)};
 
+/* ================= DISPATCH HISTORY (added) =================
+   - "Remaining dispatch" block on Home opens this page (also when nothing is pending)
+   - Lists every dispatch (one row = one Save dispatch on a bill), newest first
+   - Each dispatch can be viewed, edited (quantity, date, transporter, remove item) or deleted
+   - Same cards / blue accent / pill buttons as Dispatch + Transporters screens         */
+var dhSel=null,dhEd=false,dhQ='',dhAuto=null;PER.dh={v:'all',a:'',b:''};
+(function(){var st=document.createElement('style');st.textContent=
+'.dhbk{display:none!important}'+
+'.dhgh{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#7b8194;font-weight:600;margin:14px 4px 6px}.dhgrp:first-child .dhgh{margin-top:2px}'+
+'.dhlink{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:8px;background:#eef4fe;color:#1a56b8;font-weight:700}'+
+'.dhlink small{display:block;color:#5a6c92;font-weight:400;font-size:12.5px;margin-top:1px}.dhlink>span:first-child{display:flex;align-items:center;gap:10px;min-width:0}.dhlink .dxi{width:20px;height:20px}'+
+'.dhch{color:#1a73e8;font-size:22px;line-height:1;flex:none}'+
+'.dhfilt{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}.dhfilt input{flex:1;min-width:150px;margin:0}.dhfilt select{margin:0}'+
+'.dh .dxq input{margin:0;height:46px;padding:0 54px 0 12px}.dh select,.dh input[type=date]{margin:0;height:46px}.dh input.dxbad{border-color:#d92d3a;background:#fff5f6}'+
+'.dhit{padding:12px 0;border-top:1px solid #eef0f5}.dhit:first-of-type{border-top:0;padding-top:4px}.dhit .dxnm{margin-bottom:8px}'+
+'.dhrm{flex:none;min-width:84px;border:0;border-radius:8px;background:#fdecee;color:#d92d3a;font-weight:700;font-size:14px;cursor:pointer}'+
+'.dh .dxc>.dxhi:first-child{margin-top:0;border-top:0;padding-top:0}'+
+'@media(max-width:899px){.dh.ed{padding-bottom:86px}.dhact{position:fixed;left:0;right:0;bottom:var(--mbh,66px);z-index:7;background:#fff;margin:0;padding:10px 12px 12px;box-shadow:0 -4px 14px rgba(25,35,80,.13)}}'+
+'@media(min-width:900px){.dhact{margin-top:4px}}';
+document.head.appendChild(st)})();
+DXI.hist='<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.8v4.7h4.7M12 7.5V12l3 2"/>';
+DXI.edit='<path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/>';
+DXI.trash='<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.9 12.5h9.2L17.5 7M10 11v5M14 11v5"/>';
+DXI.bill='<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>';
+
+function rnd2(n){return Math.round(n*100)/100}
+function dhDayStr(d){var x=new Date(d),p=function(n){return (n<10?'0':'')+n};return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())}
+function dhDayLbl(d){var t=dhDayStr(Date.now()),y=dhDayStr(Date.now()-864e5),k=dhDayStr(d);
+ if(k===t)return 'Today';if(k===y)return 'Yesterday';
+ return new Date(d).toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})}
+function dhTime(d){var x=new Date(d);if(x.getHours()===12&&!x.getMinutes()&&!x.getSeconds())return '';
+ return x.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}).toLowerCase()}
+
+/* every "Save dispatch" = one entry: same bill + same time */
+function dhList(){
+ var M={},A=[];
+ D.bills.forEach(function(b){if(b.x)return;
+  b.lines.forEach(function(l,k){var tr=l.trips||[];
+   function add(t,leg){var d=+t.d||b.date,key=b.no+'|'+(leg?'L':'')+d,e=M[key];
+    if(!e){e=M[key]={id:key,no:b.no,d:d,b:b,items:[]};A.push(e)}
+    e.items.push({l:l,k:k,t:t,q:+t.q,name:l.name,unit:l.unit,leg:!!leg})}
+   if(tr.length)tr.forEach(function(t){add(t,0)});
+   else if(dq(l)>0)add({d:l.sentOn||b.date,q:dq(l)},1)})});
+ return A.sort(function(a,b){return b.d-a.d||b.no-a.no})}
+function dhFind(id){return dhList().find(function(e){return e.id===id})}
+function dhRec(e){if(e.items[0]&&e.items[0].leg)return null;
+ return DSP().find(function(r){return r.no===e.no&&Math.abs((+r.date||0)-e.d)<15000})||null}
+function dhTrName(e){var r=dhRec(e),t=r&&TRS().find(function(x){return x.id===r.tid});return t?t.name:''}
+function dhSum(e){var f=e.items[0];return esc(f.name)+' '+f.q+' '+esc(f.unit)+(e.items.length>1?' +'+(e.items.length-1)+' more':'')}
+
+function dhOpen(){leave();pg='dh';dhSel=null;dhEd=false;dhQ='';render();window.scrollTo(0,0)}
+function dhPick(id){dhSel=id;dhEd=false;render();window.scrollTo(0,0)}
+function dhBack(){if(dhEd)dhEd=false;else dhSel=null;render();window.scrollTo(0,0)}
+
+function dhRows(){
+ var L=dhList().filter(function(e){return inPer('dh',e.d)}),q=dhQ.toLowerCase().trim(),cur=dhCur(L),h='',day='',open=false;
+ L=L.filter(function(e){if(!q)return true;var p=P(e.b.pid);return (e.no+' '+(p?p.name:'')+' '+e.items.map(function(x){return x.name}).join(' ')+' '+dhTrName(e)).toLowerCase().indexOf(q)>=0});
+ L.forEach(function(e){var dl=dhDayLbl(e.d),p=P(e.b.pid)||{name:'?'},tn=dhTrName(e),n=e.items.length;
+  if(dl!==day){if(open)h+='</div></div>';day=dl;open=true;h+='<div class="dhgrp"><div class="dhgh">'+esc(dl)+'</div><div class="dxc" style="padding:0;overflow:hidden">'}
+  h+='<div class="dxtrow dhrow'+(cur&&cur.id===e.id?' on':'')+'" data-id="'+esc(e.id)+'" onclick="dhPick(this.dataset.id)"><span class="dxav">'+dxIni(p.name)+'</span><span class="dxtm"><b>'+esc(p.name)+'</b><small>Bill #'+e.no+' · '+dhSum(e)+(tn?' · 🚚 '+esc(tn):'')+'</small></span><span class="dxchip b">'+n+' item'+(n===1?'':'s')+'</span></div>'});
+ if(open)h+='</div></div>';
+ return h||'<div class="dxc dxm">'+(dhQ||pv('dh').v!=='all'?'No dispatches match your search.':'No dispatches yet. When you press <b>Save dispatch</b> on a bill, it is listed here.')+'</div>'}
+function dhCur(L){var s=dhSel&&L.find(function(e){return e.id===dhSel});return s||(!isM()&&!dhSel&&L.length?L[0]:null)}
+function dhSearch(v){dhQ=v;var e=document.getElementById('dhl');if(e)e.innerHTML=dhRows()}
+
+function vDH(){
+ var all=dhList(),L=all.filter(function(e){return inPer('dh',e.d)}),cur=dhCur(L),sel=!!(dhSel&&L.find(function(e){return e.id===dhSel})),
+  bills={};L.forEach(function(e){bills[e.no]=1});
+
+ dhAuto=(!dhSel&&cur)?cur.id:null;
+ var h=(sel?'':'<button class="s dhbk" onclick="nav(\'home\')">← Back</button>')
+  +'<div class="dxdesk" style="display:flex;justify-content:space-between;align-items:center;margin:6px 0"><h2 style="font-size:20px;margin:0">Dispatch History</h2><button class="s" onclick="nav(\'home\')">'+dxI('truck')+' Remaining dispatch</button></div>';
+ var Lt='<div class="dxst" style="margin:0 0 12px"><div><span>Dispatches</span><b>'+L.length+'</b></div><div><span>Last dispatch</span><b>'+(L.length?dt(L[0].d):'-')+'</b></div></div>'
+  +'<div class="dhfilt"><input placeholder="Search party, bill no or item" value="'+esc(dhQ)+'" oninput="dhSearch(this.value)">'+perUI('dh')+'</div><div id="dhl">'+dhRows()+'</div>';
+ var R=cur?(dhEd?dhForm(cur):dhView(cur)):'<div class="dxc dxm dxdesk">Click a dispatch to see its details</div>';
+ return h+'<div class="split"><div class="'+(sel?'hid':'')+'">'+Lt+'</div><div>'+R+'</div></div>'}
+
+function dhView(e){
+ var b=e.b,p=P(b.pid)||{name:'?'},ad=bAddr(b),addr=ad.s||ad.a||'',rec=dhRec(e),tr=rec&&TRS().find(function(x){return x.id===rec.tid}),
+  left=b.lines.filter(function(l){return rem(l)>0}).length,tm=dhTime(e.d);
+ var h='<button class="s dxback dhbk" onclick="dhBack()">← Back</button><div class="dh">'
+ +'<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">Dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">'+dt(e.d)+(tm?' · '+tm:'')+'</div></div>'
+ +(left?'<span class="dxchip r">'+left+' still pending</span>':'<span class="dxchip g">'+dxI('check')+' Bill fully sent</span>')+'</div>'
+ +((addr||p.phone||tr)?'<div class="dxaddr">'+(addr?'<div>'+dxI('pin')+'<span>'+nl2(addr)+'</span></div>':'')+(p.phone?'<div>'+dxI('phone')+'<a href="tel:'+esc(String(p.phone).replace(/[^\d+]/g,''))+'">'+esc(p.phone)+'</a></div>':'')
+  +(tr?'<div>'+dxI('truck')+'<span>Transporter: <b>'+esc(tr.name)+'</b>'+(tr.veh?' · '+esc(tr.veh):'')+'</span></div>':'')+'</div>':'')+'</div>'
+ +'<div class="dxlh"><b>Items sent</b><span class="dxm">'+e.items.length+' item'+(e.items.length===1?'':'s')+'</span></div><div class="dxc">'
+ +e.items.map(function(x){var loc=itemLoc(x.l);return '<div class="dxhi"><div>'+esc(x.name)+'<small style="color:#7b8194;font-weight:400">Sold '+x.l.qty+' '+esc(x.unit)+' · Sent in total '+dq(x.l)+'</small>'+(loc?'<small>📍 '+esc(loc)+'</small>':'')+'</div><b>'+x.q+' '+esc(x.unit)+'</b></div>'}).join('')+'</div>'
+ +'<div class="dxbtns"><button class="dxpri" onclick="dhEd=true;render();window.scrollTo(0,0)">'+dxI('edit')+' Edit dispatch</button><button class="dxsec" onclick="dhWA()">'+dxI('chat')+'<span>Update customer</span></button></div>'
+ +'<div class="dxbtns" style="margin-top:8px"><button class="dxsec" onclick="viewB='+b.no+';render()">'+dxI('bill')+'<span>Open bill</span></button>'
+ +(rec?'<button class="dxsec" data-d="'+esc(rec.id)+'" onclick="sendTr(this.dataset.d)">'+dxI('truck')+'<span>Resend to transporter</span></button>':(left?'<button class="dxsec" onclick="openB='+b.no+';render()">'+dxI('truck')+'<span>Dispatch the rest</span></button>':''))+'</div></div>';
+ return h}
+
+function dhForm(e){
+ var b=e.b,p=P(b.pid)||{name:'?'},rec=dhRec(e),min=dhDayStr(b.date),mx=dhDayStr(Date.now()>e.d?Date.now():e.d);
+ var h='<button class="s dxback dhbk" onclick="dhBack()">← Back</button><div class="dh ed">'
+ +'<div class="dxc"><div class="dxk">Edit dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">Change the quantity, the date, or remove an item. Quantity 0 removes the item.</div>'
+ +'<label class="dxl">Dispatch date</label><input id="dhd" type="date" value="'+dhDayStr(e.d)+'" min="'+min+'" max="'+mx+'">'
+ +(op('trn')?'<label class="dxl">Transporter / Rider</label><select id="dhtr"><option value="">No transporter (customer pickup)</option>'+TRS().slice().sort(trByName).map(function(t){return '<option value="'+esc(t.id)+'"'+(rec&&rec.tid===t.id?' selected':'')+'>'+esc(t.name)+' · '+esc(t.phone||'')+'</option>'}).join('')+'</select>':'')+'</div>'
+ +'<div class="dxlh"><b>Items</b><span class="dxm">'+e.items.length+' item'+(e.items.length===1?'':'s')+'</span></div><div class="dxc">'
+ +e.items.map(function(x,i){var m=rnd2(rem(x.l)+x.q);
+  return '<div class="dhit"><div class="dxnm">'+esc(x.name)+'<small>Sold '+x.l.qty+' '+esc(x.unit)+' · Most you can enter: '+m+'</small></div>'
+  +'<div class="dxsend"><div class="dxq"><input id="dhq'+i+'" type="number" inputmode="decimal" min="0" step="any" value="'+x.q+'" placeholder="Removed" oninput="dhChk('+i+','+m+')"><span class="dxu">'+esc(x.unit)+'</span></div><button class="dhrm" onclick="dhRm('+i+')">Remove</button></div></div>'}).join('')
+ +'<button class="dxsm dxdel" style="width:100%;justify-content:center;margin-top:6px" onclick="dhDel()">'+dxI('trash')+' Delete this dispatch</button></div>'
+ +'<div class="dxbtns dhact"><button class="dxpri" onclick="dhSave()">Save changes</button><button class="dxsec" onclick="dhEd=false;render()">Cancel</button></div></div>';
+ return h}
+function dhChk(i,m){var el=document.getElementById('dhq'+i);if(el)el.classList.toggle('dxbad',+el.value>m+1e-9)}
+function dhRm(i){var el=document.getElementById('dhq'+i);if(el){el.value='';el.classList.remove('dxbad')}}
+
+function dhFix(ls){ls.forEach(function(l){var t=l.trips||[];t.sort(function(a,b){return a.d-b.d});reTrips(l)})}
+function dhSave(){
+ var e=dhFind(dhSel||dhAuto);if(!e)return;var b=e.b,ds=($('#dhd')||{}).value||'',nd=e.d;
+ if(ds&&ds!==dhDayStr(e.d)){var a=ds.split('-'),c=new Date(+a[0],+a[1]-1,+a[2],12).getTime();
+  if(isNaN(c))return alert('Pick a valid date');
+  if(ds<dhDayStr(b.date))return alert('Dispatch date cannot be before the bill date ('+dt(b.date)+')');
+  if(ds>dhDayStr(Date.now()))return alert('Dispatch date cannot be in the future');nd=c}
+ var keep=[],gone=[],bad='';
+ e.items.forEach(function(x,i){var el=document.getElementById('dhq'+i),v=el?+el.value:x.q;if(el&&el.value==='')v=0;
+  if(!(v>0)){gone.push(x);return}
+  var m=rnd2(rem(x.l)+x.q);if(v>m+1e-9){bad=x.name+' (most you can enter is '+m+')';return}keep.push({x:x,v:rnd2(v)})});
+ if(bad)return alert('Quantity is too high for '+bad);
+ if(!keep.length)return dhDel();
+ if(gone.length&&!confirm('Remove '+gone.map(function(x){return x.name}).join(', ')+' from this dispatch?'))return;
+ var rec=dhRec(e),tsel=document.getElementById('dhtr'),touched=[];
+ keep.forEach(function(c){var x=c.x,l=x.l;if(x.leg)l.trips=[{d:nd,q:c.v}];else{x.t.q=c.v;x.t.d=nd}touched.push(l)});
+ gone.forEach(function(x){var l=x.l;if(x.leg)l.trips=[];else{var i=(l.trips||[]).indexOf(x.t);if(i>=0)l.trips.splice(i,1)}touched.push(l)});
+ dhFix(touched);
+ var alive=false;
+ if(rec){rec.date=nd;
+  gone.forEach(function(x){rec.items=rec.items.filter(function(r){return r.name!==x.name})});
+  keep.forEach(function(c){var r=rec.items.find(function(z){return z.name===c.x.name});if(r)r.q=c.v});
+  if(rec.items.length)alive=true;else delRec('dsp',rec)}
+ if(tsel){var tv=tsel.value;
+  if(alive&&!tv){delRec('dsp',rec);alive=false}
+  else if(alive&&tv)rec.tid=tv;
+  else if(!alive&&tv){var p=P(b.pid)||{},ad=bAddr(b);
+   DSP().push({id:uid(),no:b.no,tid:tv,date:nd,cust:p.name||'',cph:p.phone||'',addr:ad.s||ad.a||'',items:keep.map(function(c){return {name:c.x.name,unit:c.x.unit,q:c.v,loc:itemLoc(c.x.l)}})})}}
+ save();dhSel=b.no+'|'+nd;dhEd=false;lastDisp=null;render();window.scrollTo(0,0)}
+function dhDel(){
+ var e=dhFind(dhSel||dhAuto);if(!e)return;
+ if(!confirm('Delete this dispatch of Bill #'+e.no+'?\n\nThe '+e.items.length+' item'+(e.items.length===1?'':'s')+' will go back to "Remaining dispatch".'))return;
+ var rec=dhRec(e),touched=[];
+ e.items.forEach(function(x){var l=x.l;if(x.leg)l.trips=[];else{var i=(l.trips||[]).indexOf(x.t);if(i>=0)l.trips.splice(i,1)}touched.push(l)});
+ dhFix(touched);if(rec)delRec('dsp',rec);
+ save();dhSel=null;dhEd=false;lastDisp=null;render();window.scrollTo(0,0)}
+function dhWA(){
+ var e=dhFind(dhSel||dhAuto);if(!e)return;
+ lastDisp={no:e.no,items:e.items.map(function(x){return {name:x.name,unit:x.unit,q:x.q}})};
+ try{waRem(e.no,1)}finally{lastDisp=null}}
+
+/* page, titles, menu highlight */
+var _vPdh=vPage;vPage=function(){return pg==='dh'?vDH():_vPdh()};
+var _bnDh=buildNav;buildNav=function(){_bnDh();if(pg==='dh'){var b=document.querySelector('nav button');if(b)b.className='on'}};
+var _mbDh=mBar;mBar=function(){_mbDh();if(pg!=='dh')return;
+ var t=document.querySelector('#mtop .mttl');
+ if(t&&!viewB&&!openB&&!form&&!sub){var L=dhList(),c=dhSel&&L.find(function(x){return x.id===dhSel});t.textContent=c?(dhEd?'Edit dispatch':'Dispatch · Bill #'+c.no):'Dispatch History'}
+ var bs=document.querySelectorAll('#mbar button');for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',i===0);
+ var f=document.getElementById('mfab');if(f)f.classList.remove('show')};
+
+/* ================= PRINT SETTINGS (added) =================
+   Settings > Print now has the print options that matter for a bill:
+   page, header, item table, totals, footer. Every option is saved in D.ps
+   and used by every printout. Defaults match the old print, so nothing
+   changes until an option is switched.                                      */
+function setPq(k,v){PS()[k]=v;save()}
+function prName(v){v=String(v).trim();PS().name=v;if(v){D.shop=v;var s=document.getElementById('sh');if(s)s.textContent=v}save()}
+function pr(k,d){var v=PS()[k];return v==null?d:v}
+function prSel(k,lb,opts,def){var v=pr(k,def);
+ return '<div class="ck" style="cursor:default"><span style="flex:1">'+lb+'</span><select style="width:auto;max-width:55%;margin:0" onchange="setP(\''+k+'\',this.value)">'+opts.map(function(o){return '<option value="'+o[0]+'"'+(String(v)===String(o[0])?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></div>'}
+function prTx(k,lb,rows,ph,fn){var v=PS()[k]||'',h='<label class="mu" style="display:block;margin-top:8px">'+lb+'</label>',oc=fn?fn+'(this.value)':'setPq(\''+k+'\',this.value.trim())';
+ return h+(rows?'<textarea rows="'+rows+'" placeholder="'+esc(ph||'')+'" onchange="'+oc+'">'+esc(v)+'</textarea>':'<input placeholder="'+esc(ph||'')+'" value="'+esc(v)+'" onchange="'+oc+'">')}
+function prLogo(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();
+ r.onload=function(){var im=new Image();im.onload=function(){var s=Math.min(1,300/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*s));c.height=Math.max(1,Math.round(im.height*s));
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height);var u=c.toDataURL('image/png');if(u.length>250000)u=c.toDataURL('image/jpeg',.85);
+  PS().logo=u;save();render()};im.onerror=function(){alert('Could not read this picture. Try a PNG or JPG file.')};im.src=r.result};r.readAsDataURL(f)}
+function prLogoDel(){delete PS().logo;save();render()}
+function prTest(){var b=D.bills.filter(function(x){return !x.x}).slice(-1)[0];if(b)printBill(b.no);else testPrint()}
+
+var _vSpr=vSettings;
+vSettings=function(){
+ if(sTab!=='prt')return _vSpr();
+ var s0=sTab;sTab='gen';var h0;try{h0=_vSpr()}finally{sTab=s0}
+ var i=h0.indexOf('<div class="sgrid">');if(i<0)return h0;
+ var pre=h0.slice(0,i).replace('style="background:#1a73e8;color:#fff"','style=""').replace(/(<button class="s" style=")(" onclick="sTab='prt')/,'$1background:#1a73e8;color:#fff$2'),
+  p=PS(),sig=!p.nosign;
+ var ck2=function(k,lb,hp){return ck(k,lb,hp)},ckO=function(k,lb,hp){return ck(k,lb,hp,1)};
+ var B='<div class="sec"><h3>Business details</h3><div class="hint">Printed at the top of every bill. Changes save when you leave a box.</div>'
+  +prTx('name','Firm name',0,'Your shop name','prName').replace('value=""','value="'+esc(p.name||D.shop)+'"')
+  +prTx('tag','Line under name',0,'Example: Tiles & Sanitaryware')
+  +prTx('addr','Address',3,'Shop address, city')
+  +prTx('phone','Phone number(s)',0,'')
+  +prTx('email','Email',0,'Optional')
+  +prTx('extra','Extra line',0,'Example: GST / Reg. no.')
+  +'<label class="mu" style="display:block;margin-top:10px">Logo</label><div class="row" style="justify-content:flex-start;gap:12px">'+(p.logo?'<img src="'+p.logo+'" alt="Logo" style="max-height:48px;max-width:120px;border:1px solid var(--bd);border-radius:6px;padding:3px;background:#fff">':'')
+  +'<label class="s" style="display:inline-flex;align-items:center;padding:8px 14px;border-radius:999px;background:#eaf2fe;color:#1a56b8;font-weight:500;cursor:pointer">'+(p.logo?'Change logo':'Upload logo')+'<input type="file" accept="image/*" style="display:none" onchange="prLogo(this)"></label>'+(p.logo?'<button class="s dlb" onclick="prLogoDel()">Remove</button>':'')+'</div></div>';
+ var P1='<div class="sec"><h3>Page</h3>'
+  +prSel('size','Paper size',[['A4','A4 (big paper)'],['A5','A5 (half paper)']],'A4')
+  +prSel('pr_or','Orientation',[['port','Portrait'],['land','Landscape']],'port')
+  +prSel('pr_fs','Text size',[['S','Small'],['M','Medium'],['L','Large']],'M')
+  +'<div class="ck" style="cursor:default"><span style="flex:1">Blank space on top (mm)</span><input type="number" inputmode="numeric" min="0" max="80" step="5" style="width:84px;margin:0" value="'+(+p.pr_top||0)+'" onchange="setPq(\'pr_top\',Math.max(0,Math.min(80,+this.value||0)))"></div><div class="hint">Use this if your paper already has a printed letterhead.</div>'
+  +'<div style="margin-top:10px"><button class="b" onclick="prTest()">Test print</button></div><div class="hint">Prints your latest bill with these settings.</div></div>';
+ var H='<div class="sec"><h3>Header</h3>'
+  +ck2('pr_nm','Firm name')+ck2('pr_logo','Logo','Shown only after you upload a logo.')+ck2('pr_ad','Address')+ck2('pr_ph','Phone number')+ck2('pr_em','Email')+ck2('pr_ex','Extra line (GST / Reg. no.)')+'</div>';
+ var T='<div class="sec"><h3>Item table</h3>'
+  +ck2('pr_sn','Serial number (#)')+ck2('pr_rate','Rate column')+ck2('hloc','Godown / Block under item name','So dispatch staff can find the goods.')+ckO('pr_tq','Total quantity','Adds a line with the total quantity below the table.')+'</div>';
+ var TT='<div class="sec"><h3>Totals</h3>'
+  +ck2('pr_disc','Discount')+ck2('pr_rcv','Received amount')+ck2('pr_bal','Balance amount')+ckO('pr_cb','Current balance of party','Shows how much the party owes in total, after this bill.')+ckO('pr_wd','Total amount in words','Example: Rupees Twelve Thousand Five Hundred Only.')+'</div>';
+ var F='<div class="sec"><h3>Footer</h3>'
+  +ck2('pr_tm','Terms and notes')+prTx('terms','Terms and notes text',3,'Example: Goods once sold will not be taken back.')
+  +ckO('pr_bk','Bank details','Prints your bank / UPI details at the bottom.')+prTx('bank','Bank details text',3,'Bank name, account no., IFSC, UPI id')
+  +'<label class="ck"><input type="checkbox" '+(sig?'checked':'')+' onchange="setP(\'nosign\',this.checked?0:1)"><span>Signature box</span></label>'+prTx('sigtx','Signature text',0,'Authorised Signatory')+'</div>';
+ return pre+'<div class="sgrid">'+B+P1+H+T+TT+F+'</div>'};
+
+/* printed header + footer follow the options */
+letterhead=function(){var p=PS(),n=p.name||D.shop,
+ c=[op('pr_ph')&&p.phone&&'Phone: '+esc(p.phone),op('pr_em')&&p.email&&esc(p.email),op('pr_ex')&&p.extra&&esc(p.extra)].filter(Boolean).join(' &nbsp;|&nbsp; '),
+ lg=(op('pr_logo')&&p.logo)?'<img class="lgo" src="'+p.logo+'" alt="">':'',
+ tx=(op('pr_nm')?'<div class="lhn">'+esc(n)+'</div>'+(p.tag?'<div class="lht">'+esc(p.tag)+'</div>':''):'')+(op('pr_ad')&&p.addr?'<div>'+esc(p.addr).replace(/\n/g,'<br>')+'</div>':'')+(c?'<div>'+c+'</div>':'');
+ return (lg||tx)?'<div class="lh">'+lg+'<div class="lhx">'+tx+'</div></div>':''};
+printHtml=function(title,body){var p=PS(),n=p.name||D.shop,w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');
+ body=body.replace(/^<h2>[\s\S]*?<\/h2>/,'');
+ var fs={S:11,M:13,L:15}[pr('pr_fs','M')]||13,land=pr('pr_or','port')==='land',top=+p.pr_top||0,left=[];
+ if(op('pr_tm')&&(p.terms==null||p.terms))left.push('<div class="ftt">'+esc(p.terms||'Thank you for your business!').replace(/\n/g,'<br>')+'</div>');
+ if(p.pr_bk&&p.bank)left.push('<div class="ftt bk"><b>Bank details</b><br>'+esc(p.bank).replace(/\n/g,'<br>')+'</div>');
+ var ft=(left.length||!p.nosign)?'<div class="ft"><div class="ftl">'+left.join('')+'</div>'+(p.nosign?'':'<div class="sg">For '+esc(n)+'<br><br><br>'+esc(p.sigtx||'Authorised Signatory')+'</div>')+'</div>':'';
+ var css='@page{size:'+(p.size==='A5'?'A5':'A4')+(land?' landscape':'')+';margin:12mm}*{box-sizing:border-box}body{font-family:Roboto,Arial,sans-serif;color:#1a1d2e;font-size:'+fs+'px;margin:0;padding:'+top+'mm 0 0}.lh{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:3px solid #1d3a8a;padding-bottom:10px;margin-bottom:14px}.lhx{text-align:center}.lgo{max-height:72px;max-width:170px;object-fit:contain}.lhn{font-size:'+(fs+13)+'px;font-weight:700;color:#1d3a8a;letter-spacing:.5px}.lht{font-style:italic;color:#555;margin:2px 0}h3{margin:6px 0 10px;font-size:'+(fs+4)+'px;letter-spacing:1px;text-transform:uppercase;color:#1d3a8a}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#e8edf9;color:#1d3a8a;text-align:left;padding:8px 6px;border-top:1px solid #b9c4e6;border-bottom:1px solid #b9c4e6;font-size:'+(fs-1)+'px}td{border-bottom:1px solid #dde2ee;padding:7px 6px;vertical-align:top}thead{display:table-header-group}tr{page-break-inside:avoid}.r{text-align:right}.m{color:#666;font-size:'+(fs-1.5)+'px}.bx{display:flex;gap:8px;margin:10px 0}.bx div{flex:1;border:1px solid #c9d2ec;border-radius:6px;padding:8px 10px}.bx small{display:block;color:#667;font-size:'+(fs-2)+'px;text-transform:uppercase}.bx b{font-size:'+(fs+3)+'px}.big{background:#1d3a8a;color:#fff;border-color:#1d3a8a!important}.big small{color:#cfd8f6}.sum{border:2px solid #1d3a8a;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:'+(fs+2)+'px;text-align:center}.ft{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:28px;border-top:1px solid #ccd;padding-top:10px;page-break-inside:avoid}.ftl{max-width:62%}.ftt{color:#555;font-size:'+(fs-1)+'px;margin-bottom:6px}.ftt.bk{color:#1a1d2e}.sg{text-align:center;font-size:'+(fs-1)+'px;border-top:1px solid #333;padding-top:4px;min-width:170px;margin-left:auto}.wd{margin:6px 0;font-size:'+fs+'px}';
+ w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+letterhead()+body+ft+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},700)};
+
+/* amount in words (Indian system) */
+function inWords(n){n=Math.round((+n||0)*100)/100;var r=Math.floor(n),ps=Math.round((n-r)*100),
+ a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],t=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+ function two(x){return x<20?a[x]:t[Math.floor(x/10)]+(x%10?' '+a[x%10]:'')}
+ function three(x){return (x>=100?a[Math.floor(x/100)]+' Hundred'+(x%100?' ':''):'')+(x%100?two(x%100):'')}
+ function big(x){if(!x)return '';var o=[],cr=Math.floor(x/1e7),lk=Math.floor(x/1e5)%100,th=Math.floor(x/1e3)%100,rest=x%1000;
+  if(cr)o.push(three(cr)+' Crore');if(lk)o.push(two(lk)+' Lakh');if(th)o.push(two(th)+' Thousand');if(rest)o.push(three(rest));return o.join(' ')}
+ var s=r?'Rupees '+big(r):'';if(ps)s+=(s?' and ':'')+two(ps)+' Paise';return (s||'Zero Rupees')+' Only'}
+
+/* options that change the bill / document body */
+function prOpts(h,rec){
+ if(!rec||!rec.lines)return h;
+ var d=document.createElement('div');d.innerHTML=h;var t=d.querySelector('table'),p=P(rec.pid);
+ if(t){
+  if(!op('pr_rate')){var ix=-1,hr=t.rows[0];if(hr)[].forEach.call(hr.cells,function(c,k){if(/^rate$/i.test(c.textContent.trim()))ix=k});
+   if(ix>=0)[].forEach.call(t.rows,function(r){if(r.cells.length>ix)r.deleteCell(ix)})}
+  if(!op('pr_sn')&&t.rows[0]&&t.rows[0].cells[0]&&t.rows[0].cells[0].textContent.trim()==='#')[].forEach.call(t.rows,function(r){if(r.cells.length)r.deleteCell(0)});
+  if(PS().pr_tq){var u={};rec.lines.forEach(function(l){u[l.unit]=(u[l.unit]||0)+(+l.qty||0)});
+   t.insertAdjacentHTML('afterend','<p class="m">Total quantity: <b>'+Object.keys(u).map(function(k){return Math.round(u[k]*100)/100+' '+esc(k)}).join(', ')+'</b></p>')}}
+ [].forEach.call(d.querySelectorAll('p.r'),function(q){
+  if(!op('pr_disc')&&/^Discount/.test(q.textContent.trim()))q.remove();
+  else if(q.querySelector('b')&&/^Total/.test(q.textContent.trim())){
+   var x=q.innerHTML;if(!op('pr_rcv'))x=x.replace(/<br>Received [^<]*/,'');if(!op('pr_bal'))x=x.replace(/<br>Balance [^<]*/,'');q.innerHTML=x;
+   var add='';
+   if(PS().pr_wd&&rec.total!=null)add+='<p class="wd"><b>Amount in words:</b> '+inWords(rec.total)+'</p>';
+   if(PS().pr_cb&&p){var bb=bal(p);add+='<p class="r m">Current balance of '+esc(p.name)+': <b>'+(bb>0.009?money(bb)+' to receive':bb<-0.009?money(-bb)+' to pay':'Nil')+'</b></p>'}
+   if(add)q.insertAdjacentHTML('afterend',add)}});
+ return d.innerHTML}
+var _bhPr=billHtml;billHtml=function(b){return prOpts(_bhPr(b),b)};
+var _dhPr=docHtml;docHtml=function(d){return prOpts(_dhPr(d),d)};
+
+(function(){var s=document.createElement('style');s.textContent=".sw{position:relative;width:46px;height:26px;flex:0 0 46px;margin:0;display:inline-block}\n.sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:1}\n.sw i{position:absolute;inset:0;background:#c5cbd9;border-radius:99px;transition:.2s}\n.sw i:before{content:\"\";position:absolute;left:3px;top:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}\n.sw input:checked+i{background:var(--ac)}\n.sw input:checked+i:before{transform:translateX(20px)}\n.setrow{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid var(--bd)}\n.setrow.first{border-top:0}\n.setrow .t{flex:1;min-width:0}\n.setrow .t b{font-weight:500;display:block}\n.dis{opacity:.45;pointer-events:none}\n.archips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}\n.archip{padding:9px 15px;border-radius:999px;background:#eaf2fe;color:#1a56b8;border:0;font:inherit;font-size:14px;font-weight:500}\n.archip.on{background:var(--ac);color:#fff}\n.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n@media(max-width:600px){.fgrid{grid-template-columns:1fr}}\n";document.head.appendChild(s)})();
 /* ---------- OUTBOX: automatic WhatsApp sending (sender program runs on laptop) ---------- */
 var OB={rows:[],beats:[],sel:{},min:1,err:'',T:null,bulkDone:false,
  tpl:'Namaste {name},\nYour pending balance with {shop} is {amount}. Kindly clear it at your earliest convenience. Thank you.'};
@@ -2125,10 +2371,8 @@ var AW_TYPES=[
  ['reminder','Reminder button','The "Send reminder" button on a party'],
  ['stmt','Party statement','Statement text from Parties or Reports'],
  ['dispatch','Dispatch update','Items sent / items remaining'],
- ['transporter','Transporter loading order','Loading list sent to a transporter'],
  ['other','Estimate, order, challan','Everything else']];
 function awKind(t){t=String(t||'');
- if(/LOADING ORDER/.test(t))return 'transporter';
  if(/Kindly clear it/i.test(t))return 'reminder';
  if(/\*Party Statement\*/.test(t))return 'stmt';
  if(/Remaining to be sent|All items dispatched/i.test(t))return 'dispatch';
@@ -2262,7 +2506,7 @@ setInterval(function(){arRun(false,true)},15*60*1000);
 function sw(checked,fn,dis){return '<span class="sw"><input type="checkbox" '+(checked?'checked ':'')+(dis?'disabled ':'')+'onchange="'+fn+'"><i></i></span>'}
 function awPaint(){var e=$('#aws');if(e)e.innerHTML=awHtml()}
 function awHtml(){
- var m=!!PS().autoWA,h='<b style="font-size:16px">Automatic WhatsApp sending</b><div class="mu" style="margin:2px 0 4px">Choose which messages go to the Outbox and send by themselves. Anything switched off opens WhatsApp by hand, like before. Needs the sender program running on your laptop.</div>';
+ var m=!!PS().autoWA,h='<b style="font-size:16px">Automatic WhatsApp sending</b><div class="mu">'+APPV+'</div><div class="mu" style="margin:2px 0 4px">Choose which messages go to the Outbox and send by themselves. Anything switched off opens WhatsApp by hand, like before. Sends by itself when you press Save. Needs the cloud sender to be online.</div>';
  h+='<div class="setrow first"><div class="t"><b>Send automatically (master switch)</b><span class="mu">Turn off to stop all automatic sending</span></div>'+sw(m,"PS().autoWA=this.checked;save();awPaint()")+'</div>';
  h+='<div class="'+(m?'':'dis')+'">';
  AW_TYPES.forEach(function(t){h+='<div class="setrow"><div class="t"><b>'+t[1]+'</b><span class="mu">'+t[2]+'</span></div>'+sw(awOn(t[0]),"awSet('"+t[0]+"',this.checked)",!m)+'</div>'});
@@ -2276,7 +2520,7 @@ function arHtml(){
  var h='<b style="font-size:16px">Automatic payment reminders</b><div class="mu" style="margin:2px 0 4px">Reminds parties who have not paid, by themselves, after the number of days you pick below (counted from the oldest unpaid bill).</div>';
  h+='<div class="setrow first"><div class="t"><b>Send payment reminders automatically</b></div>'+sw(on,"arSet(\'on\',this.checked?1:0);arPaint()")+'</div>';
  h+='<div class="'+(on?'':'dis')+'">';
- h+='<label class="mu">Remind after these many days unpaid (tap to choose more than one)</label><div class="chips">'+all.map(function(d){return '<button type="button" class="chip'+(sel[d]?' on':'')+'" onclick="arDay('+d+')">'+d+(d===1?' day':' days')+'</button>'}).join('')+'</div>';
+ h+='<label class="mu">Remind after these many days unpaid (tap to choose more than one)</label><div class="archips">'+all.map(function(d){return '<button type="button" class="archip'+(sel[d]?' on':'')+'" onclick="arDay('+d+')">'+d+(d===1?' day':' days')+'</button>'}).join('')+'</div>';
  h+='<div class="row" style="gap:8px"><input id="ard" type="number" inputmode="numeric" min="1" placeholder="Other number of days" style="margin:0"><button type="button" class="s" onclick="arAddDay()">Add</button></div>';
  h+='<div class="mu" style="margin:6px 0 10px">'+(a.days.length?'Example: with '+a.days.slice().sort(function(x,y){return x-y}).join(' and ')+' days selected, a party gets a reminder on day '+a.days.slice().sort(function(x,y){return x-y}).join(' and on day ')+' of staying unpaid.':'No day selected yet.')+'</div>';
  h+='<div class="fgrid"><div><label class="mu">After that, repeat every</label><select onchange="arSet(\'rep\',+this.value)">'+[[0,'Do not repeat'],[3,'3 days'],[7,'7 days'],[15,'15 days'],[30,'30 days']].map(function(o){return '<option value="'+o[0]+'"'+(a.rep===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></div>'+
@@ -2286,7 +2530,7 @@ function arHtml(){
   '<div><label class="mu">Most reminders per day</label><input type="number" inputmode="numeric" value="'+esc(a.cap)+'" onchange="arSet(\'cap\',Math.max(1,+this.value||30))"></div></div>';
  h+='<label class="mu" style="margin-top:8px;display:block">Message ({name}, {shop}, {amount} and {days} are filled in for each party)</label><textarea rows="4" onchange="arSet(\'tpl\',this.value)">'+esc(a.tpl)+'</textarea>';
  h+='<div class="row" style="margin-top:8px;flex-wrap:wrap;justify-content:flex-start"><button type="button" class="s" onclick="arPreview()">Who is due now?</button><button type="button" class="b" onclick="arNow()">Send due reminders now</button></div><div id="arp"></div>';
- h+='<div class="mu" style="margin-top:10px">Reminders are added to the Outbox while this app is open on any of your devices (checked every 15 minutes), and the sender program on your laptop sends them. Nobody gets more than one reminder in 20 hours.</div></div>';
+ h+='<div class="mu" style="margin-top:10px">Reminders are added to the Outbox while this app is open on any of your devices (checked every 15 minutes), and the cloud sender sends them. Nobody gets more than one reminder in 20 hours.</div></div>';
  return h}
 function arDay(d){var a=AR().days.slice(),i=a.indexOf(d);if(i<0)a.push(d);else a.splice(i,1);arSet('days',a.sort(function(x,y){return x-y}));arPaint()}
 function arAddDay(){var e=$('#ard'),v=Math.floor(+(e&&e.value));if(!(v>=1&&v<=365))return alert('Write a number of days between 1 and 365');var a=AR().days.slice();if(a.indexOf(v)<0)a.push(v);arSet('days',a.sort(function(x,y){return x-y}));arPaint()}
@@ -2301,15 +2545,52 @@ var _vPo=vPage;vPage=function(){return pg==='out'?vOutbox():_vPo()};
 var _bn9=buildNav;buildNav=function(){_bn9();var n=$('nav');if(!n||n.querySelector('[data-out]'))return;var b=document.createElement('button');b.setAttribute('data-out','1');b.textContent='Outbox';if(pg==='out')b.className='on';b.onclick=function(){nav('out')};var bk=Array.prototype.find.call(n.children,function(x){return x.textContent==='Backup'});n.insertBefore(b,bk||null)};
 
 
-/* ---------- Outbox on phone: More menu row and top-bar title ---------- */
-var _vMoO=vMore;
-vMore=function(){var h=_vMoO(),k="<span>Backup / Restore</span><span class=\"mrc\">›</span></div>",i=h.indexOf(k);
- return i<0?h:h.slice(0,i+k.length)+'<div class="mr" onclick="nav(\'out\')"><span>WhatsApp Outbox</span><span class="mrc">›</span></div>'+h.slice(i+k.length)};
-var _mbO=mBar;
-mBar=function(){_mbO();if(pg!=='out')return;var t=document.querySelector('#mtop .mttl');if(t)t.textContent='WhatsApp Outbox'};
-var _gbO=goBack;
-goBack=function(){if(pg==='out'){pg='more';render();window.scrollTo(0,0);return}_gbO()};
 
+/* ---------- SPEED: fewer repeated searches and re-reads (does not change any result) ---------- */
+var QJ=new WeakMap();
+function csFast(r){var q=JSON.stringify(r),e=QJ.get(r);if(e&&e.q===q)return e.s;var v=cs(r);QJ.set(r,{q:q,s:v});return v}
+function mkFind(col,key,orig){var m=null,a0=null,n0=-1;
+ return function(id){var a=D[col];
+  if(!m||a0!==a||n0!==a.length){a0=a;n0=a.length;m={};for(var j=a.length-1;j>=0;j--)if(a[j])m[a[j][key]]=j}
+  var i=m[id];if(i!=null&&a[i]&&a[i][key]===id)return a[i];
+  return orig(id)}}
+P=mkFind('parties','id',P);
+I=mkFind('items','id',I);
+bl=mkFind('bills','no',bl);
+var PDC=null,PDK=null;
+paidOn=function(b){if(!BC)BC=balMap();
+ if(PDK!==BC||!PDC){PDK=BC;PDC={};D.pays.forEach(function(x){if(x.bn!=null&&!x.x)PDC[x.bn]=(PDC[x.bn]||0)+x.amt})}
+ return (+b.paid||0)+(PDC[b.no]||0)};
+
+/* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
+var APPV='App version 12-Nov-C';
+function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
+ if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
+ if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
+ return true}
+/* payment receipts: the "Send on WhatsApp?" question is answered YES by itself when auto send is on */
+var _awQ=0,_cfAW=window.confirm;
+window.confirm=function(m){
+ if(/^(Saved\.|Payment saved\.) Send .*WhatsApp\?$/.test(String(m||''))&&PS().autoWA&&awOn('receipt')&&obOk()){_awQ=1;setTimeout(function(){_awQ=0},0);return true}
+ return _cfAW.call(window,m)};
+var _ow10=openWA;
+openWA=function(p,text){if(_awQ){_awQ=0;if(!(p&&phone(p).length>=10))return}_ow10(p,text)};
+/* new sale bill */
+var _sbAW=saveBill2;
+saveBill2=function(){var n0=D.bills.length;_sbAW();
+ if(D.bills.length>n0){var b=D.bills[D.bills.length-1],p=P(b.pid);if(awGo('bill',p))wa(b.no)}};
+/* dispatch (items sent) */
+var _sdAW=saveDisp;
+saveDisp=function(no){lastDisp=null;_sdAW(no);
+ if(lastDisp&&lastDisp.no===no){var b=bl(no),p=b&&P(b.pid);if(awGo('dispatch',p))waRem(no,1)}};
+/* sale return */
+var _srAW=saveRet;
+saveRet=function(){var p0=findP(rdraft.name),n0=D.pays.length;_srAW();
+ if(D.pays.length>n0){var x=D.pays[D.pays.length-1];if(x&&x.ret&&awGo('receipt',p0))payWA(x.id)}};
+/* new estimate / sale order / challan */
+var _sdcAW=saveDoc;
+saveDoc=function(){var n0=D.docs.length;_sdcAW();
+ if(D.docs.length>n0){var d=D.docs[D.docs.length-1],p=P(d.pid);if((d.t==='est'||d.t==='so'||d.t==='chal')&&awGo('other',p))docWA(d.id)}};
 
 lockCk();
 render();
