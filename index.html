@@ -700,7 +700,7 @@ bal=function(p){var b=+p.open||0;
 balTxt=function(b){return b>0.009?'<span class="grn">'+money(b)+' to receive</span>':b<-0.009?'<span class="red">'+money(-b)+' to pay</span>':'<span class="mu">Nil</span>'};
 function balShort(b){return b>0.009?money(b)+' Dr':b<-0.009?money(-b)+' Cr':money(0)}
 /* ---- navigation ---- */
-function buildNav(){var g=grpOf(pg),L=[['home','Home'],['party','Parties'],['items','Items'],['sale','Sale'],['pur','Purchase'],['rep','Reports'],['bk','Backup'],['set','Settings']],h='';
+function buildNav(){var g=grpOf(pg),L=[['home','Home'],['party','Parties'],['items','Items'],['gd','Godowns'],['sale','Sale'],['pur','Purchase'],['rep','Reports'],['bk','Backup'],['set','Settings']],h='';
  L.forEach(function(x){var grp=!!GR[x[0]],act=grp?g===x[0]:pg===x[0];h+='<button class="'+(act?(grp?'gon':'on'):'')+'" onclick="nav(\''+x[0]+'\')">'+x[1]+'</button>';
   if(grp&&g===x[0])GR[x[0]].forEach(function(s){h+='<button class="sb'+(pg===s[0]?' on':'')+'" onclick="nav(\''+s[0]+'\')">'+s[1]+'</button>'})});
  $('nav').innerHTML=h}
@@ -806,7 +806,7 @@ function vDocView(){var d=docById(viewD);if(!d){viewD=null;return vPage()}
  if(d.x)h+='<button class="b" onclick="restoreDoc(\''+d.id+'\')">Restore</button>';else{h+='<button class="b" onclick="editDoc(\''+d.id+'\')">Edit</button>';if(d.t==='est'||d.t==='so'||d.t==='chal')h+='<button class="s" onclick="convertDoc(\''+d.id+'\')">Convert to Sale</button>';if(d.t==='pur')h+='<button class="s" onclick="payDoc(\''+d.id+'\')">Payment-Out</button>';h+='<button class="s" onclick="docWA(\''+d.id+'\')">WhatsApp</button><button class="s" onclick="printDoc(\''+d.id+'\')">Print</button><button class="s" onclick="cancelDoc(\''+d.id+'\')">Cancel</button>'}
  return h+'</div>'}
 function vDocForm(){var d=ddraft,c=DT[d.t],tot=0,rows='';
- d.lines.forEach(function(l,k){tot+=l.amt;rows+='<tr><td>'+(k+1)+'</td><td>'+esc(l.name)+'</td><td>'+l.qty+'</td><td>'+esc(l.unit)+'</td><td>'+l.rate+'</td><td>'+money(l.amt)+'</td>'+(d.t==='pur'?'<td>'+esc(l.loc||d.gd||'-')+'</td>':'')+'<td><button class="s" onclick="ddraft.lines.splice('+k+',1);render()">✕</button></td></tr>'});
+ d.lines.forEach(function(l,k){tot+=l.amt;rows+='<tr><td>'+(k+1)+'</td><td style="min-width:160px">'+delnIn(k,'name',l.name,'text','il4')+'</td><td style="width:90px">'+delnIn(k,'qty',l.qty,'number')+'</td><td style="width:90px">'+delnIn(k,'unit',l.unit,'text')+'</td><td style="width:110px">'+delnIn(k,'rate',l.rate,'number')+'</td><td style="text-align:right">'+money(l.amt)+'</td>'+(d.t==='pur'?'<td style="min-width:150px">'+delnIn(k,'loc',l.loc||d.gd||'','text','gdl')+'</td>':'')+'<td><button class="s" onclick="ddraft.lines.splice('+k+',1);render()">✕</button></td></tr>'});
  setTimeout(docInfo,0);var no=d.edit?docById(d.edit).no:docNo(d.t);
  return '<button class="s" onclick="ddraft=null;sub=null;render()">← Back</button><h2 style="font-size:20px;margin:8px 0">'+(d.edit?'Edit ':'New ')+c.s+'</h2><div class="card">'+partyList('pl4')+'<div class="split" style="grid-template-columns:1fr 1fr 200px;gap:10px"><div><input id="dn" list="pl4" placeholder="'+c.pl+' name *" autocomplete="off" value="'+esc(d.name)+'" oninput="ddraft.name=this.value;docInfo()"><div id="dinfo" class="mu"></div></div><div><input id="dph" type="tel" placeholder="Phone number" value="'+esc(d.phone)+'" oninput="ddraft.phone=this.value"></div><div class="mu" style="text-align:right">No: <b>'+no+'</b><br>Date: <b>'+(d.edit?dt(docById(d.edit).date):new Date().toLocaleDateString('en-IN'))+'</b></div></div></div>'+
  (d.t==='pur'?'<div class="card">'+gdList()+'<label class="mu"><b>Godown / Block where goods are unloaded</b> (printed on the sale bill so dispatch staff know where to find the goods)</label><input id="dgd" list="gdl" autocomplete="off" placeholder="e.g. Godown 1, Block A" value="'+esc(d.gd||'')+'" oninput="gdIn(this.value)"></div>':'')+'<div class="card" style="overflow-x:auto"><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><table class="tbl"><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>'+(d.t==='pur'||d.t==='pret'?'Purchase price':'Price/Unit')+'</th><th>Amount</th>'+(d.t==='pur'?'<th>Godown / Block</th>':'')+'<th></th></tr>'+rows+'<tr><td>+</td><td style="min-width:160px"><input id="dit" list="il4" placeholder="Item name" autocomplete="off" oninput="docFill(this.value)"></td><td style="width:80px"><input id="dqt" type="number" inputmode="decimal" placeholder="Qty"></td><td style="width:90px"><input id="dut" placeholder="Unit"></td><td style="width:100px"><input id="drt" type="number" inputmode="decimal" placeholder="Rate"></td><td></td>'+(d.t==='pur'?'<td style="min-width:150px"><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+'<td><button class="s addb" onclick="addDocLine()">Add</button></td></tr></table></div>'+
@@ -819,8 +819,8 @@ function saveDoc(){var d=ddraft,c=DT[d.t],nm=(d.name||'').trim();if(!nm)return a
  var ph=(d.phone||'').trim(),p=findP(nm);if(!p){p={id:uid(),name:nm,phone:ph,open:0};D.parties.push(p)}else if(ph&&p.phone!==ph)p.phone=ph;
  var tot=0,paid=c.paid?(+(($('#dpd')||{}).value)||0):0,doc=d.edit?docById(d.edit):null;
  if(doc)stockFx(doc,-1);
- d.lines.forEach(function(l){var i=findI(l.name);if(!i){i={id:uid(),name:l.name,unit:l.unit,rate:l.rate,buy:(d.t==='pur'||d.t==='pret')?l.rate:0,qty:0,low:0};D.items.push(i)}l.iid=i.id;if(d.t==='pur'){i.buy=l.rate;var gl=(l.loc||d.gd||'').trim();l.loc=gl;if(gl)i.loc=gl}tot+=l.amt});
- if(doc){doc.pid=p.id;doc.lines=d.lines;doc.total=tot;doc.gd=d.gd||''}else{doc={id:'d'+uid(),t:d.t,no:docNo(d.t),pid:p.id,date:Date.now(),lines:d.lines,total:tot,st:'open',gd:d.gd||''};D.docs.push(doc)}
+ d.lines.forEach(function(l){var i=findI(l.name);if(!i){i={id:uid(),name:l.name,unit:l.unit,rate:l.rate,buy:(d.t==='pur'||d.t==='pret')?l.rate:0,qty:0,low:0};D.items.push(i)}l.iid=i.id;if(d.t==='pur'){i.buy=l.rate;var gl=(l.loc||d.gd||'').trim();l.loc=gl;if(gl){i.loc=gl;gdReg(gl)}}tot+=l.amt});
+ if(doc){doc.pid=p.id;doc.lines=d.lines;doc.total=tot;doc.gd=gdMain(d)}else{doc={id:'d'+uid(),t:d.t,no:docNo(d.t),pid:p.id,date:Date.now(),lines:d.lines,total:tot,st:'open',gd:gdMain(d)};D.docs.push(doc)}
  stockFx(doc,1);
  if(c.paid){var wp=D.pays.find(function(x){return x.dn===doc.id&&/^With purchase/.test(x.note||'')});
   if(wp){wp.pid=p.id;if(paid>0){wp.amt=paid;wp.x=0}else wp.x=1}else if(paid>0)D.pays.push({id:uid(),pid:p.id,date:doc.date,amt:paid,out:1,note:'With purchase #'+doc.no,dn:doc.id});
@@ -882,7 +882,7 @@ function vItemForm(){var i=iform.id?I(iform.id):null,m=iform.msg?'<div class="ok
  return '<button class="s mob" onclick="iform=null;render()">← Back</button><div class="card">'+m+'<b>'+(i?'Edit item':'Add item')+'</b><input id="sn" placeholder="Item name *" autocomplete="off" value="'+esc(i?i.name:'')+'"><div class="g"><input id="su" placeholder="Unit (box, sq ft, pcs)" value="'+esc(i?i.unit:'')+'"><input id="sr" type="number" inputmode="decimal" placeholder="Sale price" value="'+(i&&i.rate?i.rate:'')+'"><input id="sb" type="number" inputmode="decimal" placeholder="Purchase price" value="'+(i&&i.buy?i.buy:'')+'">'+(i?'':'<input id="sq" type="number" inputmode="decimal" placeholder="Opening stock">')+'<input id="sl" type="number" inputmode="decimal" placeholder="Low-stock alert at" value="'+(i&&i.low?i.low:'')+'"><input id="sg" list="gdl" autocomplete="off" placeholder="Godown / Block (where kept)" value="'+esc(i&&i.loc||'')+'"></div>'+gdList()+'<div class="row" style="margin-top:6px"><button class="b" onclick="saveItem()">Save</button><button class="s" onclick="iform=null;render()">Close</button></div></div>'}
 function saveItem(){var n=(($('#sn')||{}).value||'').trim();if(!n)return alert('Enter item name');
  var o=iform&&iform.id?I(iform.id):null,ex=findI(n);if(ex&&(!o||ex.id!==o.id))return alert('An item with this name already exists');
- var u=$('#su').value.trim()||'pcs',r=+$('#sr').value||0,b=+$('#sb').value||0,l=+$('#sl').value||0,g=(($('#sg')||{}).value||'').trim();
+ var u=$('#su').value.trim()||'pcs',r=+$('#sr').value||0,b=+$('#sb').value||0,l=+$('#sl').value||0,g=(($('#sg')||{}).value||'').trim();gdReg(g);
  if(o){o.name=n;o.unit=u;o.rate=r;o.buy=b;o.low=l;o.loc=g;save();selI=o.id;iform=null;render();return}
  var q=+(($('#sq')||{}).value)||0,i={id:uid(),name:n,unit:u,rate:r,buy:b,qty:q,low:l,loc:g};if(q)logI(i,'Opening stock',q);D.items.push(i);save();selI=i.id;iform={msg:'Saved: '+n+'. You can add the next item.'};render();setTimeout(function(){var e=$('#sn');if(e)e.focus()},30)}
 addItem=saveItem;
@@ -1229,10 +1229,11 @@ function rmPass(){if(confirm('Remove passcode from this device?')){localStorage.
 function lockCk(){var w=localStorage.getItem('sbpw');if(!w)return;var m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:#101338;z-index:99;display:flex;align-items:center;justify-content:center;padding:20px';m.innerHTML='<div class="card" style="max-width:320px;width:100%"><b>Enter passcode</b><input id="pw" type="password" autocomplete="off"><button class="b" style="width:100%;margin-top:6px" id="pwb">Open</button><div id="pwm" class="red"></div></div>';document.body.appendChild(m);function go1(){if(btoa(unescape(encodeURIComponent($('#pw').value)))===w)m.remove();else{$('#pwm').textContent='Wrong passcode';$('#pw').value=''}}$('#pwb').onclick=go1;$('#pw').onkeydown=function(e){if(e.key==='Enter')go1()}}
 var _vS0=vSettings;
 vSettings=function(){
- var T=[['gen','General'],['trn','Transaction'],['prt','Print'],['bill','Bill picture']],p=PS(),h='<h2 style="font-size:20px;margin:6px 0">Settings</h2><div class="pills" style="display:flex">'+T.map(function(t){return '<button class="s" style="'+(sTab===t[0]?'background:#1a73e8;color:#fff':'')+'" onclick="sTab=\''+t[0]+'\';render()">'+t[1]+'</button>'}).join('')+'</div><div class="card" style="max-width:600px">';
+ var T=[['gen','General'],['trn','Transaction'],['prt','Print'],['bill','Bill picture'],['gd','Godowns']],p=PS(),h='<h2 style="font-size:20px;margin:6px 0">Settings</h2><div class="pills" style="display:flex">'+T.map(function(t){return '<button class="s" style="'+(sTab===t[0]?'background:#1a73e8;color:#fff':'')+'" onclick="sTab=\''+t[0]+'\';render()">'+t[1]+'</button>'}).join('')+'</div><div class="card" style="max-width:600px">';
  if(sTab==='gen')h+='<b>General</b>'+tg('nostk','Stop sale on negative stock','Bill will not save if quantity is more than stock.',1)+'<label class="mu">Amount decimal places</label><select onchange="setP(\'dec\',+this.value)">'+[0,1,2,3].map(function(n){return '<option value="'+n+'"'+((p.dec==null?2:p.dec)===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select><div style="margin-top:14px"><b>Passcode (this device)</b><div class="mu">'+(localStorage.getItem('sbpw')?'Passcode is ON.':'No passcode set.')+'</div><button class="b" onclick="setPass()">Set / change passcode</button> '+(localStorage.getItem('sbpw')?'<button class="s" onclick="rmPass()">Remove</button>':'')+'</div>';
  else if(sTab==='trn')h+='<b>Transaction</b>'+tg('round','Round off total','Bill total is rounded to a whole rupee when you save.',1)+'<div class="mu">Transporter, Vehicle number and Discount are always on the Sale bill.</div>';
  else if(sTab==='prt')return _vS0();
+ else if(sTab==='gd')return h+'<b>Godowns and blocks</b><div class="mu" style="margin-top:4px">Save your godown / block names here, or just type them on a purchase bill (they are saved automatically). Click a name to see what is stored in it and its history.</div></div>'+vGodowns();
  else h+='<b>Bill picture (WhatsApp)</b>'+tg('hadr','Show address and phone')+tg('htr','Show transport and vehicle')+tg('hcur','Show current balance of party')+tg('hsv','Show "You Saved" (discount)')+tg('htm','Show time with date',0,1)+tg('hter','Show terms and conditions')+'<div class="mu">Address, phone and terms text are taken from the Print tab.</div>';
  return h+'</div>';
 };
@@ -1601,7 +1602,7 @@ function vMItems(){var it=D.items.slice().sort(itemCmp);
 function vMore(){
  function row(t,act,c){return '<div class="mr" onclick="'+act+'"><span>'+t+'</span><span class="mrc">'+c+'</span></div>'}
  function grp(k,t){var h=row(t,"MX."+k+"=!MX."+k+";render()",MX[k]?'⌃':'⌄');if(MX[k])GR[k].forEach(function(x){h+='<div class="mr sub" onclick="nav(\''+x[0]+'\')"><span>'+x[1]+'</span><span class="mrc">›</span></div>'});return h}
- return '<div class="mg"><div class="mgt">My Business</div>'+row('Parties',"nav('party')",'›')+grp('sale','Sale')+grp('pur','Purchase')+row('Reports',"nav('rep')",'›')+'</div>'
+ return '<div class="mg"><div class="mgt">My Business</div>'+row('Parties',"nav('party')",'›')+grp('sale','Sale')+grp('pur','Purchase')+row('Godowns',"nav('gd')",'›')+row('Reports',"nav('rep')",'›')+'</div>'
  +'<div class="mg"><div class="mgt">Important Utilities</div>'+row('Backup / Restore',"nav('bk')",'›')+row('Settings',"nav('set')",'›')+'</div>'}
 var _vPm=vPage;
 vPage=function(){
@@ -1623,7 +1624,7 @@ mBar=function(){
  bar.style.display=form?'none':'';
  if(root){var sy=document.getElementById('sy');
   top.innerHTML='<div class="mlogo">'+esc((D.shop||'A').charAt(0).toUpperCase())+'</div><div class="mnm"><b>'+esc(D.shop)+'</b><small>'+esc(sy?sy.textContent:'')+'</small></div><button onclick="nav(\'set\')">⚙</button>'}
- else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',bk:'Backup',set:'Settings',party:'Parties',items:'Items'};
+ else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns'};
   var t=form?'New Sale':sub==='pin'?(pdraft&&pdraft.out?'Payment-Out':'Payment-In'):sub==='ret'?'Sale Return':viewB?'Sale #'+viewB:(pg==='party'&&P(selP))?P(selP).name:(pg==='items'&&I(selI))?I(selI).name:pform?'Party':iform?'Item':(nm[pg]||'');
   top.innerHTML='<button onclick="goBack()">←</button><div class="mttl">'+esc(t)+'</div>'}
  top.style.display='';
@@ -1781,7 +1782,7 @@ function itemLoc(l){var i=(l.iid&&I(l.iid))||findI(l.name);return i&&i.loc?Strin
 function locTag(l){var x=itemLoc(l);return x?' <span style="color:#1a56b8;font-weight:600;white-space:nowrap">📍 '+esc(x)+'</span>':''}
 function locLine(l){var x=itemLoc(l);return x?'<div style="color:#1a56b8;font-weight:600;margin-top:2px">📍 Godown / Block: '+esc(x)+'</div>':''}
 function gdNames(){var m={},a=[];function add(v){v=String(v||'').trim();if(v&&!m[v.toLowerCase()]){m[v.toLowerCase()]=1;a.push(v)}}
- D.items.forEach(function(i){add(i.loc)});(D.docs||[]).forEach(function(d){if(d.t==='pur'){add(d.gd);d.lines.forEach(function(l){add(l.loc)})}});return a.sort(NCMP)}
+ (PS().gds||[]).forEach(add);D.items.forEach(function(i){add(i.loc)});(D.docs||[]).forEach(function(d){if(d.t==='pur'){add(d.gd);d.lines.forEach(function(l){add(l.loc)})}});return a.sort(NCMP)}
 function gdList(){return '<datalist id="gdl">'+gdNames().map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>'}
 function gdIn(v){if(ddraft)ddraft.gd=v}
 var _bhG=billHtml;
@@ -1798,6 +1799,65 @@ vMHome=function(){var h=_vMHg(),i=h.indexOf('<input class="msr"'),x=vPendDisp();
 var _vSg=vSettings;
 vSettings=function(){var h=_vSg();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');
  return k<0?h:h.slice(0,k)+'<div class="sec"><h3>Printing</h3>'+ck('hloc','Show Godown / Block on printed bill','Prints the place where each item is kept (taken from your purchase bills or the Items screen) so dispatch staff can find the goods.')+'</div>'+h.slice(k)};
+
+/* ---------- EDITABLE ROWS IN PURCHASE FORM ---------- */
+function delnIn(k,f,v,t,ls){return '<input class="eln" type="'+t+'" '+(t==='number'?'inputmode="decimal" ':'')+(ls?'list="'+ls+'" ':'')+'autocomplete="off" value="'+esc(String(v))+'" onfocus="this.select()" onchange="editDLn('+k+",'"+f+"',this.value)\">"}
+function editDLn(k,f,v){var d=ddraft,l=d&&d.lines[k];if(!l)return;
+ if(f==='name'){v=(v||'').trim();if(!v){d.lines.splice(k,1);render();return}l.name=v;var i=findI(v);if(i){l.unit=i.unit||l.unit;l.rate=(d.t==='pur'||d.t==='pret')?(+i.buy||+i.rate||l.rate):(+i.rate||l.rate)}}
+ else if(f==='unit'){l.unit=(v||'').trim()||'pcs'}
+ else if(f==='loc'){v=(v||'').trim();l.loc=(v===(d.gd||''))?'':v}
+ else{l[f]=+v||0}
+ l.amt=Math.round((+l.qty||0)*(+l.rate||0)*100)/100;render()}
+
+/* ---------- GODOWN PROFILES ---------- */
+var gsel=null,gform=null,GNO='(No godown)';
+function gdMain(d){var g=d.gd||'';if(!g||d.t!=='pur')return g;if(d.lines.some(function(l){return l.loc===g}))return g;var f=d.lines.find(function(l){return l.loc});return f?f.loc:g}
+function gdKey(n){return String(n||'').trim().toLowerCase()}
+function gdReg(n){n=String(n||'').trim();if(!n)return;var p=PS();p.gds=p.gds||[];if(!p.gds.some(function(x){return gdKey(x)===gdKey(n)}))p.gds.push(n)}
+function gdUnits(o,f){var u={};Object.keys(o.items).forEach(function(k){var r=o.items[k],v=r[f];if(v>0.0001)u[r.unit]=(u[r.unit]||0)+v});return Object.keys(u).map(function(k){return rnd(u[k])+' '+esc(k)}).join(', ')||'0'}
+function gdItemsOf(o){return Object.keys(o.items).map(function(k){return o.items[k]}).sort(function(a,b){return b.now-a.now||NCMP(a.name,b.name)})}
+function gdCalc(){var R={},al={};
+ function slot(g,it){g=String(g||'').trim()||GNO;var k=gdKey(g),o=R[k]||(R[k]={name:g,items:{},last:0,hist:[]}),r=o.items[it.id]||(o.items[it.id]={id:it.id,name:it.name,unit:it.unit,now:0,recv:0});return {o:o,r:r}}
+ (D.docs||[]).forEach(function(d){if(d.t!=='pur')return;d.lines.forEach(function(l){var it=(l.iid&&I(l.iid))||findI(l.name);if(!it)return;var g=l.loc||d.gd||'',s=slot(g,it),p=P(d.pid);
+  s.o.hist.push({d:d.date,id:d.id,no:d.no,party:p?p.name:'?',item:l.name,unit:l.unit,qty:l.qty,rate:l.rate,x:d.x});
+  if(!d.x){s.r.recv+=+l.qty||0;if(d.date>s.o.last)s.o.last=d.date;(al[it.id]=al[it.id]||[]).push({d:d.date,g:g,q:+l.qty||0})}})});
+ D.items.forEach(function(it){var rem=+it.qty||0;if(rem<=0)return;
+  (al[it.id]||[]).slice().sort(function(a,b){return b.d-a.d}).forEach(function(x){if(rem<=0)return;var t=Math.min(rem,x.q);slot(x.g,it).r.now+=t;rem-=t});
+  if(rem>0.0001)slot(it.loc||'',it).r.now+=rem});
+ return R}
+function gdAllNames(R){var n=gdNames().slice();if(R[gdKey(GNO)])n.push(GNO);return n}
+function gdRename(old,nw){var p=PS(),k=gdKey(old),hit=0;p.gds=(p.gds||[]).map(function(x){if(gdKey(x)===k){hit=1;return nw}return x});if(!hit)p.gds.push(nw);
+ p.gnotes=p.gnotes||{};Object.keys(p.gnotes).forEach(function(x){if(gdKey(x)===k){p.gnotes[nw]=p.gnotes[x];if(x!==nw)delete p.gnotes[x]}});
+ D.items.forEach(function(i){if(gdKey(i.loc)===k)i.loc=nw});
+ (D.docs||[]).forEach(function(d){if(gdKey(d.gd)===k)d.gd=nw;(d.lines||[]).forEach(function(l){if(gdKey(l.loc)===k)l.loc=nw})})}
+function gdUsed(n){var k=gdKey(n),c=0;D.items.forEach(function(i){if(gdKey(i.loc)===k)c++});(D.docs||[]).forEach(function(d){if(gdKey(d.gd)===k||(d.lines||[]).some(function(l){return gdKey(l.loc)===k}))c++});return c}
+function saveGodown(){var n=($('#gn').value||'').trim(),note=($('#gnt').value||'').trim(),old=gform&&gform.old;if(!n)return alert('Enter godown name');
+ var dup=gdNames().find(function(x){return gdKey(x)===gdKey(n)});if(dup&&(!old||gdKey(dup)!==gdKey(old)))return alert('This godown name already exists');
+ var p=PS();p.gnotes=p.gnotes||{};
+ if(old){gdRename(old,n)}else gdReg(n);
+ Object.keys(p.gnotes).forEach(function(x){if(gdKey(x)===gdKey(n)&&x!==n)delete p.gnotes[x]});
+ if(note)p.gnotes[n]=note;else delete p.gnotes[n];
+ save();gsel=n;gform=null;render()}
+function delGodown(n){var c=gdUsed(n);if(c>0)return alert('"'+n+'" is used in '+c+' purchase bills / items, so it cannot be deleted.\n\nTo fix a wrong name, press Edit and change the name instead.');
+ if(!confirm('Delete godown "'+n+'" from the saved list?'))return;var p=PS(),k=gdKey(n);p.gds=(p.gds||[]).filter(function(x){return gdKey(x)!==k});if(p.gnotes)Object.keys(p.gnotes).forEach(function(x){if(gdKey(x)===k)delete p.gnotes[x]});save();gsel=null;render()}
+function csvGodowns(){var R=gdCalc(),rows=[];gdAllNames(R).forEach(function(n){gdItemsOf(R[gdKey(n)]||{items:{}}).forEach(function(x){rows.push([n,x.name,x.unit,rnd(x.now),rnd(x.recv)])})});csvOut('godown-stock',['Godown / Block','Item','Unit','Stock now (estimate)','Received so far'],rows)}
+function vGdForm(){var old=gform.old,note=old?((PS().gnotes||{})[old]||''):'';
+ return '<button class="s mob" onclick="gform=null;render()">← Back</button><div class="card"><b>'+(old?'Edit godown':'Add godown')+'</b><input id="gn" placeholder="Godown / Block name * (example: Godown 1, Block A)" autocomplete="off" value="'+esc(old||'')+'"><textarea id="gnt" rows="2" placeholder="Note or address (optional)">'+esc(note)+'</textarea><div class="row" style="margin-top:6px"><button class="b" onclick="saveGodown()">Save</button><button class="s" onclick="gform=null;render()">Cancel</button></div></div>'+(old?'<div class="mu" style="margin:6px 2px">If you change the name, it is changed in all old purchase bills and items too.</div>':'')}
+function vGdProfile(name,R){var o=R[gdKey(name)]||{items:{},hist:[],last:0},its=gdItemsOf(o),isNo=gdKey(name)===gdKey(GNO),note=(PS().gnotes||{})[name]||'',inC=its.filter(function(x){return x.now>0.0001}).length;
+ var h='<button class="s mob" onclick="gsel=null;render()">← Back</button><div class="card"><div class="row"><h2 style="font-size:18px;margin:0">'+esc(name)+'</h2>'+(isNo?'':'<span><button class="s" data-g="'+esc(name)+'" onclick="gform={old:this.dataset.g};render()">✎ Edit</button> <button class="s dlb" data-g="'+esc(name)+'" onclick="delGodown(this.dataset.g)">🗑 Delete</button></span>')+'</div>'
+ +(note?'<div class="mu" style="margin-top:4px">'+nl2(note)+'</div>':'')+(isNo?'<div class="mu" style="margin-top:4px">Goods whose purchase bill had no godown / block written, or old stock with no place saved. Open the item and write its Godown / Block to move it.</div>':'')
+ +'<div class="stats" style="margin-top:8px"><div><span class="mu">Different goods now</span><br><b>'+inC+'</b></div><div><span class="mu">Stock now (estimate)</span><br><b>'+gdUnits(o,'now')+'</b></div><div><span class="mu">Total received so far</span><br><b>'+gdUnits(o,'recv')+'</b></div><div><span class="mu">Last received</span><br><b>'+(o.last?dt(o.last):'-')+'</b></div></div></div>';
+ h+='<div class="card"><b>Goods in this godown</b>'+tbl2(['Item','Stock now','Unit','Received so far'],its.map(function(x){return {k:"selI='"+x.id+"';nav('items')",c:[esc(x.name),'<b>'+rnd(x.now)+'</b>',esc(x.unit),rnd(x.recv)]}}),0)+'<div class="mu" style="margin-top:6px">Stock now is an estimate: an item\'s current stock is counted against its newest purchases first (oldest goods are assumed sold first). Older or opening stock is placed in the item\'s saved Godown / Block.</div></div>';
+ var hs=(o.hist||[]).slice().sort(function(a,b){return b.d-a.d});
+ h+='<div class="card"><b>History: goods received here</b>'+tbl2(['Date','Purchase','Supplier','Item','Qty','Rate','Status'],hs.map(function(x){return {k:"viewD='"+x.id+"';render()",c:[dt(x.d),'#'+x.no,esc(x.party),esc(x.item),x.qty+' '+esc(x.unit),money(x.rate),x.x?stH('Cancelled'):stH('Received')]}}),0)+'</div>';
+ return h}
+function vGodowns(){var R=gdCalc(),names=gdAllNames(R),sel=gsel?names.find(function(n){return gdKey(n)===gdKey(gsel)}):null,cur=sel||(window.innerWidth>=900&&!gform&&names.length?names[0]:null),hide=!!(sel||gform);
+ var L='<div class="row" style="margin-bottom:6px"><button class="b" onclick="gform={};render()">+ Add Godown</button><button class="s" onclick="csvGodowns()">Excel (CSV)</button></div><input placeholder="Find godown" oninput="flt(this.value)"><div class="card" style="padding:0">'+names.map(function(n){var o=R[gdKey(n)]||{items:{}},c=Object.keys(o.items).filter(function(k){return o.items[k].now>0.0001}).length;
+  return '<div class="row" data-n="'+esc(n.toLowerCase())+'" data-g="'+esc(n)+'" style="padding:10px;cursor:pointer;border-bottom:1px solid var(--bd);'+(cur&&gdKey(cur)===gdKey(n)&&!gform?'background:var(--ac2)':'')+'" onclick="gsel=this.dataset.g;gform=null;render()"><span>'+esc(n)+'<br><span class="mu">'+c+' goods</span></span><b style="text-align:right">'+gdUnits(o,'now')+'</b></div>'}).join('')+(names.length?'':'<p class="mu" style="padding:10px">No godowns yet. Press + Add Godown, or type a Godown / Block when you make a purchase bill.</p>')+'</div>';
+ var Rt=gform?vGdForm():cur?vGdProfile(cur,R):'<div class="card mu">Click a godown to see its profile</div>';
+ return '<div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+Rt+'</div></div>'}
+var _vPgd=vPage;
+vPage=function(){return pg==='gd'?'<h2 style="font-size:20px;margin:6px 0">Godowns / Blocks</h2>'+vGodowns():_vPgd()};
 
 lockCk();
 render();
