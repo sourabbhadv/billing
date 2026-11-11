@@ -1513,6 +1513,17 @@ sugUp=function(){_su10();
  if(needI)sgList('sgI',D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join(''),String(D.items.length));
  q.forEach(function(i){i.dataset.dl=/item/i.test(i.placeholder)?'sgI':'sgP';i.setAttribute('autocomplete','off')})};
 
+/* ---------- LISTS SCROLL INSIDE THEIR OWN BOX (like Vyapar) + BACK FROM SETTINGS TABS ---------- */
+(function(){var st=document.createElement('style');st.textContent='.scl{overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px}.scl th{position:sticky;top:0;z-index:2}';document.head.appendChild(st)})();
+function decoScroll(){var m=document.getElementById('mbar'),bot=(m&&getComputedStyle(m).display!=='none')?86:24;
+ [].forEach.call(document.querySelectorAll('#v table.tbl'),function(t){var w=t.parentElement;if(!w||t.rows.length<12)return;w.classList.add('scl');w.style.maxHeight='';
+  var top=w.getBoundingClientRect().top+window.pageYOffset,h=Math.max(window.innerHeight-top-bot,260);w.style.maxHeight=h+'px'})}
+window.addEventListener('resize',function(){try{decoScroll()}catch(e){}});
+var _gb11=goBack;
+goBack=function(){if(pg==='set'&&sTab!=='gen'){sTab='gen';render();window.scrollTo(0,0);return}_gb11()};
+function fixBack(){if(pg!=='set')return;[].forEach.call(document.querySelectorAll('#v button'),function(b){if(/^←/.test(b.textContent.trim())){b.removeAttribute('onclick');b.onclick=function(){goBack()}}})}
+var _r11=render;render=function(){_r11();try{fixBack();decoScroll()}catch(e){}};
+
 
 lockCk();
 render();
