@@ -2257,6 +2257,106 @@ var _mbDh=mBar;mBar=function(){_mbDh();if(pg!=='dh')return;
  var bs=document.querySelectorAll('#mbar button');for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',i===0);
  var f=document.getElementById('mfab');if(f)f.classList.remove('show')};
 
+/* ================= PRINT SETTINGS (added) =================
+   Settings > Print now has the print options that matter for a bill:
+   page, header, item table, totals, footer. Every option is saved in D.ps
+   and used by every printout. Defaults match the old print, so nothing
+   changes until an option is switched.                                      */
+function setPq(k,v){PS()[k]=v;save()}
+function prName(v){v=String(v).trim();PS().name=v;if(v){D.shop=v;var s=document.getElementById('sh');if(s)s.textContent=v}save()}
+function pr(k,d){var v=PS()[k];return v==null?d:v}
+function prSel(k,lb,opts,def){var v=pr(k,def);
+ return '<div class="ck" style="cursor:default"><span style="flex:1">'+lb+'</span><select style="width:auto;max-width:55%;margin:0" onchange="setP(\''+k+'\',this.value)">'+opts.map(function(o){return '<option value="'+o[0]+'"'+(String(v)===String(o[0])?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></div>'}
+function prTx(k,lb,rows,ph,fn){var v=PS()[k]||'',h='<label class="mu" style="display:block;margin-top:8px">'+lb+'</label>',oc=fn?fn+'(this.value)':'setPq(\''+k+'\',this.value.trim())';
+ return h+(rows?'<textarea rows="'+rows+'" placeholder="'+esc(ph||'')+'" onchange="'+oc+'">'+esc(v)+'</textarea>':'<input placeholder="'+esc(ph||'')+'" value="'+esc(v)+'" onchange="'+oc+'">')}
+function prLogo(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();
+ r.onload=function(){var im=new Image();im.onload=function(){var s=Math.min(1,300/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*s));c.height=Math.max(1,Math.round(im.height*s));
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height);var u=c.toDataURL('image/png');if(u.length>250000)u=c.toDataURL('image/jpeg',.85);
+  PS().logo=u;save();render()};im.onerror=function(){alert('Could not read this picture. Try a PNG or JPG file.')};im.src=r.result};r.readAsDataURL(f)}
+function prLogoDel(){delete PS().logo;save();render()}
+function prTest(){var b=D.bills.filter(function(x){return !x.x}).slice(-1)[0];if(b)printBill(b.no);else testPrint()}
+
+var _vSpr=vSettings;
+vSettings=function(){
+ if(sTab!=='prt')return _vSpr();
+ var s0=sTab;sTab='gen';var h0;try{h0=_vSpr()}finally{sTab=s0}
+ var i=h0.indexOf('<div class="sgrid">');if(i<0)return h0;
+ var pre=h0.slice(0,i).replace('style="background:#1a73e8;color:#fff"','style=""').replace(/(<button class="s" style=")(" onclick="sTab='prt')/,'$1background:#1a73e8;color:#fff$2'),
+  p=PS(),sig=!p.nosign;
+ var ck2=function(k,lb,hp){return ck(k,lb,hp)},ckO=function(k,lb,hp){return ck(k,lb,hp,1)};
+ var B='<div class="sec"><h3>Business details</h3><div class="hint">Printed at the top of every bill. Changes save when you leave a box.</div>'
+  +prTx('name','Firm name',0,'Your shop name','prName').replace('value=""','value="'+esc(p.name||D.shop)+'"')
+  +prTx('tag','Line under name',0,'Example: Tiles & Sanitaryware')
+  +prTx('addr','Address',3,'Shop address, city')
+  +prTx('phone','Phone number(s)',0,'')
+  +prTx('email','Email',0,'Optional')
+  +prTx('extra','Extra line',0,'Example: GST / Reg. no.')
+  +'<label class="mu" style="display:block;margin-top:10px">Logo</label><div class="row" style="justify-content:flex-start;gap:12px">'+(p.logo?'<img src="'+p.logo+'" alt="Logo" style="max-height:48px;max-width:120px;border:1px solid var(--bd);border-radius:6px;padding:3px;background:#fff">':'')
+  +'<label class="s" style="display:inline-flex;align-items:center;padding:8px 14px;border-radius:999px;background:#eaf2fe;color:#1a56b8;font-weight:500;cursor:pointer">'+(p.logo?'Change logo':'Upload logo')+'<input type="file" accept="image/*" style="display:none" onchange="prLogo(this)"></label>'+(p.logo?'<button class="s dlb" onclick="prLogoDel()">Remove</button>':'')+'</div></div>';
+ var P1='<div class="sec"><h3>Page</h3>'
+  +prSel('size','Paper size',[['A4','A4 (big paper)'],['A5','A5 (half paper)']],'A4')
+  +prSel('pr_or','Orientation',[['port','Portrait'],['land','Landscape']],'port')
+  +prSel('pr_fs','Text size',[['S','Small'],['M','Medium'],['L','Large']],'M')
+  +'<div class="ck" style="cursor:default"><span style="flex:1">Blank space on top (mm)</span><input type="number" inputmode="numeric" min="0" max="80" step="5" style="width:84px;margin:0" value="'+(+p.pr_top||0)+'" onchange="setPq(\'pr_top\',Math.max(0,Math.min(80,+this.value||0)))"></div><div class="hint">Use this if your paper already has a printed letterhead.</div>'
+  +'<div style="margin-top:10px"><button class="b" onclick="prTest()">Test print</button></div><div class="hint">Prints your latest bill with these settings.</div></div>';
+ var H='<div class="sec"><h3>Header</h3>'
+  +ck2('pr_nm','Firm name')+ck2('pr_logo','Logo','Shown only after you upload a logo.')+ck2('pr_ad','Address')+ck2('pr_ph','Phone number')+ck2('pr_em','Email')+ck2('pr_ex','Extra line (GST / Reg. no.)')+'</div>';
+ var T='<div class="sec"><h3>Item table</h3>'
+  +ck2('pr_sn','Serial number (#)')+ck2('pr_rate','Rate column')+ck2('hloc','Godown / Block under item name','So dispatch staff can find the goods.')+ckO('pr_tq','Total quantity','Adds a line with the total quantity below the table.')+'</div>';
+ var TT='<div class="sec"><h3>Totals</h3>'
+  +ck2('pr_disc','Discount')+ck2('pr_rcv','Received amount')+ck2('pr_bal','Balance amount')+ckO('pr_cb','Current balance of party','Shows how much the party owes in total, after this bill.')+ckO('pr_wd','Total amount in words','Example: Rupees Twelve Thousand Five Hundred Only.')+'</div>';
+ var F='<div class="sec"><h3>Footer</h3>'
+  +ck2('pr_tm','Terms and notes')+prTx('terms','Terms and notes text',3,'Example: Goods once sold will not be taken back.')
+  +ckO('pr_bk','Bank details','Prints your bank / UPI details at the bottom.')+prTx('bank','Bank details text',3,'Bank name, account no., IFSC, UPI id')
+  +'<label class="ck"><input type="checkbox" '+(sig?'checked':'')+' onchange="setP(\'nosign\',this.checked?0:1)"><span>Signature box</span></label>'+prTx('sigtx','Signature text',0,'Authorised Signatory')+'</div>';
+ return pre+'<div class="sgrid">'+B+P1+H+T+TT+F+'</div>'};
+
+/* printed header + footer follow the options */
+letterhead=function(){var p=PS(),n=p.name||D.shop,
+ c=[op('pr_ph')&&p.phone&&'Phone: '+esc(p.phone),op('pr_em')&&p.email&&esc(p.email),op('pr_ex')&&p.extra&&esc(p.extra)].filter(Boolean).join(' &nbsp;|&nbsp; '),
+ lg=(op('pr_logo')&&p.logo)?'<img class="lgo" src="'+p.logo+'" alt="">':'',
+ tx=(op('pr_nm')?'<div class="lhn">'+esc(n)+'</div>'+(p.tag?'<div class="lht">'+esc(p.tag)+'</div>':''):'')+(op('pr_ad')&&p.addr?'<div>'+esc(p.addr).replace(/\n/g,'<br>')+'</div>':'')+(c?'<div>'+c+'</div>':'');
+ return (lg||tx)?'<div class="lh">'+lg+'<div class="lhx">'+tx+'</div></div>':''};
+printHtml=function(title,body){var p=PS(),n=p.name||D.shop,w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');
+ body=body.replace(/^<h2>[\s\S]*?<\/h2>/,'');
+ var fs={S:11,M:13,L:15}[pr('pr_fs','M')]||13,land=pr('pr_or','port')==='land',top=+p.pr_top||0,left=[];
+ if(op('pr_tm')&&(p.terms==null||p.terms))left.push('<div class="ftt">'+esc(p.terms||'Thank you for your business!').replace(/\n/g,'<br>')+'</div>');
+ if(p.pr_bk&&p.bank)left.push('<div class="ftt bk"><b>Bank details</b><br>'+esc(p.bank).replace(/\n/g,'<br>')+'</div>');
+ var ft=(left.length||!p.nosign)?'<div class="ft"><div class="ftl">'+left.join('')+'</div>'+(p.nosign?'':'<div class="sg">For '+esc(n)+'<br><br><br>'+esc(p.sigtx||'Authorised Signatory')+'</div>')+'</div>':'';
+ var css='@page{size:'+(p.size==='A5'?'A5':'A4')+(land?' landscape':'')+';margin:12mm}*{box-sizing:border-box}body{font-family:Roboto,Arial,sans-serif;color:#1a1d2e;font-size:'+fs+'px;margin:0;padding:'+top+'mm 0 0}.lh{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:3px solid #1d3a8a;padding-bottom:10px;margin-bottom:14px}.lhx{text-align:center}.lgo{max-height:72px;max-width:170px;object-fit:contain}.lhn{font-size:'+(fs+13)+'px;font-weight:700;color:#1d3a8a;letter-spacing:.5px}.lht{font-style:italic;color:#555;margin:2px 0}h3{margin:6px 0 10px;font-size:'+(fs+4)+'px;letter-spacing:1px;text-transform:uppercase;color:#1d3a8a}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#e8edf9;color:#1d3a8a;text-align:left;padding:8px 6px;border-top:1px solid #b9c4e6;border-bottom:1px solid #b9c4e6;font-size:'+(fs-1)+'px}td{border-bottom:1px solid #dde2ee;padding:7px 6px;vertical-align:top}thead{display:table-header-group}tr{page-break-inside:avoid}.r{text-align:right}.m{color:#666;font-size:'+(fs-1.5)+'px}.bx{display:flex;gap:8px;margin:10px 0}.bx div{flex:1;border:1px solid #c9d2ec;border-radius:6px;padding:8px 10px}.bx small{display:block;color:#667;font-size:'+(fs-2)+'px;text-transform:uppercase}.bx b{font-size:'+(fs+3)+'px}.big{background:#1d3a8a;color:#fff;border-color:#1d3a8a!important}.big small{color:#cfd8f6}.sum{border:2px solid #1d3a8a;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:'+(fs+2)+'px;text-align:center}.ft{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:28px;border-top:1px solid #ccd;padding-top:10px;page-break-inside:avoid}.ftl{max-width:62%}.ftt{color:#555;font-size:'+(fs-1)+'px;margin-bottom:6px}.ftt.bk{color:#1a1d2e}.sg{text-align:center;font-size:'+(fs-1)+'px;border-top:1px solid #333;padding-top:4px;min-width:170px;margin-left:auto}.wd{margin:6px 0;font-size:'+fs+'px}';
+ w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+letterhead()+body+ft+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},700)};
+
+/* amount in words (Indian system) */
+function inWords(n){n=Math.round((+n||0)*100)/100;var r=Math.floor(n),ps=Math.round((n-r)*100),
+ a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],t=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+ function two(x){return x<20?a[x]:t[Math.floor(x/10)]+(x%10?' '+a[x%10]:'')}
+ function three(x){return (x>=100?a[Math.floor(x/100)]+' Hundred'+(x%100?' ':''):'')+(x%100?two(x%100):'')}
+ function big(x){if(!x)return '';var o=[],cr=Math.floor(x/1e7),lk=Math.floor(x/1e5)%100,th=Math.floor(x/1e3)%100,rest=x%1000;
+  if(cr)o.push(three(cr)+' Crore');if(lk)o.push(two(lk)+' Lakh');if(th)o.push(two(th)+' Thousand');if(rest)o.push(three(rest));return o.join(' ')}
+ var s=r?'Rupees '+big(r):'';if(ps)s+=(s?' and ':'')+two(ps)+' Paise';return (s||'Zero Rupees')+' Only'}
+
+/* options that change the bill / document body */
+function prOpts(h,rec){
+ if(!rec||!rec.lines)return h;
+ var d=document.createElement('div');d.innerHTML=h;var t=d.querySelector('table'),p=P(rec.pid);
+ if(t){
+  if(!op('pr_rate')){var ix=-1,hr=t.rows[0];if(hr)[].forEach.call(hr.cells,function(c,k){if(/^rate$/i.test(c.textContent.trim()))ix=k});
+   if(ix>=0)[].forEach.call(t.rows,function(r){if(r.cells.length>ix)r.deleteCell(ix)})}
+  if(!op('pr_sn')&&t.rows[0]&&t.rows[0].cells[0]&&t.rows[0].cells[0].textContent.trim()==='#')[].forEach.call(t.rows,function(r){if(r.cells.length)r.deleteCell(0)});
+  if(PS().pr_tq){var u={};rec.lines.forEach(function(l){u[l.unit]=(u[l.unit]||0)+(+l.qty||0)});
+   t.insertAdjacentHTML('afterend','<p class="m">Total quantity: <b>'+Object.keys(u).map(function(k){return Math.round(u[k]*100)/100+' '+esc(k)}).join(', ')+'</b></p>')}}
+ [].forEach.call(d.querySelectorAll('p.r'),function(q){
+  if(!op('pr_disc')&&/^Discount/.test(q.textContent.trim()))q.remove();
+  else if(q.querySelector('b')&&/^Total/.test(q.textContent.trim())){
+   var x=q.innerHTML;if(!op('pr_rcv'))x=x.replace(/<br>Received [^<]*/,'');if(!op('pr_bal'))x=x.replace(/<br>Balance [^<]*/,'');q.innerHTML=x;
+   var add='';
+   if(PS().pr_wd&&rec.total!=null)add+='<p class="wd"><b>Amount in words:</b> '+inWords(rec.total)+'</p>';
+   if(PS().pr_cb&&p){var bb=bal(p);add+='<p class="r m">Current balance of '+esc(p.name)+': <b>'+(bb>0.009?money(bb)+' to receive':bb<-0.009?money(-bb)+' to pay':'Nil')+'</b></p>'}
+   if(add)q.insertAdjacentHTML('afterend',add)}});
+ return d.innerHTML}
+var _bhPr=billHtml;billHtml=function(b){return prOpts(_bhPr(b),b)};
+var _dhPr=docHtml;docHtml=function(d){return prOpts(_dhPr(d),d)};
+
 lockCk();
 render();
 initAuth();
