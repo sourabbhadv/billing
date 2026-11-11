@@ -1548,7 +1548,7 @@ var _r11=render;render=function(){try{[].forEach.call(document.querySelectorAll(
  var st=document.createElement('style');
  st.textContent='#mfab{display:none}'+
  '@media(max-width:899px){'+
- 'header,.pills{display:none!important}'+
+ 'header,#v>.pills:first-child{display:none!important}'+
  'body{background:#e3eefa;padding-bottom:140px}#v{padding:8px 10px}'+
  'body #mtop{display:flex;align-items:center;gap:10px;background:#fff;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top,0px));box-shadow:0 1px 4px rgba(25,35,80,.08)}'+
  '#mtop .mlogo{width:32px;height:32px;border-radius:50%;background:#101338;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}'+
@@ -1633,6 +1633,51 @@ mBar=function(){
   else if(pg==='party'&&!selP&&!pform){lab='Add New Party';fn=function(){pform={};render()}}}
  if(lab){fab.textContent='＋ '+lab;fab.onclick=fn;fab.classList.add('show')}else fab.classList.remove('show')};
 var _wasM=isM();window.addEventListener('resize',function(){var m=isM();if(m!==_wasM){_wasM=m;try{render()}catch(e){}}});
+
+/* ---------- SETTINGS: Vyapar-style tick boxes (turn features on / off) ---------- */
+(function(){var st=document.createElement('style');st.textContent=
+ '.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;max-width:1100px;align-items:start}'+
+ '.sec{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.10);padding:14px 16px}'+
+ '.sec h3{margin:0 0 6px;font-size:16px;padding-bottom:8px;border-bottom:1px solid var(--bd)}'+
+ '.ck{display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:15px}.ck input[type=checkbox]{width:20px;height:20px;margin:0;flex:none}'+
+ '.inf{width:16px;height:16px;border-radius:50%;background:#c3c8d6;color:#fff;font-size:11px;font-style:normal;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none;cursor:pointer}'+
+ '.sec .hint{color:var(--mu);font-size:12.5px;margin:2px 0 4px}';
+ document.head.appendChild(st)})();
+function ck(k,lb,hp,off){var on=off?!!PS()[k]:op(k);return '<label class="ck"><input type="checkbox" '+(on?'checked':'')+' onchange="setP(\''+k+'\',this.checked?1:0)"><span>'+lb+'</span>'+(hp?'<i class="inf" title="'+esc(hp)+'" onclick="event.preventDefault();alert(this.title)">i</i>':'')+'</label>'}
+var GR0={sale:GR.sale.slice(),pur:GR.pur.slice()},MODK={est:'m_est',so:'m_so',chal:'m_chal',sret:'m_sret',pret:'m_pret'};
+function applyMods(){['sale','pur'].forEach(function(g){GR[g]=GR0[g].filter(function(x){return !MODK[x[0]]||op(MODK[x[0]])})})}
+var _rM=render;render=function(){try{applyMods()}catch(e){}_rM()};
+/* block new items / parties when saving a transaction */
+function blkTx(name,lines){var m=[];
+ if(PS().blkp&&(name||'').trim()&&!findP(name))m.push('Party "'+name.trim()+'" is not in your parties.');
+ if(PS().blki){var bad=(lines||[]).filter(function(l){return !findI(l.name)}).map(function(l){return l.name});if(bad.length)m.push('Item not in your item list: '+bad.join(', '))}
+ if(m.length){alert(m.join('\n')+'\n\nAdd it in Parties / Items first, or turn off "Block new ... from Txn Form" in Settings.');return false}return true}
+var _bs1=saveBill2;saveBill2=function(){if(!blkTx(draft.name,draft.lines))return;_bs1()};
+var _bs2=saveEdit;saveEdit=function(){if(!blkTx(draft.name,draft.lines))return;_bs2()};
+var _bs3=saveDoc;saveDoc=function(){if(!blkTx(ddraft.name,ddraft.lines))return;_bs3()};
+var _bs4=savePin;savePin=function(){if(!blkTx(pdraft.name,[]))return;_bs4()};
+var _bs5=saveRet;saveRet=function(){if(!blkTx(rdraft.name,rdraft.lines))return;_bs5()};
+var _vS8=vSettings;
+vSettings=function(){
+ if(sTab!=='gen')return _vS8();
+ var h=_vS8(),i=h.indexOf('<div class="card" style="max-width:600px">'),p=PS(),hasPw=!!localStorage.getItem('sbpw'),dec=p.dec==null?2:p.dec;
+ return h.slice(0,i)+'<div class="sgrid">'
+ +'<div class="sec"><h3>Application</h3>'
+ +'<label class="ck"><input type="checkbox" '+(hasPw?'checked':'')+' onchange="(this.checked?setPass():rmPass());render()"><span>Enable Passcode</span><i class="inf" title="Asks for a passcode every time the app is opened on this device." onclick="event.preventDefault();alert(this.title)">i</i></label>'
+ +(hasPw?'<div style="padding:0 0 6px 30px"><a style="color:#1a73e8;font-weight:600;cursor:pointer" onclick="setPass()">Change Passcode</a></div>':'')
+ +'<div class="ck" style="cursor:default"><span style="flex:1">Amount (decimal places)</span><select style="width:72px;margin:0" onchange="setP(\'dec\',+this.value)">'+[0,1,2,3].map(function(n){return '<option value="'+n+'"'+(dec===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div>'
+ +ck('nostk','Stop Sale on Negative Stock','Bill will not save if quantity is more than stock.',1)
+ +ck('blki','Block New Items from Txn Form','Only items already in your Items list can be used in a bill.',1)
+ +ck('blkp','Block New Parties from Txn Form','Only parties already in your Parties list can be used in a bill or payment.',1)
+ +ck('round','Round off total','Bill total is rounded to a whole rupee when you save.',1)
+ +'</div>'
+ +'<div class="sec"><h3>More Transactions</h3><div class="hint">Switch off what you never use. It disappears from the menu. Old entries stay safe.</div>'
+ +ck('m_est','Estimate / Quotation','Show Estimate / Quotation in the menu.')
+ +ck('m_so','Sale Order','Show Sale Order in the menu.')
+ +ck('m_chal','Delivery Challan','Show Delivery Challan in the menu.')
+ +ck('m_sret','Sale Return','Show Sale Return in the menu.')
+ +ck('m_pret','Purchase Return','Show Purchase Return in the menu.')
+ +'</div></div>'};
 
 
 lockCk();
