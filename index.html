@@ -1517,7 +1517,7 @@ sugUp=function(){_su10();
 (function(){var st=document.createElement('style');st.textContent='.scl{overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px}.card.scl{border:0;border-radius:6px}.scl th{position:sticky;top:0;z-index:2}';document.head.appendChild(st)})();
 var SCR={};
 function scrKey(w,i){var l=w.classList.contains('scl-l');return (l?'L':'T')+i+'|'+(typeof tab!=='undefined'?tab:'')+'|'+(typeof pg!=='undefined'?pg:'')+(l?'':'|'+selP+'|'+selI+'|'+(typeof openP!=='undefined'?openP:''))}
-function decoScroll(){var v=document.getElementById('v');if(!v)return;
+function decoScroll(){var v=document.getElementById('v');if(!v)return;if(window.innerWidth<900)return;
  var m=document.getElementById('mbar'),bot=(m&&getComputedStyle(m).display!=='none')?86:24,boxes=[];
  /* 1) row lists (parties, items) */
  [].forEach.call(v.querySelectorAll('.card'),function(c){if(c.querySelector(':scope > .row[data-n]')){c.classList.add('scl','scl-l');boxes.push(c)}});
@@ -1714,6 +1714,66 @@ vSI=function(){
  +'<div class="svf"><b style="font-size:16px;font-weight:500">Filter by :</b><span class="fp"><select onchange="sif=this.value;render()">'+F.map(function(f){return '<option value="'+f[0]+'"'+(sif===f[0]?' selected':'')+'>'+f[1]+'</option>'}).join('')+'</select></span><span class="fp">'+perUI('si')+'</span></div>'
  +'<div class="svc"><div class="svk"><div class="mu">Total Sales Amount</div><div class="a">'+money(ts)+'</div><div class="mu">Received: <b>'+money(tr)+'</b> &nbsp;|&nbsp; Balance: <b>'+money(tb)+'</b></div></div></div>'
  +'<div class="svc"><div class="row"><b>Transactions</b><span><input placeholder="Search party or number" oninput="flt(this.value)"><button class="xls" title="Download Excel (CSV)" onclick="csvCur()">xls</button></span></div>'+tbl2(head,rows,1).replace('<th></th></tr>','<th>Actions</th></tr>')+'</div></div>'};
+
+/* ---------- PHONE: tables become cards (no sideways swiping), Sale list like Vyapar, Add Txn menu ---------- */
+(function(){var st=document.createElement('style');st.textContent=
+ '#mtxn{display:none;position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45)}#mtxn.open{display:block}'+
+ '#mtxn .sh{position:absolute;left:8px;right:8px;bottom:8px;background:#fff;border-radius:14px;padding:12px 12px calc(14px + env(safe-area-inset-bottom,0px));max-height:85vh;overflow-y:auto}'+
+ '#mtxn h4{margin:14px 6px 10px;font-size:14px;font-weight:600}#mtxn .x{float:right;background:none;border:0;font-size:24px;color:#5d647a;line-height:1}'+
+ '#mtxn .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 4px}#mtxn .g3 button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11.5px;color:#1f2437;padding:4px 2px}'+
+ '#mtxn .g3 i{width:44px;height:40px;border-radius:10px;background:#e3eefc;color:#1a73e8;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:20px;font-weight:700}'+
+ '@media(max-width:899px){'+
+ '#v table.mtb,#v table.mtb tbody{display:block;width:100%}'+
+ '#v table.mtb tr:first-child{display:none}'+
+ '#v table.mtb tr{display:flex;flex-direction:column;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.1);margin:8px 0;padding:8px 12px}'+
+ '#v table.mtb td{display:flex;justify-content:space-between;align-items:center;gap:10px;width:auto!important;min-width:0!important;padding:5px 0!important;border:0!important;background:none!important;text-align:right;font-size:14px;white-space:normal}'+
+ '#v table.mtb td::before{content:attr(data-l);color:#7b8194;font-size:12.5px;text-align:left;flex:none;text-transform:capitalize}'+
+ '#v table.mtb td:empty,#v table.mtb td[data-l="#"]{display:none}'+
+ '#v table.mtb td.ttl{order:-1;justify-content:flex-start;font-weight:700;text-transform:uppercase;font-size:14.5px;text-align:left}#v table.mtb td.ttl::before{display:none}'+
+ '#v table.mtb td input:not([type=checkbox]),#v table.mtb td select{width:100%!important;max-width:210px;margin:0}'+
+ '#v table.mtb td.ttl input{max-width:none}'+
+ '#v table.mtb td[data-l=""]{justify-content:flex-end}#v table.mtb td[data-l=""]::before{display:none}'+
+ '.mtot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 10px}.mtot div{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.1);padding:10px 12px}.mtot span{display:block;color:#7b8194;font-size:12px}.mtot b{font-size:16px}'+
+ '.mflt{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}.mflt select{width:auto;margin:0;background:#fff;border-radius:999px;padding:9px 12px}'+
+ '.mc .acts{margin-left:auto;display:flex;align-items:center}.mc .ib{background:none;border:0;padding:6px;color:#5d647a;border-radius:50%}.mc .ib svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}'+
+ '}';document.head.appendChild(st);
+ var m=document.createElement('div');m.id='mtxn';m.onclick=function(e){if(e.target===m)m.classList.remove('open')};document.body.appendChild(m)})();
+var SVGP='<svg viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><path d="M7 17H4v-6a2 2 0 012-2h16a2 2 0 012 2v6h-3"/><path d="M7 14h10v7H7z"/></svg>',SVGS='<svg viewBox="0 0 24 24"><path d="M14 5l7 6.5-7 6.5v-4C7 14 4 16 2 20c1-7 4-11 12-11z"/></svg>',SVGM='<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>';
+function bAct(no){return '<span class="acts" onclick="event.stopPropagation()"><button class="ib" onclick="printBill('+no+')">'+SVGP+'</button><button class="ib" onclick="wa('+no+')">'+SVGS+'</button><button class="ib" onclick="billMenu('+no+')">'+SVGM+'</button></span>'}
+function mAddTxn(){var m=document.getElementById('mtxn');
+ function g(L){return '<div class="g3">'+L.filter(function(x){return !x[3]||op(x[3])}).map(function(x){return '<button onclick="document.getElementById(\'mtxn\').classList.remove(\'open\');'+x[2]+'"><i>'+x[0]+'</i>'+x[1]+'</button>'}).join('')+'</div>'}
+ m.innerHTML='<div class="sh"><button class="x" onclick="document.getElementById(\'mtxn\').classList.remove(\'open\')">×</button>'
+ +'<h4 style="margin-top:6px">Sale Transactions</h4>'+g([['₹','Sale Invoice','newSale()'],['⇩','Payment-In','newPay(0)'],['↩','Sale Return','newRet()','m_sret'],['▤','Delivery Challan',"newDoc('chal')",'m_chal'],['≣','Estimate/Quotation',"newDoc('est')",'m_est'],['☑','Sale Order',"newDoc('so')",'m_so']])
+ +'<h4>Purchase Transactions</h4>'+g([['＋','Purchase',"newDoc('pur')"],['⇧','Payment-Out','newPay(1)'],['↪','Purchase Return',"newDoc('pret')",'m_pret']])+'</div>';
+ m.classList.add('open')}
+var _vMH=vMHome;vMHome=function(){return _vMH().replace('onclick="newSale()"><i class="r">＋</i>Add Txn','onclick="mAddTxn()"><i class="r">＋</i>Add Txn')};
+mhCards=function(q){q=String(q||'').toLowerCase().trim();var rows=mhRows();
+ if(q)rows=rows.filter(function(r){return r.n.toLowerCase().indexOf(q)>=0||String(r.no).indexOf(q)>=0});
+ var more=!q&&rows.length>MN;if(!q)rows=rows.slice(0,MN);
+ return rows.map(function(r){var cl=r.st==='CANCELLED'?'x':(r.st==='PAID'||r.st==='RECEIVED')?'g':'';
+  return '<div class="mc" onclick="'+r.go+';render()"><div class="t"><b>'+esc(r.n)+'</b><span>'+(r.no?'#'+r.no+'<br>':'')+mDate(r.d)+'</span></div><span class="chip '+cl+'">'+(r.st==='CANCELLED'?'CANCELLED':r.ty+' : '+r.st)+'</span><div class="mc3" style="align-items:center"><div><span>Total</span><b>'+money(r.amt)+'</b></div>'+(r.bal===''?'':'<div><span>Balance</span><b>'+money(r.bal)+'</b></div>')+(r.ty==='SALE'&&r.no&&r.st!=='CANCELLED'?bAct(r.no):'')+'</div></div>'}).join('')
+  +(rows.length?'':'<div class="mc mu">No transactions found</div>')
+  +(more?'<button class="s" style="width:100%;margin:6px 0" onclick="MN+=60;mhSearch(MQ)">Show older transactions</button>':'')};
+var _vSId=vSI;
+vSI=function(){
+ if(!isM())return _vSId();
+ var F=[['all','All Sale Invoices'],['unpaid','Unpaid'],['part','Partly paid'],['paid','Paid'],['cancel','Cancelled']];
+ var list=D.bills.filter(function(b){if(!inPer('si',b.date))return false;var s=saleStatus(b);return sif==='all'||(sif==='unpaid'&&s==='Unpaid')||(sif==='part'&&s==='Partly paid')||(sif==='paid'&&s==='Paid')||(sif==='cancel'&&s==='Cancelled')}).sort(function(a,b){return b.no-a.no});
+ var ts=0,tb=0;list.forEach(function(b){if(b.x)return;ts+=b.total;tb+=Math.max(b.total-paidOn(b),0)});
+ return '<div class="mtot"><div><span>Total Sale</span><b>'+money(ts)+'</b></div><div><span>Balance Due</span><b class="red">'+money(tb)+'</b></div></div>'
+ +'<div class="mflt"><select onchange="sif=this.value;render()">'+F.map(function(f){return '<option value="'+f[0]+'"'+(sif===f[0]?' selected':'')+'>'+f[1]+'</option>'}).join('')+'</select>'+perUI('si')+'</div>'
+ +'<input class="msr" placeholder="Search party or number" oninput="flt(this.value)">'
+ +list.slice(0,200).map(function(b){var p=P(b.pid),nm=p?p.name:'?',pd=paidOn(b),s=saleStatus(b),cl=s==='Paid'?'g':s==='Cancelled'?'x':'',d=new Date(b.date);
+  return '<div class="mc" data-n="'+esc((nm+' '+b.no).toLowerCase())+'" onclick="viewB='+b.no+';render()"><div class="t"><b>'+esc(nm)+'</b><span>#'+b.no+'<br>'+mDate(b.date)+' • '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}).toUpperCase()+'</span></div><span class="chip '+cl+'">SALE : '+s.toUpperCase()+'</span><div class="mc3" style="align-items:center"><div><span>Total</span><b>'+money(b.total)+'</b></div>'+(b.x?'':'<div><span>Balance</span><b>'+money(Math.max(b.total-pd,0))+'</b></div>')+(b.x?'':bAct(b.no))+'</div></div>'}).join('')
+ +(list.length>200?'<div class="mc mu">Showing latest 200. Use the date filter or search to see older ones.</div>':'')+(list.length?'':'<div class="mc mu">No invoices found</div>')};
+/* every table on the phone: label + value cards instead of a wide table */
+function mobCards(){if(!isM())return;
+ [].forEach.call(document.querySelectorAll('#v table'),function(t){
+  if(t.classList.contains('mtb'))return;var r0=t.rows[0];if(!r0||!r0.querySelector('th'))return;
+  var H=[].map.call(r0.cells,function(c){return c.textContent.trim()});t.classList.add('mtb');
+  for(var i=1;i<t.rows.length;i++){var cs=t.rows[i].cells;if(cs.length!==H.length)continue;
+   [].forEach.call(cs,function(c,j){c.setAttribute('data-l',H[j]);if(/^(party|name|customer|item)/i.test(H[j]))c.classList.add('ttl')})}})}
+var _rQ=render;render=function(){_rQ();try{mobCards()}catch(e){}};
 
 
 lockCk();
