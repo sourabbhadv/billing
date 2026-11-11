@@ -344,7 +344,7 @@ function rs(){try{var x=JSON.parse($('#bt').value);if(!x.items||!x.parties)throw
 function snapDaily(){
  var day=new Date().toISOString().slice(0,10),r=DB.doc('snapshots/'+day+'_1');
  try{DB.pruneSnaps(new Date(Date.now()-7*864e5).toISOString().slice(0,10)).catch(function(){})}catch(e){}
- r.get().then(function(s){if(s.exists)return;var str=JSON.stringify({parties:D.parties,items:D.items,bills:D.bills,pays:D.pays,docs:D.docs,shop:D.shop}),n=Math.ceil(str.length/400000),k;for(k=n;k>=1;k--)DB.doc('snapshots/'+day+'_'+k).set({day:day,n:k,total:n,data:str.slice((k-1)*400000,k*400000)}).catch(function(){})}).catch(function(){});
+ r.get().then(function(s){if(s.exists)return;var str=JSON.stringify({parties:D.parties,items:D.items,bills:D.bills,pays:D.pays,docs:D.docs,trs:D.trs,dsp:D.dsp,shop:D.shop}),n=Math.ceil(str.length/400000),k;for(k=n;k>=1;k--)DB.doc('snapshots/'+day+'_'+k).set({day:day,n:k,total:n,data:str.slice((k-1)*400000,k*400000)}).catch(function(){})}).catch(function(){});
 }
 function loadSnaps(){
  var e=$('#ss');if(!e)return;if(!DB){e.textContent='Cloud not connected';return}
@@ -1864,6 +1864,238 @@ function vGodowns(){var R=gdCalc(),names=gdAllNames(R),sel=gsel?names.find(funct
  return '<div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+Rt+'</div></div>'}
 var _vPgd=vPage;
 vPage=function(){return pg==='gd'?'<h2 style="font-size:20px;margin:6px 0">Godowns / Blocks</h2>'+vGodowns():_vPgd()};
+
+/* ================= TRANSPORTERS / RIDERS (added) =================
+   - Transporter list (like Parties) with history of every dispatch given to them
+   - On the Dispatch screen: choose or add a transporter; on Save dispatch a
+     loading list (NO prices, with godown / block) opens in WhatsApp for them
+   - Can be switched on/off in Settings > General (setting key: trn)            */
+function TRS(){D.trs=D.trs||[];return D.trs}
+function DSP(){D.dsp=D.dsp||[];return D.dsp}
+TRS().forEach(function(t){if(!t.id)t.id='t'+uid()});DSP().forEach(function(t){if(!t.id)t.id='d'+uid()});
+['trs','dsp'].forEach(function(c){if(COLS.indexOf(c)<0)COLS.push(c)});
+var tsel=null,tform=null,trSel='',trNew={};
+function trDig(p){return String(p||'').replace(/\D/g,'').slice(-10)}
+function trByName(a,b){return String(a.name).toLowerCase()<String(b.name).toLowerCase()?-1:1}
+
+/* ---- WhatsApp message for the transporter (prices are NEVER included) ---- */
+function trMsg(d){
+ var t=TRS().find(function(x){return x.id===d.tid})||{name:''};
+ var m='Namaste '+t.name+',\n🚚 *LOADING ORDER* from '+D.shop+'\n\nBill #'+d.no+' · '+dt(d.date)+(t.veh?'\nVehicle: '+t.veh:'')+'\n\n*Deliver to:*\n'+d.cust+(d.cph?'\n📞 '+d.cph:'')+(d.addr?'\n📍 '+d.addr:'')+'\n\n*Goods to load:*\n';
+ var its=d.items.slice().sort(function(a,b){return String(a.loc||'~').toLowerCase()<String(b.loc||'~').toLowerCase()?-1:String(a.loc||'~').toLowerCase()>String(b.loc||'~').toLowerCase()?1:0});
+ its.forEach(function(x,i){m+=(i+1)+'. '+x.name+' - *'+x.q+' '+x.unit+'*\n'+(x.loc?'    📦 Godown / Block: '+x.loc+'\n':'')});
+ return m+'\nPlease confirm after loading and delivery.\n- '+D.shop;
+}
+function sendTr(id){
+ var d=DSP().find(function(x){return x.id===id});if(!d)return;
+ var t=TRS().find(function(x){return x.id===d.tid});if(!t)return alert('Transporter not found');
+ openWA(t,trMsg(d));
+}
+
+/* ---- Look & feel: same cards / blue accent / pill buttons as the rest of the app ---- */
+(function(){var st=document.createElement('style');st.textContent=
+'.dxi{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;flex:none}'+
+'.dx{display:block}.dxmain,.dxside{min-width:0}'+
+'.dxc{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.10);padding:14px 16px;margin:0 0 12px}'+
+'.dxh{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}'+
+'.dxk{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:#7b8194;font-weight:600}'+
+'.dxt{font-size:18px;font-weight:700;color:#1f2437;line-height:1.25;margin:3px 0 2px;word-break:break-word}'+
+'.dxm{color:#7b8194;font-size:13px}'+
+'.dxchip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:700;white-space:nowrap;flex:none}'+
+'.dxchip.r{background:#fdecee;color:#d92d3a}.dxchip.g{background:#e2f6ee;color:#12915d}.dxchip.b{background:#e8f0fe;color:#1a56b8}'+
+'.dxaddr{margin-top:10px;padding-top:10px;border-top:1px solid #eef0f5;display:grid;gap:6px;font-size:14px;color:#3b4258}'+
+'.dxaddr>div{display:flex;gap:8px;align-items:flex-start}.dxaddr .dxi{margin-top:2px;color:#7b8194}.dxaddr a{color:#1a56b8;text-decoration:none;font-weight:600}'+
+'.dxlh{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 8px;font-size:15px}'+
+'.dxsm{border:1px solid #cfd5e3;background:#fff;color:#1a56b8;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;min-height:36px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}'+
+'.dxsm.dxdel{color:#d92d3a;border-color:#f1c4c8}'+
+'.dxtick{display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0;cursor:pointer}'+
+'.dx input.dxck{appearance:none;-webkit-appearance:none;width:26px;height:26px;min-width:26px;padding:0;margin:1px 0 0;border:2px solid #b6bed1;border-radius:7px;background:#fff;display:grid;place-content:center;cursor:pointer;box-shadow:none}'+
+'.dx input.dxck:checked{background:#1a73e8;border-color:#1a73e8}.dx input.dxck:checked::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}'+
+'.dxdn{width:26px;height:26px;min-width:26px;border-radius:50%;background:#e2f6ee;color:#12915d;display:grid;place-content:center}'+
+'.dxnm{font-weight:700;font-size:15.5px;color:#1f2437;line-height:1.3;word-break:break-word}.dxnm small{display:block;font-weight:400;color:#7b8194;font-size:13px;margin-top:2px}'+
+'.dxpg{height:6px;border-radius:99px;background:#e9ecf4;margin:12px 0 10px;overflow:hidden}.dxpg i{display:block;height:100%;background:#1a73e8;border-radius:99px}.dxpg i.g{background:#17a56b}'+
+'.dxloc{display:flex;align-items:center;gap:7px;background:#eef4fe;color:#1a56b8;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px}.dxloc span{color:#5a6c92}.dxloc b{font-weight:700}'+
+'.dxsend{display:flex;gap:8px;align-items:stretch}.dxq{position:relative;flex:1;min-width:0}.dx .dxq input{margin:0;height:46px;padding:0 54px 0 12px}'+
+'.dxu{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#7b8194;font-size:13px;pointer-events:none;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'+
+'.dx input.dxbad{border-color:#d92d3a;background:#fff5f6}'+
+'.dxall{flex:none;min-width:76px;border:0;border-radius:8px;background:#e8f0fe;color:#1a56b8;font-weight:700;font-size:14px;cursor:pointer}'+
+'.dxtr{margin-top:12px;padding-top:10px;border-top:1px dashed #dfe3ee}.dxtrr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;font-size:14px;color:#3b4258}.dxtrr .dxi{color:#12915d;margin-right:6px}'+
+'.dxlnk{background:none;border:0;color:#1a56b8;font-weight:600;font-size:13px;padding:8px 8px;min-height:36px;cursor:pointer}.dxlnk.dxdel{color:#d92d3a}'+
+'.dxdone{background:#fafbfd}.dxdone .dxnm{color:#4b5266}'+
+'.dxl{display:block;font-size:12px;color:#7b8194;font-weight:600;margin:12px 0 2px}.dx select,.dx .dxnew input{margin:0;height:46px}.dxnew{margin-top:2px}'+
+'.dxinc{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.dxinc .dxchip{padding:4px 9px;font-size:12px}'+
+'.dxok{border-left:4px solid #17a56b}.dxokh{display:flex;align-items:center;gap:8px;color:#12915d;font-size:16px;margin-bottom:8px}.dxokr{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #eef0f5;font-size:14px}.dxokr:last-of-type{border-bottom:0}'+
+'.dxact{background:#fff;z-index:7;position:sticky;bottom:var(--mbh,66px);margin:0 -12px;padding:10px 12px 12px;box-shadow:0 -4px 14px rgba(25,35,80,.13)}'+
+'.dxsum{font-size:13px;color:#5d647a;margin:0 2px 8px;text-align:center}.dxsum b{color:#1f2437}'+
+'.dxbtns{display:flex;gap:8px;flex-wrap:wrap}.dxbtns>button{flex:1}'+
+'.dxpri{min-height:48px;border:0;border-radius:999px;background:#1a73e8;color:#fff;font-weight:700;font-size:15.5px;padding:0 18px;box-shadow:0 1px 3px rgba(26,115,232,.35);cursor:pointer;flex:2!important}'+
+'.dxsec{min-height:48px;border:1.5px solid #1a73e8;border-radius:999px;background:#fff;color:#1a56b8;font-weight:700;font-size:14.5px;padding:0 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}'+
+'.dxav{width:42px;height:42px;min-width:42px;border-radius:50%;background:#e8f0fe;color:#1a56b8;font-weight:700;font-size:15px;display:grid;place-content:center}.dxav.big{width:52px;height:52px;font-size:18px}'+
+'.dxtrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #eef0f5;cursor:pointer}.dxtrow:last-child{border-bottom:0}.dxtrow.on{background:#eaf2fd}'+
+'.dxtm{flex:1;min-width:0}.dxtm b{display:block;font-size:15px;color:#1f2437}.dxtm small{color:#7b8194;font-size:13px}'+
+'.dxst{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.dxst>div{background:#f4f6fb;border-radius:8px;padding:10px 12px}.dxst span{display:block;color:#7b8194;font-size:12.5px}.dxst b{font-size:19px;color:#1f2437}'+
+'.dxhi{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid #eef0f5;font-size:14px}.dxhi:first-of-type{margin-top:10px}.dxhi small{display:block;color:#1a56b8;font-weight:600;font-size:12.5px;margin-top:1px}'+
+'.dxfield{display:block}.dxfield input,.dxfield textarea{margin:0 0 4px}'+
+'@media(min-width:900px){.dxact{bottom:0;margin:0 -22px;padding:10px 22px 12px}}'+
+'@media(min-width:1100px){.dx{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;align-items:start}.dxside{position:sticky;top:78px}.dxact{position:static;margin:0;border-radius:8px;box-shadow:0 1px 4px rgba(25,35,80,.10)}}'+
+'@media(max-width:899px){#top{display:none!important}.dxback{display:none!important}.dxdesk{display:none!important}.dxc{padding:13px 14px}.dxt{font-size:17px}.dxact{position:fixed;left:0;right:0;bottom:var(--mbh,66px);margin:0}.dx{padding-bottom:96px}}'+
+'.dxq input[type=number]{-moz-appearance:textfield}.dxq input::-webkit-outer-spin-button,.dxq input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}'+
+'.dxbtns>*{flex:1}.dxpri{flex:1.25!important}.dxsec,.dxsec span{white-space:nowrap}';
+document.head.appendChild(st)})();
+var DXI={pin:'<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',truck:'<path d="M3 6.5h11V16H3zM14 9.5h4l3 3V16h-7"/><circle cx="7.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/>',phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',chat:'<path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.7-5.2A8.5 8.5 0 1 1 21 12z"/>'};
+function dxI(n){return '<svg class="dxi" viewBox="0 0 24 24">'+DXI[n]+'</svg>'}
+function dxIni(n){var a=String(n||'?').trim().split(/\s+/);return esc((a[0].charAt(0)+(a[1]?a[1].charAt(0):'')).toUpperCase())}
+
+/* ---- Dispatch screen ---- */
+function dxAll(k,r){tickAll(k,r,true);var c=$('#ck'+k);if(c)c.checked=true;dxSum()}
+function dxSum(){
+ var el=document.getElementById('dxsum');if(!el||!openB)return;var b=bl(openB);if(!b)return;var n=0,bad=0;
+ b.lines.forEach(function(l,k){var e=document.getElementById('dq'+k);if(!e)return;var v=+e.value,over=v>rem(l)+1e-9;e.classList.toggle('dxbad',over);if(v>0){n++;if(over)bad++}});
+ el.innerHTML=bad?'<span class="red">Quantity is more than what remains</span>':n?'Sending now: <b>'+n+' item'+(n>1?'s':'')+'</b>':'Tick an item or type the quantity you are sending';
+}
+var _tkA=tickAll;tickAll=function(k,r,v){_tkA(k,r,v);dxSum()};
+var _skS=syncTick;syncTick=function(k,r){_skS(k,r);dxSum()};
+var _tkE=tickEvery;tickEvery=function(){_tkE();dxSum()};
+function trPick(v){trSel=v;var e=document.getElementById('trnew');if(e)e.style.display=v==='__new'?'block':'none'}
+function trCard(){
+ var o='<option value="">No transporter (customer pickup)</option>'+TRS().slice().sort(trByName).map(function(t){return '<option value="'+esc(t.id)+'"'+(trSel===t.id?' selected':'')+'>'+esc(t.name)+' · '+esc(t.phone||'')+'</option>'}).join('')+'<option value="__new"'+(trSel==='__new'?' selected':'')+'>+ Add new transporter</option>';
+ return '<div class="dxc"><div class="dxh"><div><div class="dxk">Delivery</div><div class="dxt" style="font-size:16px">'+dxI('truck')+' Transporter / Rider</div></div><span class="dxchip b">Optional</span></div>'
+ +'<label class="dxl">Assign this dispatch to</label><select id="trs_sel" onchange="trPick(this.value)">'+o+'</select>'
+ +'<div id="trnew" class="dxnew" style="display:'+(trSel==='__new'?'block':'none')+'"><label class="dxl">Name</label><input id="trn_n" placeholder="Transporter name" value="'+esc(trNew.n||'')+'" oninput="trNew.n=this.value"><label class="dxl">WhatsApp number</label><input id="trn_p" type="tel" inputmode="tel" placeholder="10 digit number" value="'+esc(trNew.p||'')+'" oninput="trNew.p=this.value"><label class="dxl">Vehicle number (optional)</label><input id="trn_v" placeholder="MH 15 AB 1234" value="'+esc(trNew.v||'')+'" oninput="trNew.v=this.value"></div>'
+ +'<div class="dxm" style="margin-top:12px">On Save, a loading list opens in WhatsApp for the transporter with:</div><div class="dxinc"><span class="dxchip g">✓ Goods &amp; quantity</span><span class="dxchip g">✓ Godown / block</span><span class="dxchip g">✓ Customer address</span><span class="dxchip r">✕ No prices</span></div></div>';
+}
+vDispatch=function(){
+ var b=bl(openB);if(!b){openB=null;return vBill2()}
+ var p=P(b.pid)||{name:'?'},ad=bAddr(b),addr=ad.s||ad.a||'',pend=b.lines.filter(function(l){return rem(l)>0}),done=!pend.length;
+ var h='<button class="s dxback" onclick="lastDisp=null;openB=null;render()">← Back</button><div class="dx"><div class="dxmain">';
+ h+='<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">Dispatch · Bill #'+b.no+'</div><div class="dxt">'+esc(p.name)+'</div><div class="dxm">'+dt(b.date)+' · '+b.lines.length+' item'+(b.lines.length>1?'s':'')+'</div></div>'+(done?'<span class="dxchip g">'+dxI('check')+' All dispatched</span>':'<span class="dxchip r">'+pend.length+' pending</span>')+'</div>'
+  +((addr||p.phone)?'<div class="dxaddr">'+(addr?'<div>'+dxI('pin')+'<span>'+nl2(addr)+'</span></div>':'')+(p.phone?'<div>'+dxI('phone')+'<a href="tel:'+esc(String(p.phone).replace(/[^\d+]/g,''))+'">'+esc(p.phone)+'</a></div>':'')+'</div>':'')+'</div>';
+ if(lastDisp&&lastDisp.no===b.no){
+  h+='<div class="dxc dxok"><div class="dxokh">'+dxI('check')+'<b>Dispatch saved</b></div>'+lastDisp.items.map(function(x){return '<div class="dxokr"><span>'+esc(x.name)+'</span><b>'+x.q+' '+esc(x.unit)+'</b></div>'}).join('')
+   +'<div class="dxbtns" style="margin-top:10px"><button class="dxsec" onclick="waRem('+b.no+',1)">'+dxI('chat')+' WhatsApp customer</button>'+(lastDisp.dspId?'<button class="dxsec" data-d="'+esc(lastDisp.dspId)+'" onclick="sendTr(this.dataset.d)">'+dxI('truck')+' Send to transporter again</button>':'')+'</div></div>';
+ }
+ h+='<div class="dxlh"><b>'+(done?'Items':'Items to dispatch')+'</b>'+(done?'':'<button class="dxsm" onclick="tickEvery()">Select all remaining</button>')+'</div>';
+ b.lines.forEach(function(l,k){
+  var r=rem(l),sent=dq(l),pct=l.qty>0?Math.min(100,Math.round(sent/l.qty*100)):0,tr=l.trips||[],loc=itemLoc(l),sub='<small>Sold '+l.qty+' '+esc(l.unit)+' · Sent '+sent+'</small>';
+  h+='<div class="dxc'+(r<=0?' dxdone':'')+'"><div class="dxh">';
+  if(r>0)h+='<label class="dxtick"><input type="checkbox" class="dxck" id="ck'+k+'" onchange="tickAll('+k+','+r+',this.checked)"><span class="dxnm">'+esc(l.name)+sub+'</span></label><span class="dxchip r">'+r+' '+esc(l.unit)+' left</span>';
+  else h+='<div class="dxtick" style="cursor:default"><span class="dxdn">'+dxI('check')+'</span><span class="dxnm">'+esc(l.name)+sub+'</span></div><span class="dxchip g">All sent</span>';
+  h+='</div><div class="dxpg"><i'+(r<=0?' class="g"':'')+' style="width:'+pct+'%"></i></div>';
+  if(loc)h+='<div class="dxloc">'+dxI('pin')+'<span>Godown / Block</span><b>'+esc(loc)+'</b></div>';
+  if(r>0)h+='<div class="dxsend"><div class="dxq"><input id="dq'+k+'" type="number" inputmode="decimal" min="0" placeholder="Send now (max '+r+')" oninput="syncTick('+k+','+r+')"><span class="dxu">'+esc(l.unit)+'</span></div><button class="dxall" onclick="dxAll('+k+','+r+')">All '+r+'</button></div>';
+  if(tr.length)h+='<div class="dxtr"><div class="dxk">Earlier trips</div>'+tr.map(function(t,j){return '<div class="dxtrr"><span>'+dxI('check')+dt(t.d)+' · <b>'+t.q+' '+esc(l.unit)+'</b></span><span><button class="dxlnk" onclick="editTrip('+b.no+','+k+','+j+')">Edit</button><button class="dxlnk dxdel" onclick="delTrip('+b.no+','+k+','+j+')">Delete</button></span></div>'}).join('')+'</div>';
+  else if(sent>0)h+='<button class="dxlnk" onclick="fixSent('+b.no+','+k+')">Fix sent quantity</button>';
+  h+='</div>';
+ });
+ h+='</div><div class="dxside">'+((!done&&op('trn'))?trCard():'')
+  +'<div class="dxact">'+(done?'':'<div class="dxsum" id="dxsum"></div>')+'<div class="dxbtns">'+(done?'':'<button class="dxpri" onclick="saveDisp('+b.no+')">Save dispatch</button>')+'<button class="dxsec" onclick="waRem('+b.no+')">'+dxI('chat')+'<span>Update customer</span></button></div></div></div></div>';
+ return h;
+};
+var _sdT=saveDisp;
+saveDisp=function(no){
+ function gv(i){var e=document.getElementById(i);return e?e.value:''}
+ var on=op('trn'),sel=on?gv('trs_sel'):'',tr=null,isNew=false;
+ if(sel==='__new'){
+  var n=gv('trn_n').trim(),ph=gv('trn_p').trim(),vh=gv('trn_v').trim();
+  if(!n||trDig(ph).length<10)return alert('Write the transporter name and a 10 digit WhatsApp number, or choose "No transporter".');
+  tr=TRS().find(function(x){return trDig(x.phone)===trDig(ph)});
+  if(!tr){tr={id:uid(),name:n,phone:ph,veh:vh,date:Date.now()};isNew=true}
+ }else if(sel){tr=TRS().find(function(x){return x.id===sel})}
+ lastDisp=null;
+ _sdT(no);
+ if(!(lastDisp&&lastDisp.no===no))return;      /* quantity check failed, nothing saved */
+ window.scrollTo(0,0);
+ if(!tr)return;
+ if(isNew)TRS().push(tr);
+ var b=bl(no),p=P(b.pid)||{},a=bAddr(b);
+ var rec={id:uid(),no:no,tid:tr.id,date:Date.now(),cust:p.name||'',cph:p.phone||'',addr:a.s||a.a||'',
+  items:lastDisp.items.map(function(x){var l=b.lines.find(function(z){return z.name===x.name});return {name:x.name,unit:x.unit,q:x.q,loc:l?itemLoc(l):''}})};
+ DSP().push(rec);lastDisp.dspId=rec.id;trSel='';trNew={};
+ save();render();window.scrollTo(0,0);sendTr(rec.id);
+};
+
+/* ---- Transporter list page (same card style, cards instead of tables so it works on a phone) ---- */
+function trCnt(t){return DSP().filter(function(d){return d.tid===t.id}).length}
+function vTrForm(){
+ var o=tform.old?TRS().find(function(x){return x.id===tform.old}):null;
+ return '<button class="s dxback" onclick="tform=null;render()">← Back</button><div class="dxc"><div class="dxk">'+(o?'Edit':'New')+'</div><div class="dxt" style="margin-bottom:6px">'+(o?'Edit transporter':'Add transporter')+'</div>'
+ +'<label class="dxl">Name *</label><input id="tn_n" placeholder="Transporter / rider name" autocomplete="off" value="'+esc(o?o.name:'')+'">'
+ +'<label class="dxl">WhatsApp number *</label><input id="tn_p" type="tel" inputmode="tel" placeholder="10 digit number" value="'+esc(o?o.phone:'')+'">'
+ +'<label class="dxl">Vehicle number</label><input id="tn_v" placeholder="Optional" value="'+esc(o?o.veh||'':'')+'">'
+ +'<label class="dxl">Note</label><textarea id="tn_x" rows="2" placeholder="Optional">'+esc(o?o.note||'':'')+'</textarea>'
+ +'<div class="dxbtns" style="margin-top:14px"><button class="dxpri" onclick="saveTr()">Save</button><button class="dxsec" onclick="tform=null;render()">Cancel</button></div></div>';
+}
+function saveTr(){
+ var g=function(i){return ($('#'+i)||{value:''}).value.trim()},n=g('tn_n'),ph=g('tn_p'),old=tform&&tform.old;
+ if(!n)return alert('Enter transporter name');
+ if(trDig(ph).length<10)return alert('Enter a 10 digit WhatsApp number');
+ var dup=TRS().find(function(x){return x.id!==old&&x.name.trim().toLowerCase()===n.toLowerCase()});
+ if(dup)return alert('A transporter with this name already exists');
+ var o=old?TRS().find(function(x){return x.id===old}):null;
+ if(o){o.name=n;o.phone=ph;o.veh=g('tn_v');o.note=g('tn_x')}
+ else{o={id:uid(),name:n,phone:ph,veh:g('tn_v'),note:g('tn_x'),date:Date.now()};TRS().push(o)}
+ save();tsel=o.id;tform=null;render();
+}
+function delTr(id){
+ var t=TRS().find(function(x){return x.id===id});if(!t)return;
+ if(trCnt(t)>0)return alert('"'+t.name+'" has dispatch history, so it cannot be deleted.\n\nTo fix a wrong name or number, press Edit.');
+ if(!confirm('Delete transporter "'+t.name+'"?'))return;
+ delRec('trs',t);tsel=null;save();render();
+}
+function vTrProfile(t){
+ var hs=DSP().filter(function(d){return d.tid===t.id}).sort(function(a,b){return b.date-a.date}),ph=trDig(t.phone);
+ var h='<button class="s dxback" onclick="tsel=null;render()">← Back</button><div class="dxc"><div class="dxh"><div style="display:flex;gap:12px;align-items:center;min-width:0"><span class="dxav big">'+dxIni(t.name)+'</span><div style="min-width:0"><div class="dxt" style="margin:0">'+esc(t.name)+'</div><div class="dxm">'+esc(t.phone||'')+(t.veh?' · '+esc(t.veh):'')+'</div></div></div></div>'
+ +(t.note?'<div class="dxm" style="margin-top:10px">'+nl2(t.note)+'</div>':'')
+ +'<div class="dxbtns" style="margin-top:12px"><a class="dxsec" href="tel:'+esc(ph)+'">'+dxI('phone')+' Call</a><a class="dxsec" target="_blank" rel="noopener" href="https://wa.me/91'+esc(ph)+'">'+dxI('chat')+' WhatsApp</a></div>'
+ +'<div class="dxst"><div><span>Dispatches given</span><b>'+hs.length+'</b></div><div><span>Last assigned</span><b>'+(hs.length?dt(hs[0].date):'-')+'</b></div></div>'
+ +'<div class="dxbtns" style="margin-top:12px;gap:8px"><button class="dxsm" style="flex:1;justify-content:center" data-t="'+esc(t.id)+'" onclick="tform={old:this.dataset.t};render()">✎ Edit</button><button class="dxsm dxdel" style="flex:1;justify-content:center" data-t="'+esc(t.id)+'" onclick="delTr(this.dataset.t)">🗑 Delete</button></div></div>';
+ h+='<div class="dxlh"><b>History</b><span class="dxm">'+hs.length+' dispatch'+(hs.length===1?'':'es')+'</span></div>';
+ if(!hs.length)return h+'<div class="dxc dxm">Nothing assigned yet. Choose this transporter on the Dispatch screen.</div>';
+ hs.forEach(function(d){
+  h+='<div class="dxc"><div class="dxh"><div style="min-width:0"><div class="dxk">Bill #'+d.no+' · '+dt(d.date)+'</div><div class="dxt" style="font-size:16px">'+esc(d.cust)+'</div></div><button class="dxsm" data-d="'+esc(d.id)+'" onclick="sendTr(this.dataset.d)">'+dxI('chat')+' Resend</button></div>'
+  +(d.addr?'<div class="dxaddr"><div>'+dxI('pin')+'<span>'+nl2(d.addr)+'</span></div></div>':'')
+  +d.items.map(function(x){return '<div class="dxhi"><div>'+esc(x.name)+(x.loc?'<small>📍 '+esc(x.loc)+'</small>':'')+'</div><b>'+x.q+' '+esc(x.unit)+'</b></div>'}).join('')+'</div>';
+ });
+ return h;
+}
+function vTransporters(){
+ if(!op('trn'))return '<div class="dxc">The transporter feature is switched off. Turn it on in <a style="cursor:pointer;color:#1a73e8;font-weight:600" onclick="sTab=\'gen\';nav(\'set\')">Settings → General</a>.</div>';
+ var list=TRS().slice().sort(trByName),sel=tsel?list.find(function(x){return x.id===tsel}):null,cur=sel||(window.innerWidth>=900&&!tform&&list.length?list[0]:null),hide=!!(sel||tform);
+ var L='<div class="dxdesk" style="margin-bottom:8px"><button class="b" onclick="tform={};tsel=null;render()">+ Add Transporter</button></div>'+(list.length?'<input placeholder="Find transporter" oninput="flt(this.value)" style="margin:0 0 10px">':'')+'<div class="dxc" style="padding:0;overflow:hidden">'
+ +list.map(function(t){var n=trCnt(t);return '<div class="dxtrow'+(cur&&cur.id===t.id&&!tform?' on':'')+'" data-n="'+esc((t.name+' '+(t.phone||'')).toLowerCase())+'" data-t="'+esc(t.id)+'" onclick="tsel=this.dataset.t;tform=null;render()"><span class="dxav">'+dxIni(t.name)+'</span><span class="dxtm"><b>'+esc(t.name)+'</b><small>'+esc(t.phone||'')+(t.veh?' · '+esc(t.veh):'')+'</small></span><span class="dxchip b">'+n+' dispatch'+(n===1?'':'es')+'</span></div>'}).join('')
+ +(list.length?'':'<div class="dxm" style="padding:16px">No transporters yet. Add one here, or while dispatching goods.</div>')+'</div>';
+ var Rt=tform?vTrForm():cur?vTrProfile(cur):'<div class="dxc dxm dxdesk">Click a transporter to see details and history</div>';
+ return '<h2 class="dxdesk" style="font-size:20px;margin:6px 0">Transporters / Riders</h2><div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+Rt+'</div></div>';
+}
+var _vPtr=vPage;
+vPage=function(){return pg==='trn'?vTransporters():_vPtr()};
+var _lvT=leave;leave=function(){_lvT();tsel=null;tform=null};
+
+/* ---- menu entries (desktop side menu + phone "More") ---- */
+buildNav=function(){var g=grpOf(pg),L=[['home','Home'],['party','Parties'],['items','Items'],['gd','Godowns']];
+ if(op('trn'))L.push(['trn','Transporters']);
+ L=L.concat([['sale','Sale'],['pur','Purchase'],['rep','Reports'],['bk','Backup'],['set','Settings']]);var h='';
+ L.forEach(function(x){var grp=!!GR[x[0]],act=grp?g===x[0]:pg===x[0];h+='<button class="'+(act?(grp?'gon':'on'):'')+'" onclick="nav(\''+x[0]+'\')">'+x[1]+'</button>';
+  if(grp&&g===x[0])GR[x[0]].forEach(function(s){h+='<button class="sb'+(pg===s[0]?' on':'')+'" onclick="nav(\''+s[0]+'\')">'+s[1]+'</button>'})});
+ $('nav').innerHTML=h};
+var _vMoT=vMore;
+vMore=function(){var h=_vMoT();if(!op('trn'))return h;var k='<span>Godowns</span><span class="mrc">›</span></div>',i=h.indexOf(k);
+ return i<0?h:h.slice(0,i+k.length)+'<div class="mr" onclick="nav(\'trn\')"><span>Transporters</span><span class="mrc">›</span></div>'+h.slice(i+k.length)};
+var _mbT=mBar;
+mBar=function(){_mbT();
+ var t=document.querySelector('#mtop .mttl');
+ if(t&&openB&&pg!=='trn'&&!form&&!sub)t.textContent='Dispatch · Bill #'+openB;
+ if(pg!=='trn')return;
+ if(t){var c=tsel&&TRS().find(function(x){return x.id===tsel});t.textContent=tform?(tform.old?'Edit transporter':'New transporter'):c?c.name:'Transporters'}
+ var fab=document.getElementById('mfab');
+ if(fab&&op('trn')&&!tsel&&!tform){fab.textContent='＋ Add New Transporter';fab.onclick=function(){tform={};tsel=null;render()};fab.classList.add('show')}};
+var _rDx=render;
+render=function(){_rDx();try{var mb=document.getElementById('mbar');if(mb&&mb.offsetHeight)document.documentElement.style.setProperty('--mbh',mb.offsetHeight+'px');if(openB&&!form&&!sub)dxSum()}catch(e){}};
+
+/* ---- Settings > General: on / off switch ---- */
+var _vStT=vSettings;
+vSettings=function(){var h=_vStT();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');
+ return k<0?h:h.slice(0,k)+'<div class="sec"><h3>Transporter / Rider</h3>'+ck('trn','Assign a transporter when dispatching goods','Adds a Transporters list. On the Dispatch screen you pick or add a transporter, and a loading list without prices, with godown / block and the customer address, is sent to them on WhatsApp. Untick to hide everything; saved data is kept.')+'</div>'+h.slice(k)};
 
 lockCk();
 render();
