@@ -1514,15 +1514,34 @@ sugUp=function(){_su10();
  q.forEach(function(i){i.dataset.dl=/item/i.test(i.placeholder)?'sgI':'sgP';i.setAttribute('autocomplete','off')})};
 
 /* ---------- LISTS SCROLL INSIDE THEIR OWN BOX (like Vyapar) + BACK FROM SETTINGS TABS ---------- */
-(function(){var st=document.createElement('style');st.textContent='.scl{overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px}.scl th{position:sticky;top:0;z-index:2}';document.head.appendChild(st)})();
-function decoScroll(){var m=document.getElementById('mbar'),bot=(m&&getComputedStyle(m).display!=='none')?86:24;
- [].forEach.call(document.querySelectorAll('#v table.tbl'),function(t){var w=t.parentElement;if(!w||t.rows.length<12)return;w.classList.add('scl');w.style.maxHeight='';
-  var top=w.getBoundingClientRect().top+window.pageYOffset,h=Math.max(window.innerHeight-top-bot,260);w.style.maxHeight=h+'px'})}
+(function(){var st=document.createElement('style');st.textContent='.scl{overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px}.card.scl{border:0;border-radius:6px}.scl th{position:sticky;top:0;z-index:2}';document.head.appendChild(st)})();
+var SCR={};
+function scrKey(w,i){var l=w.classList.contains('scl-l');return (l?'L':'T')+i+'|'+(typeof tab!=='undefined'?tab:'')+'|'+(typeof pg!=='undefined'?pg:'')+(l?'':'|'+selP+'|'+selI+'|'+(typeof openP!=='undefined'?openP:''))}
+function decoScroll(){var v=document.getElementById('v');if(!v)return;
+ var m=document.getElementById('mbar'),bot=(m&&getComputedStyle(m).display!=='none')?86:24,boxes=[];
+ /* 1) row lists (parties, items) */
+ [].forEach.call(v.querySelectorAll('.card'),function(c){if(c.querySelector(':scope > .row[data-n]')){c.classList.add('scl','scl-l');boxes.push(c)}});
+ /* 2) every table (transactions, payments, invoices, reports...) except the ones you type into */
+ [].forEach.call(v.querySelectorAll('table.tbl'),function(t){var w=t.parentElement;if(!w||t.rows.length<2)return;
+  if(t.querySelector('input,select,textarea'))return;
+  if(w.parentElement&&w.parentElement.closest('.scl,.pend,[style*="max-height"]'))return;
+  w.classList.add('scl');boxes.push(w)});
+ boxes.forEach(function(w){w.style.maxHeight='';w._fit=false});
+ boxes.forEach(function(w){if(!w.getClientRects().length)return;
+  var top=w.getBoundingClientRect().top+window.pageYOffset,h=window.innerHeight-top-bot;w._fit=h>=220;w.style.maxHeight=Math.max(h,220)+'px'});
+ /* trim so the whole page never needs its own scrollbar */
+ for(var k=0;k<3;k++){var ov=document.documentElement.scrollHeight-window.innerHeight;if(ov<=1)break;
+  var act=boxes.filter(function(w){return w._fit&&w.getClientRects().length&&w.scrollHeight>w.clientHeight+1});if(!act.length)break;
+  act.forEach(function(w){w.style.maxHeight=Math.max(w.offsetHeight-ov,160)+'px'})}
+ /* short lists stay plain; long ones scroll inside the box and keep their position */
+ boxes.forEach(function(w,i){if(!w.getClientRects().length)return;
+  if(w.scrollHeight<=w.clientHeight+1){w.classList.remove('scl');w.style.maxHeight='';return}
+  if(!w.dataset.rs){w.dataset.sk=scrKey(w,i);w.scrollTop=SCR[w.dataset.sk]||0;w.dataset.rs='1'}})}
 window.addEventListener('resize',function(){try{decoScroll()}catch(e){}});
 var _gb11=goBack;
 goBack=function(){if(pg==='set'&&sTab!=='gen'){sTab='gen';render();window.scrollTo(0,0);return}_gb11()};
 function fixBack(){if(pg!=='set')return;[].forEach.call(document.querySelectorAll('#v button'),function(b){if(/^←/.test(b.textContent.trim())){b.removeAttribute('onclick');b.onclick=function(){goBack()}}})}
-var _r11=render;render=function(){_r11();try{fixBack();decoScroll()}catch(e){}};
+var _r11=render;render=function(){try{[].forEach.call(document.querySelectorAll('#v .scl[data-sk]'),function(w){SCR[w.dataset.sk]=w.scrollTop})}catch(e){}_r11();try{fixBack();decoScroll()}catch(e){}};
 
 
 lockCk();
