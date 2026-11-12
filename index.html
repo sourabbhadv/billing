@@ -1612,7 +1612,8 @@ function vMore(){
  function row(t,act,c){return '<div class="mr" onclick="'+act+'"><span>'+t+'</span><span class="mrc">'+c+'</span></div>'}
  function grp(k,t){var h=row(t,"MX."+k+"=!MX."+k+";render()",MX[k]?'⌃':'⌄');if(MX[k])GR[k].forEach(function(x){h+='<div class="mr sub" onclick="nav(\''+x[0]+'\')"><span>'+x[1]+'</span><span class="mrc">›</span></div>'});return h}
  return '<div class="mg"><div class="mgt">My Business</div>'+row('Parties',"nav('party')",'›')+grp('sale','Sale')+grp('pur','Purchase')+row('Godowns',"nav('gd')",'›')+row('Reports',"nav('rep')",'›')+'</div>'
- +'<div class="mg"><div class="mgt">Important Utilities</div>'+row('Backup / Restore',"nav('bk')",'›')+row('Settings',"nav('set')",'›')+'</div>'}
+ +'<div class="mg"><div class="mgt">Important Utilities</div>'+row('WhatsApp Outbox & Auto message',"nav('out')",'›')+row('Backup / Restore',"nav('bk')",'›')+row('Settings',"nav('set')",'›')+'</div>'
+ +'<div class="mg"><div class="mgt">App Version</div><div class="mr"><span>'+APPV.replace('App version ','')+'</span></div></div>'}
 var _vPm=vPage;
 vPage=function(){
  if(!isM())return _vPm();
@@ -1633,7 +1634,7 @@ mBar=function(){
  bar.style.display=form?'none':'';
  if(root){var sy=document.getElementById('sy');
   top.innerHTML='<div class="mlogo">'+esc((D.shop||'A').charAt(0).toUpperCase())+'</div><div class="mnm"><b>'+esc(D.shop)+'</b><small>'+esc(sy?sy.textContent:'')+'</small></div><button onclick="nav(\'set\')">⚙</button>'}
- else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns'};
+ else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns'};
   var t=form?'New Sale':sub==='pin'?(pdraft&&pdraft.out?'Payment-Out':'Payment-In'):sub==='ret'?'Sale Return':viewB?'Sale #'+viewB:(pg==='party'&&P(selP))?P(selP).name:(pg==='items'&&I(selI))?I(selI).name:pform?'Party':iform?'Item':(nm[pg]||'');
   top.innerHTML='<button onclick="goBack()">←</button><div class="mttl">'+esc(t)+'</div>'}
  top.style.display='';
