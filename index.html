@@ -1464,6 +1464,7 @@ function goBack(){var b=[].find.call(document.querySelectorAll('#v button'),func
 function mMore(){var s=$('#msheet'),h='<div><b style="font-size:17px">Menu</b>';
  function sec(t,L){h+='<h4>'+t+'</h4>'+L.map(function(x){return '<button onclick="$(\'#msheet\').classList.remove(\'open\');nav(\''+x[0]+'\')">'+x[1]+'</button>'}).join('')}
  sec('Sale',GR.sale);sec('Purchase',GR.pur);sec('More',[['rep','Reports'],['out','WhatsApp Outbox & Auto message'],['bk','Backup & Import'],['set','Settings']]);
+ h+='<h4>App Version</h4><div style="position:static;background:#f4f6fb;border-radius:10px;padding:12px 14px;font-size:15px;color:#1f2437">'+APPV.replace('App version ','')+'</div>';
  s.innerHTML=h+'</div>';s.classList.add('open')}
 function mBar(){
  var g=grpOf(pg),on=function(k){return (g===k||pg===k)?'on':''},bar=$('#mbar'),top=$('#mtop');if(!bar)return;
