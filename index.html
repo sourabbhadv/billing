@@ -3001,6 +3001,86 @@ var _vSetAcc=vSettings;vSettings=function(){var h=_vSetAcc();if(sTab!=='gen')ret
 var _vMoreL=vMore;vMore=function(){return _vMoreL()+'<div class="mg"><div class="mgt">Account</div><div class="mr" onclick="sbOut(0)"><span>Log out</span><span class="mrc">›</span></div></div>'};
 var _bnL=buildNav;buildNav=function(){_bnL();var n=document.querySelector('nav');if(n&&!n.querySelector('.lgo'))n.insertAdjacentHTML('beforeend','<button class="lgo" onclick="sbOut(0)">Log out</button>')};
 
+
+/* ---------- DESKTOP ONLY: Vyapar-style chrome, one consistent set of sizes (phone untouched) ---------- */
+(function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
+':root{--vr:10px;--vb:#e3e7ee;--vbl:#1a73e8;--vrd:#e8213a}'+
+'body{padding-left:250px!important}header,nav{width:250px!important}header{padding:18px 18px 12px!important}header h1{font-size:16px;font-weight:600;letter-spacing:.2px}'+
+'nav{top:84px!important;padding:6px 0!important;gap:0!important;overflow-y:auto}'+
+'nav button{display:flex!important;justify-content:space-between;align-items:center;width:100%;font-size:14.5px!important;font-weight:500;padding:13px 18px!important;border-radius:0!important;color:#e6e8f5!important}'+
+'nav button.sb{padding:11px 18px 11px 40px!important;font-size:14px!important;font-weight:500;background:#171b4a}nav button.sb.on{background:#1d2160!important}'+
+'nav button.grp::after{content:"\\2304";font-size:16px;opacity:.8}nav button.grp.gon::after{content:"\\2303"}'+
+'nav button.sb::after,nav button[onclick*="\'items\'"]::after{content:"+";font-size:20px;font-weight:400;opacity:.9}'+
+'nav button.lgo{margin-top:12px;border-top:1px solid #272c66!important;color:#aab!important}'+
+'#top{padding:10px 24px!important;gap:10px!important;border-bottom:1px solid var(--vb)}#top input{height:40px;font-size:14px;padding:0 16px;max-width:420px}'+
+'#top button{height:38px;border-radius:999px!important;padding:0 18px!important;font-size:14px;font-weight:600;white-space:nowrap}'+
+'#top .addb{background:var(--vrd)!important;color:#fff!important;border:0!important}#top .b:not(.addb){background:#1565c0!important;color:#fff!important;border:0!important}'+
+'#top .s{background:#fff;color:#3d4160;border:1px solid var(--vb)!important;padding:0 14px!important}'+
+'#v{padding:18px 24px!important;max-width:none!important}#v h2{font-size:20px;font-weight:600;color:#2d3350;margin:4px 0 12px}'+
+'#v .card{border:1px solid var(--vb);border-radius:var(--vr);box-shadow:0 1px 3px rgba(25,35,80,.06)}'+
+'#v input,#v select,#v textarea{height:38px;border:1px solid #cfd5e3;border-radius:8px;font-size:14px;padding:0 12px}#v textarea{height:auto;padding:8px 12px}#v input:focus,#v select:focus,#v textarea:focus{outline:0;border-color:var(--vbl);box-shadow:0 0 0 3px rgba(26,115,232,.14)}'+
+'#v .b{background:var(--vbl);color:#fff;border:0;border-radius:8px;padding:0 18px;height:38px;font-weight:600;font-size:14px}'+
+'#v .s{background:#fff;color:var(--vbl);border:1.5px solid #bfc3da;border-radius:8px;padding:0 16px;height:38px;font-weight:600;font-size:14px}'+
+'#v .tbl{font-size:14px}#v .tbl th{background:#f6f8fc;color:#5d647a;font-size:13px;font-weight:600;padding:12px 10px;border-bottom:1px solid var(--vb);white-space:nowrap;position:sticky;top:0}'+
+'#v .tbl td{padding:12px 10px;border-bottom:1px solid #eef0f5}#v .tbl tr:hover td{background:#f5f8fd}'+
+'#v .red{color:#e8213a}#v .grn{color:#16a05d}'+
+'}';document.head.appendChild(st)})();
+var _bnD=buildNav;buildNav=function(){_bnD();try{var n=document.querySelector('nav');if(!n)return;[].forEach.call(n.querySelectorAll('button'),function(b){var m=/nav\('([a-z]+)'\)/.exec(b.getAttribute('onclick')||'');if(m&&GR[m[1]]&&!b.classList.contains('sb'))b.classList.add('grp')})}catch(e){}};
+
+
+/* ---------- DESKTOP ONLY: Home, Sale Invoices, Items in the Vyapar layout (phone untouched) ---------- */
+(function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
+'.vh{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}.vh .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}'+
+'.vk{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 20px;min-height:128px}.vk span{color:#7b8194;font-size:14px}.vk b{display:block;font-size:24px;font-weight:600;margin:6px 0 20px;color:#2d3350}.vk small{color:#7b8194;font-size:14px}'+
+'.vk i{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:22px}.vk i.g{background:#dff3e8;color:#16a05d}.vk i.r{background:#fde3e7;color:#e8213a}'+
+'.vc{padding:18px 20px;margin-bottom:16px}.vc .hd{display:flex;justify-content:space-between;align-items:flex-start}.vc .hd b{font-size:24px;font-weight:600;color:#2d3350}.vc .hd em{font-style:normal;font-size:13px;margin-left:8px}'+
+'.vper{background:#e3eefb;color:#2d3350;border-radius:999px;padding:7px 16px;font-size:14px;font-weight:500}'+
+'.vrp{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}.vrp button{display:flex!important;justify-content:space-between;align-items:center;height:48px!important;background:#fff!important;color:#3d4160!important;border:1px solid var(--vb)!important;border-radius:10px!important;padding:0 14px!important;font-weight:500!important}.vrp button::after{content:"\\203A";font-size:22px;color:#1a73e8}'+
+'.vrh{display:flex;justify-content:space-between;align-items:center}.vrh a{color:#1a73e8;font-weight:600;cursor:pointer;font-size:14px}'+
+'.vw{padding:16px 20px;margin-bottom:12px}.vw div{display:flex;justify-content:space-between;align-items:baseline}.vw span{color:#7b8194;font-size:14px}.vw b{font-size:18px;font-weight:600;color:#2d3350}.vw small{color:#7b8194}'+
+'.vsh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.vsh h2{margin:0!important}.vsh .b{background:var(--vrd)!important;border-radius:999px!important;padding:0 20px!important}'+
+'.vfl{display:flex;gap:0;align-items:center;margin-bottom:14px;font-size:14px}.vfl>span{color:#5d647a;margin-right:10px}.vfl select,.vfl .perui select{border-radius:999px!important;background:#e8f0fb;border:0!important;font-weight:500;color:#2d3350;padding:0 16px!important;margin-right:8px}'+
+'.vsm{display:inline-block;padding:14px 20px;margin-bottom:14px;min-width:300px}.vsm span{color:#7b8194;font-size:14px}.vsm b{display:block;font-size:26px;font-weight:600;margin:4px 0 10px;color:#2d3350}.vsm small{color:#7b8194;font-size:14px}.vsm small b{display:inline;font-size:14px;font-weight:500;color:#3d4160;margin:0}'+
+'.vsi{display:flex;gap:14px;align-items:center;justify-content:flex-end}.vsi button{background:none!important;border:0!important;padding:0!important;height:auto!important;width:24px;color:#5d647a!important;cursor:pointer}.vsi svg{width:20px;height:20px;stroke:#5d647a;fill:none;stroke-width:1.8}'+
+'.vtt{display:flex;justify-content:space-between;align-items:center;padding:16px 20px 8px}.vtt b{font-size:18px;font-weight:600;color:#2d3350}#v .vtb th:last-child,#v .vtb td:last-child{text-align:right}#v .vtb .n{text-align:right}'+
+'.vi h2{font-size:18px!important}.vi .tbl th{text-transform:uppercase;font-size:12px!important;letter-spacing:.3px}.vi .split{grid-template-columns:360px 1fr;gap:16px}'+
+'.vtab{display:flex;gap:0;border-bottom:1px solid var(--vb);margin:-18px -24px 14px;padding:0 24px;background:#fff}.vtab span{padding:14px 40px;font-size:14px;font-weight:600;color:#7b8194;letter-spacing:.3px}.vtab span.on{color:#1a73e8;border-bottom:3px solid #1a73e8}'+
+'}';document.head.appendChild(st)})();
+var DIC={pr:'<svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z"/></svg>',sh:'<svg viewBox="0 0 24 24"><path d="M14 4l7 7-7 7v-4c-6 0-9 2-11 6 1-7 4-11 11-12z"/></svg>',mo:'<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg>'};
+function vchart(vals,lab){var W=700,H=230,L=46,B=26,T=10,n=vals.length,mx=Math.max.apply(null,vals.concat([1])),st=Math.pow(10,Math.floor(Math.log10(mx))),u=Math.ceil(mx/st/ (mx/st>5?2:1)) * st * (mx/st>5?2:1);u=Math.max(u,st);
+ var g='',pts=[],i,x,y,k;for(k=0;k<=5;k++){y=T+(H-B-T)*(1-k/5);g+='<line x1="'+L+'" x2="'+(W-6)+'" y1="'+y+'" y2="'+y+'" stroke="#e9ecf4"/><text x="'+(L-8)+'" y="'+(y+4)+'" font-size="11" fill="#7b8194" text-anchor="end">'+(u*k/5>=1000?Math.round(u*k/5/1000)+'k':Math.round(u*k/5))+'</text>'}
+ for(i=0;i<n;i++){x=L+(W-L-6)*(n>1?i/(n-1):0);y=T+(H-B-T)*(1-vals[i]/u);pts.push([x,y]);if(i%3===0)g+='<text x="'+x+'" y="'+(H-8)+'" font-size="11" fill="#7b8194" text-anchor="middle">'+lab(i)+'</text>'}
+ var d='M'+pts[0][0]+','+pts[0][1];for(i=1;i<n;i++){var cx=(pts[i-1][0]+pts[i][0])/2;d+=' C'+cx+','+pts[i-1][1]+' '+cx+','+pts[i][1]+' '+pts[i][0]+','+pts[i][1]}
+ return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;margin-top:10px"><defs><linearGradient id="vg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#1a73e8" stop-opacity=".22"/><stop offset="1" stop-color="#1a73e8" stop-opacity="0"/></linearGradient></defs>'+g+'<path d="'+d+' L'+pts[n-1][0]+','+(H-B)+' L'+pts[0][0]+','+(H-B)+' Z" fill="url(#vg)"/><path d="'+d+'" fill="none" stroke="#5b8fd9" stroke-width="2"/></svg>'}
+var _vHdk=vHome;vHome=function(){
+ var old=_vHdk();if(isM())return old;
+ var tr=0,tp=0,np=0,nq=0,sv=0,ts=0,lm=0,pu=0,n=new Date(),y=n.getFullYear(),mo=n.getMonth(),ms=new Date(y,mo,1).getTime(),pm=new Date(y,mo-1,1).getTime(),dim=new Date(y,mo+1,0).getDate(),day=[],i,MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+ for(i=0;i<dim;i++)day.push(0);
+ D.parties.forEach(function(p){var b=bal(p);if(b>0.009){tr+=b;np++}else if(b<-0.009){tp-=b;nq++}});
+ D.items.forEach(function(x){sv+=Math.max(+x.qty||0,0)*((+x.buy>0)?+x.buy:(+x.rate||0))});
+ D.bills.forEach(function(b){if(b.x)return;if(b.date>=ms){ts+=b.total;day[new Date(b.date).getDate()-1]+=b.total}else if(b.date>=pm)lm+=b.total});
+ D.docs.forEach(function(d){if(d.x||d.date<ms)return;if(d.t==='pur')pu+=d.total;if(d.t==='pret')pu-=d.total});
+ var pc=lm>0?Math.round((ts-lm)/lm*100):null,low=D.items.filter(function(x){return x.qty<0||(x.low>0&&x.qty<=x.low)});
+ var R=[['Sale Report','sale'],['All Transactions','alltx'],['Daybook Report','day'],['Party Statement','pst']];
+ return '<div class="vh"><div><div class="two"><div class="card vk"><div><span>Total Receivable</span><b>'+money(tr)+'</b><small>From '+np+' Parties</small></div><i class="g">&darr;</i></div><div class="card vk"><div><span>Total Payable</span><b>'+money(tp)+'</b><small>From '+nq+' Parties</small></div><i class="r">&uarr;</i></div></div>'
+ +'<div class="card vc"><div class="hd"><div><span class="mu">Total Sale</span><br><b>'+money(ts)+'</b>'+(pc===null?'':'<em class="'+(pc<0?'red':'grn')+'">'+Math.abs(pc)+'% '+(pc<0?'less':'more')+' than last month</em>')+'</div><span class="vper">This Month</span></div>'+vchart(day,function(i){return (i+1)+' '+MN[mo]})+'</div>'
+ +'<div class="card vc"><div class="vrh"><b style="font-size:16px;font-weight:600;color:#2d3350">Most Used Reports</b><a onclick="nav(\'rep\')">View All</a></div><div class="vrp">'+R.map(function(r){return '<button onclick="openRep(\''+r[1]+'\')">'+r[0]+'</button>'}).join('')+'</div></div>'
+ +'<details class="card vc"><summary style="cursor:pointer;font-weight:600;color:#2d3350">More dashboard widgets</summary>'+old+'</details></div>'
+ +'<div><div class="card vw"><div><span>Purchases</span><small>This Month</small></div><b>'+money(pu)+'</b></div><div class="card vw"><div><span>Stock Value</span><small>As of Now</small></div><b>'+money(sv)+'</b></div>'
+ +(low.length?'<div class="card vw"><b class="red" style="font-size:15px">Low stock</b>'+low.slice(0,10).map(function(x){return '<div style="margin-top:6px"><span>'+esc(x.name)+'</span><span class="red">'+x.qty+' '+esc(x.unit)+'</span></div>'}).join('')+(low.length>10?'<div class="mu" style="margin-top:6px">+ '+(low.length-10)+' more</div>':'')+'</div>':'')+vPendDisp()+'</div></div>'};
+var _vSIdk=vSI;vSI=function(){
+ if(isM())return _vSIdk();
+ var F=[['all','All Sale Invoices'],['unpaid','Unpaid'],['part','Partly paid'],['paid','Paid'],['cancel','Cancelled']];
+ var list=D.bills.filter(function(b){if(!inPer('si',b.date))return false;var s=saleStatus(b);return sif==='all'||(sif==='unpaid'&&s==='Unpaid')||(sif==='part'&&s==='Partly paid')||(sif==='paid'&&s==='Paid')||(sif==='cancel'&&s==='Cancelled')}).sort(function(a,b){return b.no-a.no});
+ var ts=0,rc=0;list.forEach(function(b){if(b.x)return;ts+=b.total;rc+=paidOn(b)});
+ var rows=list.slice(0,300).map(function(b){var p=P(b.pid),s=saleStatus(b),pd=paidOn(b),d=new Date(b.date),c=s==='Paid'?'grn':s==='Cancelled'?'mu':'red';
+  return '<tr data-n="'+esc(((p?p.name:'')+' '+b.no).toLowerCase())+'" style="cursor:pointer" onclick="viewB='+b.no+';render()"><td>'+dt(b.date)+', '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}).toUpperCase()+'</td><td class="n">'+b.no+'</td><td>'+esc(p?p.name:'?')+'</td><td>Sale</td><td>'+esc(b.pt||'')+'</td><td class="n">'+money(b.total)+'</td><td class="n">'+money(Math.max(b.total-pd,0))+'</td><td class="'+c+'">'+s+'</td><td onclick="event.stopPropagation()"><div class="vsi"><button title="Print" onclick="printBill('+b.no+')">'+DIC.pr+'</button><button title="Share" onclick="wa('+b.no+')">'+DIC.sh+'</button><button title="More" onclick="billMenu('+b.no+')">'+DIC.mo+'</button></div></td></tr>'}).join('');
+ return '<div class="vsh"><h2>Sale Invoices</h2><button class="b" onclick="newSale()">+ Add Sale</button></div>'
+ +'<div class="vfl"><span>Filter by :</span><select onchange="sif=this.value;render()">'+F.map(function(f){return '<option value="'+f[0]+'"'+(sif===f[0]?' selected':'')+'>'+f[1]+'</option>'}).join('')+'</select><span class="perui">'+perUI('si')+'</span></div>'
+ +'<div class="card vsm"><span>Total Sales Amount</span><b>'+money(ts)+'</b><small>Received: <b>'+money(rc)+'</b> &nbsp;|&nbsp; Balance: <b>'+money(Math.max(ts-rc,0))+'</b></small></div>'
+ +'<div class="card" style="padding:0"><div class="vtt"><b>Transactions</b><input placeholder="Search party or number" oninput="flt(this.value)" style="max-width:260px"></div><div style="overflow-x:auto"><table class="tbl vtb"><tr><th>Date</th><th class="n">Invoice no</th><th>Party Name</th><th>Transaction</th><th>Payment Type</th><th class="n">Amount</th><th class="n">Balance</th><th>Status</th><th>Actions</th></tr>'+rows+'</table></div>'+(list.length>300?'<div class="mu" style="padding:10px 20px">Showing latest 300. Use the date filter or search for older ones.</div>':'')+(list.length?'':'<div class="mu" style="padding:16px 20px">No invoices found</div>')+'</div>'};
+var _vIdk=vItems;vItems=function(){var h=_vIdk();if(isM())return h;return '<div class="vi"><div class="vtab"><span class="on">PRODUCTS</span></div>'+h+'</div>'};
+
 lockCk();
 render();
 initAuth();
