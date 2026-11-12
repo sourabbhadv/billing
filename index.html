@@ -2373,15 +2373,17 @@ var AW_TYPES=[
  ['reminder','Reminder button','The "Send reminder" button on a party'],
  ['stmt','Party statement','Statement text from Parties or Reports'],
  ['dispatch','Dispatch update','Items sent / items remaining'],
+ ['upd','Invoice update','When you edit a saved bill, estimate, order or challan, the updated copy is sent again'],
  ['other','Estimate, order, challan','Everything else']];
 function awKind(t){t=String(t||'');
+ if(/^\*Updated (invoice|copy)\*/.test(t))return 'upd';
  if(/Kindly clear it/i.test(t))return 'reminder';
  if(/\*Party Statement\*/.test(t))return 'stmt';
  if(/Remaining to be sent|All items dispatched/i.test(t))return 'dispatch';
  if(/\nReceived |We have paid|has been credited/i.test(t))return 'receipt';
  if(/Bill #|Total pending balance/i.test(t))return 'bill';
  return 'other'}
-function awOn(k){var a=PS().awt;return !a||a[k]!==0}
+function awOn(k){var a=PS().awt;if(k==='upd')return !!(a&&a.upd===1);return !a||a[k]!==0}
 var _ow9=openWA;
 openWA=function(p,text){
  var k=awKind(text);
@@ -2576,7 +2578,10 @@ window.confirm=function(m){
  if(/^(Saved\.|Payment saved\.) Send .*WhatsApp\?$/.test(String(m||''))&&PS().autoWA&&awOn('receipt')&&obOk()){_awQ=1;setTimeout(function(){_awQ=0},0);return true}
  return _cfAW.call(window,m)};
 var _ow10=openWA;
-openWA=function(p,text){if(_awQ){_awQ=0;if(!(p&&phone(p).length>=10))return}_ow10(p,text)};
+var _awUpd=0;
+openWA=function(p,text){if(_awQ){_awQ=0;if(!(p&&phone(p).length>=10))return}
+ if(_awUpd&&text)text='*Updated '+(_awUpd==='bill'?'invoice':'copy')+'*\nThe details below have changed. Please use this latest copy.\n\n'+text;
+ _ow10(p,text)};
 /* new sale bill */
 var _sbAW=saveBill2;
 saveBill2=function(){var n0=D.bills.length;_sbAW();
@@ -2591,8 +2596,14 @@ saveRet=function(){var p0=findP(rdraft.name),n0=D.pays.length;_srAW();
  if(D.pays.length>n0){var x=D.pays[D.pays.length-1];if(x&&x.ret&&awGo('receipt',p0))payWA(x.id)}};
 /* new estimate / sale order / challan */
 var _sdcAW=saveDoc;
-saveDoc=function(){var n0=D.docs.length;_sdcAW();
- if(D.docs.length>n0){var d=D.docs[D.docs.length-1],p=P(d.pid);if((d.t==='est'||d.t==='so'||d.t==='chal')&&awGo('other',p))docWA(d.id)}};
+saveDoc=function(){var e0=ddraft&&ddraft.edit,d0=e0?docById(e0):null,s0=d0?JSON.stringify(d0):'',n0=D.docs.length;_sdcAW();
+ if(D.docs.length>n0){var d=D.docs[D.docs.length-1],p=P(d.pid);if((d.t==='est'||d.t==='so'||d.t==='chal')&&awGo('other',p))docWA(d.id)}
+ else if(d0&&s0&&(d0.t==='est'||d0.t==='so'||d0.t==='chal')&&JSON.stringify(docById(e0))!==s0){var p2=P(d0.pid);if(awGo('upd',p2)){_awUpd='doc';try{docWA(d0.id)}finally{_awUpd=0}}}};
+/* edited bill */
+var _seAW=saveEdit;
+saveEdit=function(){var no=draft&&draft.edit,b0=no!=null?bl(no):null,s0=b0?JSON.stringify(b0):'';_seAW();
+ var b1=no!=null?bl(no):null;
+ if(b1&&s0&&JSON.stringify(b1)!==s0){var p=P(b1.pid);if(awGo('upd',p)){_awUpd='bill';try{wa(b1.no)}finally{_awUpd=0}}}};
 
 lockCk();
 render();
