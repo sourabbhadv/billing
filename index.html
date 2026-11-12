@@ -61,6 +61,15 @@ button.dlb{background:#fdecee;color:#d21f30}button.dlb:hover{background:#fbd5da}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.78.0/dist/umd/supabase.js"></script>
 <script>
 var $=function(s){return document.querySelector(s)};
+/* SAFETY: expire old sign-ins on shared devices BEFORE any business data is loaded */
+(function(){try{
+ var K=Object.keys(localStorage).filter(function(k){return /^sb-.*-auth-token/.test(k)});
+ if(!K.length)return;
+ var dec=localStorage.getItem('sbDec'),tr=+localStorage.getItem('sbTrust')||0,now=Date.now(),last=+localStorage.getItem('sbLast')||0,bad=false;
+ if(dec){if(tr){}
+  else if(!sessionStorage.getItem('sbAlive')||(last&&now-last>30*60*1000))bad=true}
+ if(bad){K.concat(['sb','sbDec','sbTrust','sbLast']).forEach(function(k){localStorage.removeItem(k)});window.__sbMsg='You were signed out for safety (browser was closed or you were away). Please sign in again.'}
+}catch(e){}})();
 var D=null;try{D=JSON.parse(localStorage.getItem('sb')||'null')}catch(e){}
 D=D||{shop:'Ashirwad Tiles',items:[],parties:[],bills:[],pays:[],seq:1};
 function save(){try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){}}
@@ -1490,7 +1499,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
   var q=inp.value.trim().toLowerCase(),M=[];
   [].forEach.call(l.options,function(o){var v=String(o.value),lb=o.label||o.getAttribute('label')||'',a=v.toLowerCase(),t=(a+' '+lb.toLowerCase()),k;
    if(!q)k=3;else if(a.indexOf(q)===0)k=0;else if((' '+a).indexOf(' '+q)>=0)k=1;else if(t.indexOf(q)>=0)k=2;else return;M.push({v:v,l:lb,k:k})});
-  M.sort(function(x,y){return x.k-y.k||(x.v<y.v?-1:1)});M=M.slice(0,500);
+  M.sort(function(x,y){return x.k-y.k||(x.v<y.v?-1:1)});M=M.slice(0,300);
   if(!M.length||(M.length===1&&M[0].v.toLowerCase()===q)){hide();return}
   cur=inp;box.innerHTML='';
   M.forEach(function(m){var d=document.createElement('div');d.style.cssText='padding:12px 14px;border-bottom:1px solid #eef0f5;font-size:16px;cursor:pointer';
@@ -2931,10 +2940,13 @@ var _vPi=vPage;vPage=function(){if(isM()&&pg==='items'&&I(selI)&&!iform&&!form)r
 document.head.appendChild(st)})();
 var _rIt=render;render=function(){_rIt();try{var tp=document.getElementById('mtop');if(tp&&isM()&&pg==='items'&&I(selI)&&!iform&&!form&&!viewB&&!viewD){var t=tp.querySelector('.mttl');if(t)t.textContent='Item Details';if(!tp.querySelector('.mact'))tp.insertAdjacentHTML('beforeend','<div class="mact"><button class="xls" onclick="csvItem(selI)">xls</button><button onclick="iform={id:selI};render()" aria-label="Edit item">✎</button></div>')}}catch(e){}};
 
-lockCk();
-render();
-initAuth();
-</script></body></html>
+/* ---------- SPEED: batch saves (typing no longer re-saves the whole database on every keystroke) ---------- */
+var _loc0=local,_locT=null,_save0=save,_saveT=null;
+function flushSaves(){if(_locT){clearTimeout(_locT);_locT=null;try{_loc0()}catch(e){}}if(_saveT){clearTimeout(_saveT);_saveT=null;try{_save0()}catch(e){}}}
+local=function(){if(_locT)return;_locT=setTimeout(function(){_locT=null;_loc0()},250)};
+save=function(){if(_saveT)return;_saveT=setTimeout(function(){_saveT=null;_save0()},300)};
+window.addEventListener('pagehide',flushSaves);window.addEventListener('beforeunload',flushSaves);
+document.addEventListener('visibilitychange',function(){if(document.hidden)flushSaves()});
 
 /* ---------- PHONE: Back from a party profile returns to the Parties list; Parties always opens the list ---------- */
 var _gbPty=goBack;goBack=function(){
@@ -2944,3 +2956,53 @@ var _gbPty=goBack;goBack=function(){
  }
  _gbPty()};
 var _navPty=nav;nav=function(k){if(isM()&&k!=='party')selP=null;_navPty(k)};
+
+
+/* ---------- SAFETY: own-device choice, auto sign-out on shared devices, Log out buttons ---------- */
+var SB_IDLE=30*60*1000,SB_TRUST=30*864e5;
+function sbIsTrusted(){return !!(+localStorage.getItem('sbTrust'))}
+function sbMark(trusted){try{localStorage.setItem('sbDec','1');if(trusted)localStorage.setItem('sbTrust',String(Date.now()));else localStorage.removeItem('sbTrust');sessionStorage.setItem('sbAlive','1');localStorage.setItem('sbLast',String(Date.now()))}catch(e){}}
+function logoutNow(msg,all,note){
+ var ov=document.createElement('div');ov.style.cssText='position:fixed;inset:0;background:#101338;color:#fff;z-index:200;display:flex;align-items:center;justify-content:center;font-size:18px;padding:20px;text-align:center';ov.textContent=msg||'Signing out…';document.body.appendChild(ov);
+ try{flushSaves()}catch(e){}
+ if(note){try{sessionStorage.setItem('sbMsg',note)}catch(e){}}
+ var done=0,fin=function(){if(done)return;done=1;try{Object.keys(localStorage).forEach(function(k){if(k==='sb'||k==='sbDec'||k==='sbTrust'||k==='sbLast'||/^sb-.*-auth-token/.test(k))localStorage.removeItem(k)});sessionStorage.removeItem('sbAlive')}catch(e){}location.reload()};
+ setTimeout(function(){try{Promise.resolve(SB&&SB.auth.signOut(all?{scope:'global'}:undefined)).then(fin,fin)}catch(e){fin()}},900);
+ setTimeout(fin,4000)}
+function sbOut(all){
+ var w=(typeof synced!=='undefined'&&!synced)?'\n\nNote: cloud sync has not finished, so very recent changes on this device may be lost.':'';
+ if(!confirm(all?'Log out from EVERY device where you are signed in? You will need to sign in again everywhere.'+w:'Log out of this device? Your data stays safe in the cloud and comes back when you sign in.'+w))return;
+ logoutNow('Signing out…',all)}
+function sbTrustToggle(){if(sbIsTrusted()){sbMark(false);alert('Done. This device will now sign out when the browser is closed or after 30 minutes of no use.')}else{sbMark(true);alert('Done. This device stays signed in until you log out.')}render()}
+function sbAsk(){try{
+ if(localStorage.getItem('sbDec'))return;
+ if(!Object.keys(localStorage).some(function(k){return /^sb-.*-auth-token/.test(k)}))return;
+ var m=document.createElement('div');m.id='sbask';m.style.cssText='position:fixed;inset:0;background:rgba(16,19,56,.85);z-index:150;display:flex;align-items:center;justify-content:center;padding:20px';
+ m.innerHTML='<div class="card" style="max-width:380px;width:100%"><b>Is this your own device?</b><p class="mu" style="margin:8px 0">For safety, shared or public computers and phones should not stay signed in.</p><button class="b" style="width:100%;margin-top:6px" onclick="sbMark(true);document.getElementById(\'sbask\').remove()">Yes, my own device<br><small>Keep me signed in until I log out</small></button><button class="s" style="width:100%;margin-top:8px" onclick="sbMark(false);document.getElementById(\'sbask\').remove()">No, shared or public<br><small>Sign out when I close the browser or after 30 minutes of no use</small></button></div>';
+ document.body.appendChild(m)}catch(e){}}
+var _ss0=startSync;startSync=function(db){window.sbLive=1;return _ss0(db)};
+var _lb0=loginBox;loginBox=function(){_lb0();
+ var r=document.querySelector('#lgn .row');
+ if(r)r.insertAdjacentHTML('beforebegin','<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:14px;cursor:pointer"><input type="checkbox" id="ltr" style="width:auto;margin:3px 0 0"><span><b>This is my own device</b> — keep me signed in.<br><span class="mu">Leave this unticked on a shared or public computer or phone. You will then be signed out when you close the browser or after 30 minutes of no use.</span></span></label>');
+ var m=window.__sbMsg||sessionStorage.getItem('sbMsg'),lm=document.getElementById('lm');if(m&&lm){lm.textContent=m;try{sessionStorage.removeItem('sbMsg')}catch(e){}window.__sbMsg=null}};
+var _da0=doAuth;doAuth=function(up){var c=document.getElementById('ltr');sbMark(!!(c&&c.checked));_da0(up)};
+var _sbAct=0;function sbAct(){var n=Date.now();if(n-_sbAct<15000)return;_sbAct=n;try{localStorage.setItem('sbLast',String(n))}catch(e){}}
+['pointerdown','keydown','touchstart','scroll'].forEach(function(e){document.addEventListener(e,sbAct,true)});
+function sbIdleChk(){if(!window.sbLive||window.sbOut)return;
+ var n=Date.now();
+ if(sbIsTrusted())return;
+ if(!localStorage.getItem('sbDec'))return;
+ var last=+localStorage.getItem('sbLast')||n;
+ if(n-last>SB_IDLE){window.sbOut=1;logoutNow('Signed out after 30 minutes of no use…',0,'You were signed out after 30 minutes of no use. Please sign in again.')}}
+setInterval(sbIdleChk,30000);document.addEventListener('visibilitychange',function(){if(!document.hidden)sbIdleChk()});
+var _vSetAcc=vSettings;vSettings=function(){var h=_vSetAcc();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');if(k<0)return h;var t=sbIsTrusted();
+ var b='<div class="sec"><h3>Account &amp; security</h3><div class="hint">'+(t?'This device is marked as your own and stays signed in until you log out.':'This device signs out when the browser is closed or after 30 minutes of no use.')+'</div><div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="b" onclick="sbOut(0)">Log out</button><button class="s" onclick="sbOut(1)">Log out from all devices</button><button class="s" onclick="sbTrustToggle()">'+(t?'Stop keeping me signed in here':'This is my own device')+'</button></div></div>';
+ return h.slice(0,k)+b+h.slice(k)};
+var _vMoreL=vMore;vMore=function(){return _vMoreL()+'<div class="mg"><div class="mgt">Account</div><div class="mr" onclick="sbOut(0)"><span>Log out</span><span class="mrc">›</span></div></div>'};
+var _bnL=buildNav;buildNav=function(){_bnL();var n=document.querySelector('nav');if(n&&!n.querySelector('.lgo'))n.insertAdjacentHTML('beforeend','<button class="lgo" onclick="sbOut(0)">Log out</button>')};
+
+lockCk();
+render();
+initAuth();
+setTimeout(sbAsk,0);
+</script></body></html>
