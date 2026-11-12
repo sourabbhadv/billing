@@ -2671,6 +2671,87 @@ mBar=function(){_mbVy();
   if(bar)bar.style.display='none';if(fab)fab.classList.remove('show')}};
 
 
+/* ---------- VYAPAR-STYLE PHONE SCREENS 2: Sale view, Home Quick Links, bill More Options ---------- */
+(function(){
+ var st=document.createElement('style');
+ st.textContent='@media(max-width:899px){'+
+ '.sv{background:#fff;margin:-8px -10px;padding-bottom:150px;min-height:100vh}'+
+ '.sv .s3{display:flex;border-bottom:1px solid #e6e9f0}.sv .s3>div{flex:1;padding:12px 14px;border-left:1px solid #e6e9f0}.sv .s3>div:first-child{border-left:0}'+
+ '.sv .s3 small{display:block;color:#9097a8;font-size:15px}.sv .s3 b{font-size:19px;font-weight:500;color:#2d3350}'+
+ '.sv .fm{padding:14px;font-size:19px;color:#9097a8;border-bottom:8px solid #e3eefa}.sv .fm b{font-weight:500;color:#2d3350;margin-left:8px;text-transform:uppercase}'+
+ '.sv .pb{text-align:right;padding:16px 14px 8px;font-size:16px;color:#7b8194}.sv .pb b{color:#e8213a;font-weight:500;margin-left:6px}.sv .pb b.z{color:#16b36a}'+
+ '.sv .ff{position:relative;border:1.5px solid #b9bdd6;border-radius:10px;margin:14px 14px 16px;padding:18px 14px 12px;font-size:21px;color:#2d3350;text-transform:uppercase}'+
+ '.sv .ff.ro{border-color:#d7dae8;color:#9097a8}.sv .ff label{position:absolute;top:-11px;left:12px;background:#fff;padding:0 4px;font-size:16px;color:#8b90ac;text-transform:none}'+
+ '.sv .bi{display:flex;align-items:center;gap:10px;margin:16px 14px 12px;background:#9cc9f7;color:#fff;border-radius:10px;padding:14px;font-size:20px;font-weight:500}'+
+ '.sv .bi i{width:30px;height:30px;border-radius:50%;background:#fff;color:#9cc9f7;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:16px}'+
+ '.sv .it{background:#f0f3f7;border-radius:10px;margin:12px 14px;padding:16px 14px}.sv .it .a{display:flex;justify-content:space-between;gap:10px;font-size:21px;font-weight:600;color:#2d3350;text-transform:uppercase}'+
+ '.sv .it .a span{flex:1;min-width:0}.sv .it .a em{font-style:normal;color:#9097a8;font-weight:500;font-size:16px;border:1px solid #9097a8;border-radius:4px;padding:0 8px;margin-right:10px;vertical-align:2px}'+
+ '.sv .it .b{display:flex;justify-content:space-between;gap:10px;margin-top:12px;font-size:18px;color:#7b8194}.sv .it .c{font-size:14px;color:#9097a8;margin-top:6px}'+
+ '.sv .tt{display:flex;justify-content:space-between;padding:6px 28px;font-size:17px;color:#7b8194}'+
+ '.sv .dc{padding:20px 14px 12px;font-size:21px;font-weight:600;color:#2d3350;border-top:8px solid #e3eefa;margin-top:14px}'+
+ '.sv .dr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;font-size:20px;color:#7b8194}'+
+ '.sv .bx{display:flex;gap:10px}.sv .bx span{border:1.5px solid #b9bdd6;border-radius:10px;padding:12px 14px;min-width:110px;text-align:right;color:#2d3350;font-size:21px}'+
+ '.sv .bx span.o{border-color:#ff9500;color:#ff9500;min-width:70px}'+
+ '.sv .tot{background:#f0f3f7;margin-top:12px;padding:12px 14px}.sv .tot .r{display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:21px;font-weight:600;color:#2d3350}'+
+ '.sv .tot .r.g{color:#16b36a}.sv .tot .r.d{color:#e8213a}.sv .tot .r em{font-style:normal;border-bottom:2px dashed #2d3350;min-width:42%;text-align:right;padding-bottom:4px}'+
+ '.sv .tot .r.g em,.sv .tot .r.d em{border-color:currentColor}'+
+ '.sv .ck{display:inline-flex;width:34px;height:34px;border-radius:7px;background:#8c8f9a;color:#fff;align-items:center;justify-content:center;font-size:22px;margin-right:12px;vertical-align:middle}'+
+ '.sv .ob{display:block;width:calc(100% - 28px);margin:16px 14px 0;border:1.5px solid #b9bdd6;background:#fff;border-radius:10px;padding:16px;font-size:20px;font-weight:600;color:#0a84ff;text-align:center}'+
+ '.sv .tn{margin:10px 14px 0;font-size:16px;color:#4a5068;line-height:1.5;display:none}'+
+ '.sv .ad{margin:14px;font-size:17px;color:#4a5068;line-height:1.5}.sv .ad small{display:block;color:#9097a8}'+
+ '.sv .ac{display:flex;flex-wrap:wrap;gap:10px;margin:16px 14px 0}.sv .ac button{flex:1 1 40%;background:#fff;border:1.5px solid #cfd5e3;color:#2d3350;border-radius:10px;padding:13px 8px;font-size:16px;width:auto;height:auto}'+
+ '.sf{position:fixed;left:0;right:0;bottom:0;z-index:12;display:flex;gap:14px;padding:14px 14px calc(16px + env(safe-area-inset-bottom,0px));background:#fff}'+
+ '.sf button{flex:1;border:0;border-radius:999px;font-size:21px;font-weight:600;padding:17px 8px;width:auto;height:auto}.sf .gy{background:#eeeef4;color:#7b8194}.sf .rd{background:#ee1b3c;color:#fff}'+
+ '.mqg i.qi{background:none;width:auto;height:auto;display:block}.mqg i.qi svg{width:56px;height:52px;display:block}'+
+ '}';
+ document.head.appendChild(st);
+})();
+function qiSvg(g){return '<i class="qi"><svg viewBox="0 0 56 52"><rect x="0" y="24" width="56" height="26" rx="5" fill="#7fb0ec"/><path d="M15 3h26v36l-4.3-3.2L32.5 39l-4.5-3.2L23.5 39l-4.2-3.2L15 39z" fill="#fff" stroke="#1f2437" stroke-width="2" stroke-linejoin="round"/>'+g+'</svg></i>'}
+var _vMHq=vMHome;
+vMHome=function(){var h=_vMHq();
+ h=h.replace('<i class="r">＋</i>',qiSvg('<path d="M28 12v14M21 19h14" stroke="#1f2437" stroke-width="2.4" stroke-linecap="round" fill="none"/>'))
+  .replace('<i>⇩</i>',qiSvg('<path d="M28 11v15M22 20l6 6 6-6" stroke="#1f2437" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'))
+  .replace('<i>↩</i>',qiSvg('<path d="M22 14l-4 4 4 4M18 18h9a5 5 0 0 1 0 10h-3" stroke="#1f2437" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'))
+  .replace('<i>☰</i>',qiSvg('<path d="M21 14h14M21 20h14M21 26h9" stroke="#1f2437" stroke-width="2.4" stroke-linecap="round" fill="none"/>'));
+ return h};
+function svF(l,v,ro){return '<div class="ff'+(ro?' ro':'')+'"><label>'+l+'</label>'+(v||'&nbsp;')+'</div>'}
+function vMBill(b){var p=P(b.pid),pd=paidOn(b),due=Math.max(b.total-pd,0),sub=0,qty=0,disc=+b.disc||0,ad=(typeof bAddr==='function')?bAddr(b):{a:'',s:''},pb=p?bal(p):0,dd=new Date(b.date);
+ b.lines.forEach(function(l){sub+=+l.amt||0;qty+=+l.qty||0});
+ var pct=sub>0&&disc>0?Math.round(disc/sub*10000)/100:0;
+ var h='<div class="sv"><div class="s3"><div><small>Invoice No.</small><b>'+b.no+'</b></div><div><small>Date</small><b>'+dd.toLocaleDateString('en-GB')+'</b></div><div><small>Time</small><b>'+dd.toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}).toUpperCase()+'</b></div></div>'
+  +'<div class="fm">Firm Name:<b>'+esc(D.shop||'')+'</b></div>'
+  +'<div class="pb">Party Balance:<b class="'+(Math.abs(pb)<0.01?'z':'')+'">'+money(Math.abs(pb))+'</b></div>'
+  +svF('Customer Name *',esc(p?p.name:'?'))+svF('Billing Name(Optional)',esc(p?p.name:'?'))+svF('Phone Number',esc(p&&p.phone||''),1)
+  +'<div class="bi"><i>⌄</i>Billed Items</div>'
+  +b.lines.map(function(l,k){return '<div class="it"><div class="a"><span><em>#'+(k+1)+'</em>'+esc(l.name)+'</span><span style="flex:none">'+money(l.amt).replace(/^₹\s?/,'')+'</span></div><div class="b"><span>Item Subtotal</span><span>'+l.qty+' '+esc(l.unit||'')+' x '+l.rate+' = '+money(l.amt).replace(/^₹\s?/,'')+'</span></div>'+((+dq(l)>0||l.qty)?'<div class="c">Sent '+dq(l)+' / '+l.qty+' '+esc(l.unit||'')+'</div>':'')+'</div>'}).join('')
+  +'<div class="tt"><span>Total Disc: '+disc.toFixed(2)+'</span><span>Total Tax Amt: 0.00</span></div><div class="tt"><span>Total Qty: '+qty+'</span><span>Subtotal: '+sub.toFixed(2)+'</span></div>'
+  +'<div class="dc">Discount &amp; Charges</div><div class="dr"><span>Discount</span><div class="bx"><span class="o">'+pct+' %</span><span>₹ '+disc.toFixed(2)+'</span></div></div>'
+  +'<div class="tot"><div class="r"><span>Total Amount</span><em>₹ '+(+b.total).toFixed(2)+'</em></div><div class="r"><span><i class="ck">✓</i>Received</span><em>₹ '+pd.toFixed(2)+'</em></div><div class="r '+(due>0.009?'d':'g')+'"><span>Balance Due</span><em>₹ '+due.toFixed(2)+'</em></div></div>'
+  +'<button class="ob" onclick="var n=this.nextElementSibling;n.style.display=n.style.display===\'block\'?\'none\':\'block\'">Transportation Details</button><div class="tn">Transport: '+esc(b.tn||'-')+'<br>Vehicle: '+esc(b.vn||'-')+'</div>'
+  +((ad.a||ad.s)?'<div class="ad">'+(ad.a?'<small>Billing address</small>'+nl2(ad.a):'')+(ad.s?'<small style="margin-top:8px">Shipping address</small>'+nl2(ad.s):'')+'</div>':'')
+  +(b.x?'':'<div class="ac"><button onclick="recvBill('+b.no+')">Receive payment</button><button onclick="openB='+b.no+';render()">Dispatch (items sent)</button><button onclick="shareBill('+b.no+')">Bill picture</button><button onclick="printBill('+b.no+')">Print</button></div>')
+  +'</div><div class="sf"><button class="gy" onclick="delBill('+b.no+')">Delete</button>'+(b.x?'<button class="rd" onclick="restoreBill('+b.no+')">Restore</button>':'<button class="rd" onclick="editBill('+b.no+')">Edit</button>')+'</div>';
+ return h}
+var _vbVy=vBillView;
+vBillView=function(){if(isM()){try{var b=bl(viewB);if(b&&!form&&!sub&&!openB)return vMBill(b)}catch(e){try{console.error('vy2',e)}catch(_){}}}return _vbVy()};
+var _mb2=mBar;
+mBar=function(){_mb2();if(!isM())return;
+ var top=$('#mtop'),bar=$('#mbar'),fab=document.getElementById('mfab');
+ if(viewB&&bl(viewB)&&!form&&!sub&&!openB&&!viewD){
+  if(top){top.innerHTML='<button onclick="goBack()">←</button><div class="mttl">Sale</div><button onclick="wa('+viewB+')">'+VIC.share.replace('<svg','<svg style="width:22px;height:22px;stroke:#2d3350;fill:none;stroke-width:1.8"')+'</button>';top.style.display=''}
+  if(bar)bar.style.display='none';if(fab)fab.classList.remove('show')}};
+function dupBill(no){var b=bl(no);if(!b)return;var p=P(b.pid);leave();
+ draft={pid:b.pid,name:p?p.name:'',phone:(p&&p.phone)||'',lines:b.lines.map(function(l){return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,loc:l.loc}})};form=true;pg='si';tab='bill';render()}
+function retBill(no){var b=bl(no);if(!b)return;var p=P(b.pid);leave();rdraft={name:p?p.name:'',lines:[]};pg='sret';sub='ret';render()}
+function payHist(no){var a=D.pays.filter(function(x){return !x.x&&(x.bn===no||x.note==='With bill #'+no)}),r=a.map(function(x){return [mDate(x.date)+'  ·  '+money(x.amt),'']});
+ vSheet('Payment History',r.length?r:[['No payments yet','']])}
+var _bm2=billMenu;
+billMenu=function(no){if(!isM())return _bm2(no);var b=bl(no);if(!b)return;
+ var a=[['Duplicate','dupBill('+no+')'],['Return','retBill('+no+')'],['Payment History','payHist('+no+')'],['Share as Image','shareBill('+no+')'],['Receive payment','recvBill('+no+')'],['Dispatch (items sent)','openB='+no+';render()'],['Print','printBill('+no+')'],['WhatsApp message','wa('+no+')']];
+ a.unshift(['View / Edit',"viewB="+no+";render()"]);a.push(b.x?['Restore bill','restoreBill('+no+')']:['Cancel bill','cancelBill('+no+')']);a.push(['Delete','delBill('+no+')']);
+ vSheet('More Options',a)};
+
+
 /* ---------- SPEED: fewer repeated searches and re-reads (does not change any result) ---------- */
 var QJ=new WeakMap();
 function csFast(r){var q=JSON.stringify(r),e=QJ.get(r);if(e&&e.q===q)return e.s;var v=cs(r);QJ.set(r,{q:q,s:v});return v}
@@ -2688,7 +2769,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 12-Nov-D';
+var APPV='App version 12-Nov-E';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
