@@ -2967,7 +2967,7 @@ function logoutNow(msg,all,note){
  try{flushSaves()}catch(e){}
  if(note){try{sessionStorage.setItem('sbMsg',note)}catch(e){}}
  var done=0,fin=function(){if(done)return;done=1;try{Object.keys(localStorage).forEach(function(k){if(k==='sb'||k==='sbDec'||k==='sbTrust'||k==='sbLast'||/^sb-.*-auth-token/.test(k))localStorage.removeItem(k)});sessionStorage.removeItem('sbAlive')}catch(e){}location.reload()};
- setTimeout(function(){try{Promise.resolve(SB&&SB.auth.signOut(all?{scope:'global'}:undefined)).then(fin,fin)}catch(e){fin()}},900);
+ setTimeout(function(){try{Promise.resolve(SB&&SB.auth.signOut({scope:all?'global':'local'})).then(fin,fin)}catch(e){fin()}},900);
  setTimeout(fin,4000)}
 function sbOut(all){
  var w=(typeof synced!=='undefined'&&!synced)?'\n\nNote: cloud sync has not finished, so very recent changes on this device may be lost.':'';
