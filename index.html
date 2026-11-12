@@ -3501,6 +3501,87 @@ render();
 })();
 </script>
 <script>
+/* ===== COST ENGINE: purchase-wise (FIFO) cost + assumed profit for items with no purchase price ===== */
+(function(){
+var CE={c:null,t:0,EST:{}};window.CE=CE;
+CE.pct=function(){var v=PS().estp;v=(v==null||v==='')?10:+v;return isNaN(v)?10:Math.max(0,Math.min(90,v))};
+CE.setPct=function(v){v=+v;if(isNaN(v)||v<0||v>90)return alert('Enter a profit % between 0 and 90');PS().estp=v;save();render()};
+CE.lots={};CE.on=function(){return PS().est!==0};CE.noBuy=function(i){CE.get();return !(+i.buy>0)&&!CE.lots[i.id]};
+function ik(l){return (l.iid&&I(l.iid))||findI(l.name)||null}
+function ord(e){return e.t==='p'?0:e.t==='r'?1:2}
+CE.build=function(){
+ var M=new Map(),ev={},p=CE.pct()/100,on=CE.on();CE.lots={};
+ try{
+ function push(i,e){(ev[i.id]=ev[i.id]||[]).push(e)}
+ D.bills.forEach(function(b){if(b.x)return;var sub=0;(b.lines||[]).forEach(function(l){sub+=+l.amt||0});var k=sub>0?Math.min(1,b.total/sub):1;
+  (b.lines||[]).forEach(function(l){var i=ik(l);if(!i)return;var q=+l.qty||0;push(i,{t:'s',d:b.date,q:q,l:l,v:((+l.amt)||(q*(+l.rate||0)))*k})})});
+ D.pays.forEach(function(x){if(x.x||!x.ret)return;(x.lines||[]).forEach(function(l){var i=ik(l);if(!i)return;var q=+l.qty||0;push(i,{t:'r',d:x.date,q:q,l:l,v:q*(+l.rate||0)})})});
+ D.docs.forEach(function(d){if(d.x||(d.t!=='pur'&&d.t!=='pret'))return;(d.lines||[]).forEach(function(l){var i=ik(l);if(!i)return;push(i,{t:d.t==='pur'?'p':'o',d:d.date,q:+l.qty||0,c:+l.rate||0})})});
+ Object.keys(ev).forEach(function(id){var i=I(id),E=ev[id];if(!i)return;
+  E.sort(function(a,b){return a.d-b.d||ord(a)-ord(b)});
+  var lots=[],base=0,j;for(j=0;j<E.length;j++)if(E[j].t==='p'&&E[j].c>0){if(!base)base=E[j].c;CE.lots[id]=E[j].c}
+  if(!base)base=+i.buy>0?+i.buy:0;
+  var last=base;
+  E.forEach(function(e){
+   if(e.t==='p'){if(e.q>0)lots.push({q:e.q,c:e.c});return}
+   if(e.t==='r'){var c=last>0?last:0,q=e.q;if(c>0){lots.unshift({q:q,c:c});M.set(e.l,{q:q,c:c*q,e:0})}else{var ec=on?e.v*(1-p):0;M.set(e.l,{q:q,c:ec,e:ec,f:1})}return}
+   var need=e.q,cost=0,est=0,fl=0;
+   while(need>1e-9&&lots.length){var L=lots[0],tk=Math.min(need,L.q);cost+=tk*L.c;L.q-=tk;need-=tk;if(L.q<=1e-9)lots.shift()}
+   if(need>1e-9){if(base>0)cost+=need*base;else if(e.t==='s'){var ec2=on?e.v*(e.q>0?need/e.q:0)*(1-p):0;cost+=ec2;est+=ec2;fl=1}}
+   if(e.t==='s'){M.set(e.l,{q:e.q,c:cost,e:est,f:fl});if(!est&&e.q>0&&cost>0)last=cost/e.q}
+  })});
+ }catch(err){console.error('cost engine',err)}
+ CE.c=M;CE.t=Date.now();return M};
+CE.get=function(){return (CE.c&&Date.now()-CE.t<4000)?CE.c:CE.build()};
+CE.rec=function(l){return CE.get().get(l)||null};
+CE.unit=function(l){var r=CE.rec(l);
+ if(r&&r.q>0){if(r.f)CE.EST[l.name]=1;return r.c/r.q}
+ var i=ik(l);if(i&&+i.buy>0)return +i.buy;
+ CE.EST[l.name]=1;return CE.on()?(+l.rate||0)*(1-CE.pct()/100):0};
+itemBuy=CE.unit;
+missNote=function(){var n=Object.keys(CE.EST).length;if(!n)return '';return CE.on()?'<div class="mu" style="margin-top:6px">ⓘ '+n+' item(s) sold have no purchase price, so their profit is assumed to be '+CE.pct()+'% of the sale price (approximate). Add the real price in Items → No purchase price to make it exact.</div>':'<div class="mu" style="margin-top:6px">⚠ '+n+' item(s) sold have no purchase price. Their cost is counted as 0, so profit looks higher than real. You can turn on the assumed profit in Settings.</div>'};
+var _rep=rep;rep=function(k){CE.EST={};return _rep.apply(this,arguments)};
+var _svC=save;save=function(){CE.c=null;return _svC.apply(this,arguments)};
+var _rnC=render;render=function(){CE.c=null;CE.EST={};return _rnC.apply(this,arguments)};
+
+/* ---- Items: separate list for items with no purchase price (same look as the existing Items screens) ---- */
+CE.cnt=function(){return D.items.filter(CE.noBuy).length};
+CE.setBuy=function(id){var e=document.getElementById('nb_'+id),v=e?+e.value:0,i=I(id);if(!i)return;if(!(v>0))return alert('Enter the purchase price');i.buy=v;save();render()};
+CE.openItem=function(id){IFL='all';selI=id;iform=null;render()};
+CE.sold=function(){var sold={};D.bills.forEach(function(b){if(b.x)return;(b.lines||[]).forEach(function(l){var i=ik(l);if(!i)return;var o=sold[i.id]||(sold[i.id]={q:0,r:0});o.q+=+l.qty||0;o.r+=+l.amt||0})});return sold};
+CE.list=function(){var sold=CE.sold();return {sold:sold,L:D.items.filter(CE.noBuy).sort(function(a,b){return ((sold[b.id]?sold[b.id].r:0)-(sold[a.id]?sold[a.id].r:0))||a.name.localeCompare(b.name)})}};
+CE.note=function(n,tr){var p=CE.pct();return '<div class="mu" style="margin:4px 2px 8px">'+(CE.on()?'Profit on these items is assumed to be <b>'+p+'%</b> of the sale price in Reports and Analytics'+(tr?' (sales so far '+money(tr)+', assumed profit about '+money(tr*p/100)+')':'')+'.':'Assumed profit is <b>OFF</b>, so their cost is counted as 0 in reports.')+' Change this in <a href="#" onclick="sTab=\'gen\';nav(\'set\');return false">Settings</a>. Type the purchase price and Save: the item leaves this list. The price also applies to its old sales until you record real purchase bills.</div>'};
+CE.vNoM=function(){var o=CE.list(),tr=0,h='';o.L.forEach(function(i){if(o.sold[i.id])tr+=o.sold[i.id].r});
+ h+='<div class="mc" style="padding:9px 12px"><b>'+o.L.length+' item(s) without purchase price</b>'+CE.note(o.L.length,tr)+'</div>';
+ o.L.forEach(function(i){var s=o.sold[i.id];
+  h+='<div class="mc" data-n="'+esc(i.name.toLowerCase())+'"><div class="t" onclick="CE.openItem(\''+i.id+'\')"><b style="text-transform:none">'+esc(i.name)+'</b></div>'
+  +'<div class="mc3" style="gap:0;justify-content:space-between"><div><span>Sale Price</span><b>'+money(i.rate)+'</b></div><div><span>Sold</span><b>'+(s?money(s.r):'-')+'</b></div><div style="min-width:60px"><span>Stock</span><b class="'+(i.qty<0?'red':'grn')+'">'+fmtQ(i.qty)+'</b></div></div>'
+  +'<div style="display:flex;gap:6px;margin-top:8px"><input id="nb_'+i.id+'" type="number" inputmode="decimal" placeholder="Purchase price" style="margin:0" onkeydown="if(event.key===\'Enter\')CE.setBuy(\''+i.id+'\')"><button class="b" onclick="CE.setBuy(\''+i.id+'\')">Save</button></div></div>'});
+ if(!o.L.length)h+='<div class="mc mu">All items have a purchase price</div>';return h};
+CE.vNoD=function(){var o=CE.list(),tr=0,p=CE.pct();o.L.forEach(function(i){if(o.sold[i.id])tr+=o.sold[i.id].r});
+ var rows=o.L.map(function(i){var s=o.sold[i.id];return '<tr data-n="'+esc(i.name.toLowerCase())+'"><td><a href="#" onclick="CE.openItem(\''+i.id+'\');return false">'+esc(i.name)+'</a></td><td>'+money(i.rate)+'</td><td>'+(s?rnd(s.q)+' '+esc(i.unit||'')+' = '+money(s.r):'-')+'</td><td>'+(s&&CE.on()?money(s.r*p/100):'-')+'</td><td class="'+(i.qty<0?'red':'grn')+'">'+fmtQ(i.qty)+' '+esc(i.unit||'')+'</td><td style="width:130px"><input id="nb_'+i.id+'" type="number" inputmode="decimal" placeholder="Price" onkeydown="if(event.key===\'Enter\')CE.setBuy(\''+i.id+'\')"></td><td><button class="s addb" onclick="CE.setBuy(\''+i.id+'\')">Save</button></td></tr>'}).join('');
+ return '<div class="card"><b>'+o.L.length+' item(s) without purchase price</b>'+CE.note(o.L.length,tr)+(o.L.length>8?'<input placeholder="Search item" oninput="flt(this.value)">':'')+'</div>'
+  +(o.L.length?'<div class="card" style="overflow-x:auto"><table class="tbl"><tr><th>Item</th><th>Sale price</th><th>Sold so far</th><th>Assumed profit</th><th>Stock</th><th>Purchase price</th><th></th></tr>'+rows+'</table></div>':'<div class="card mu">All items have a purchase price</div>')};
+/* phone: same filter menu + cards as the normal Items list */
+itemFilterMenu=function(){mItems('Filter items',[['All items',"IFL='all';render()"],['In stock',"IFL='in';render()"],['Low stock',"IFL='low';render()"],['Out of stock / negative',"IFL='out';render()"],['No purchase price ('+CE.cnt()+')',"IFL='nobuy';render()"]])};
+var _vMI=vMItems;vMItems=function(){var h=_vMI.apply(this,arguments),n=CE.cnt();
+ if(IFL==='nobuy'){var m=/^<div class="msrw">[\s\S]*?<\/button><\/div>/.exec(h);return (m?m[0]:'')+CE.vNoM()}
+ if(n&&IFL==='all')h=h.replace(/(<\/button><\/div>)/,'$1<div class="mc" onclick="IFL=\'nobuy\';render()" style="padding:9px 12px;display:flex;justify-content:space-between;align-items:center"><span class="red"><b>⚠ '+n+' item(s) have no purchase price</b></span><span class="mu">View ›</span></div>');
+ return h};
+/* desktop: one more tab in the same tab bar as PRODUCTS */
+var _vI=vItems;vItems=function(){var h=_vI.apply(this,arguments);if(isM()||iform)return h;var n=CE.cnt(),nb=IFL==='nobuy',
+  tabs='<span class="'+(nb?'':'on')+'" onclick="IFL=\'all\';render()">PRODUCTS</span><span class="'+(nb?'on':'')+'" onclick="IFL=\'nobuy\';render()">NO PURCHASE PRICE'+(n?' <b class="red">('+n+')</b>':'')+'</span>';
+ if(nb)return '<div class="vi"><div class="vtab">'+tabs+'</div>'+CE.vNoD()+'</div>';
+ return h.replace('<span class="on">PRODUCTS</span>',tabs)};
+/* Settings: on/off switch, same look as the other options (a card on desktop, a collapsible group on phone) */
+var _vSE=vSettings;vSettings=function(){var h=_vSE.apply(this,arguments);if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');if(k<0)return h;
+ var sec='<div class="sec"><h3>Profit estimate</h3>'+ck('est','Assume profit when purchase price is missing','Items with no purchase price are costed at (100 − profit %) of the sale price, so reports and Analytics show an approximate profit instead of counting the whole sale as profit. Turn off to count their cost as 0 as before.')
+  +'<div class="ck" style="cursor:default"><span style="flex:1">Assumed profit (%)</span><input type="number" min="0" max="90" inputmode="decimal" style="width:72px;margin:0" value="'+CE.pct()+'" onchange="CE.setPct(this.value)"></div></div>';
+ var r=h.slice(0,k)+sec+h.slice(k);return r};
+(function(){var st=document.createElement('style');st.textContent='.vtab span{cursor:pointer}.vtab span b{font-weight:700}';document.head.appendChild(st)})();
+})();
+</script>
+<script>
 /* ================= ANALYTICS: sales, margin, pricing, stock planner ================= */
 (function(){
 var DY=864e5,AN={per:'30',m:'r',tab:'ov',a:'',b:''},WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -3516,27 +3597,28 @@ function rng(){var n=Date.now(),t0=new Date();t0.setHours(0,0,0,0);var d0=t0.get
  else if(p==='year')f=new Date(Y,0,1).getTime();else if(p==='custom'){f=AN.a?ld(AN.a):0;t=AN.b?ld(AN.b)+DY:n+1}
  else if(p==='all'){f=n;D.bills.forEach(function(b){if(!b.x&&b.date<f)f=b.date})}else f=d0-(+p-1)*DY;
  return [f,t]}
-function agg(f,t){var A={it:{},rev:0,crev:0,cost:0,n:0,disc:0,wd:[0,0,0,0,0,0,0],pr:{},ser:[]},mid=(f+t)/2;
+function agg(f,t){var A={it:{},rev:0,crev:0,cost:0,n:0,disc:0,estRev:0,estP:0,wd:[0,0,0,0,0,0,0],pr:{},ser:[]},mid=(f+t)/2;
  D.bills.forEach(function(b){if(b.x||b.date<f||b.date>=t)return;var sub=0,seen={},bc=0;b.lines.forEach(function(l){sub+=+l.amt||0});var k=sub>0?b.total/sub:1;
   A.n++;A.rev+=b.total;A.disc+=+b.disc||0;A.wd[new Date(b.date).getDay()]+=b.total;
-  b.lines.forEach(function(l){var ky=key(l),o=A.it[ky]||(A.it[ky]={q:0,r:0,c:0,n:0,h1:0,h2:0}),c=(+l.qty||0)*itemBuy(l);
-   if(itemBuy(l)>0)A.crev+=(+l.amt||0)*k;o.q+=+l.qty||0;o.r+=(+l.amt||0)*k;o.c+=c;o.n++;o[b.date<mid?'h1':'h2']+=+l.qty||0;bc+=c;seen[ky]=1});
+  b.lines.forEach(function(l){var ky=key(l),o=A.it[ky]||(A.it[ky]={q:0,r:0,c:0,n:0,h1:0,h2:0,rq:0,rr:0,rc:0,er:0,cl:null,ch:null}),rc=CE.rec(l)||{q:0,c:(+l.qty||0)*itemBuy(l),e:0},rv=(+l.amt||0)*k,es=!!rc.f,inc=!es||CE.on(),c=inc?rc.c:0;
+   if(inc)A.crev+=rv;if(es&&inc){A.estRev+=rv;A.estP+=rv-c;o.er+=rv}else if(!es){o.rq+=+l.qty||0;o.rr+=rv;o.rc+=c;if(rc.q>0){var uc=rc.c/rc.q;if(o.cl==null||uc<o.cl)o.cl=uc;if(o.ch==null||uc>o.ch)o.ch=uc}}
+   o.q+=+l.qty||0;o.r+=rv;o.c+=c;o.n++;o[b.date<mid?'h1':'h2']+=+l.qty||0;bc+=c;seen[ky]=1});
   A.cost+=bc;A.ser.push([b.date,b.total,b.total-bc]);
   var ks=Object.keys(seen).sort();for(var i=0;i<ks.length;i++)for(var j=i+1;j<ks.length;j++){var pk=ks[i]+'|'+ks[j];A.pr[pk]=(A.pr[pk]||0)+1}});
  return A}
 function rows(A,days){var first={},last={},now=Date.now(),out=[],seen={},tm=S('tm',20);
  D.bills.forEach(function(b){if(b.x)return;b.lines.forEach(function(l){var k=key(l);if(!first[k]||b.date<first[k])first[k]=b.date;if(!last[k]||b.date>last[k])last[k]=b.date})});
- function mk(i,k){var o=A.it[k]||{q:0,r:0,c:0,n:0,h1:0,h2:0},buy=i?+i.buy||0:0,stock=i?+i.qty||0:0,ed=Math.max(7,Math.min(days,(now-(first[k]||now))/DY)),vel=o.q/ed,avg=o.q?o.r/o.q:0,
+ function mk(i,k){var o=A.it[k]||{q:0,r:0,c:0,n:0,h1:0,h2:0,rq:0,rr:0,rc:0,er:0,cl:null,ch:null},buy0=i?(+i.buy>0?+i.buy:(CE.get()&&CE.lots[i.id])||0):0,buy=buy0>0?buy0:(i&&+i.rate>0?i.rate*(1-CE.pct()/100):0),stock=i?+i.qty||0:0,ed=Math.max(7,Math.min(days,(now-(first[k]||now))/DY)),vel=o.q/ed,avg=o.q?o.r/o.q:0,
   dd=last[k]?(now-last[k])/DY:(stock>0?999:0);
   return {id:k,name:i?i.name:nm(k),unit:i?i.unit:o.unit||'',q:o.q,r:o.r,n:o.n,p:o.r-o.c,buy:buy,list:i?+i.rate||0:0,avg:avg,stock:stock,vel:vel,cover:vel>0?stock/vel:Infinity,
-   mg:(o.r&&buy)?(o.r-o.c)/o.r*100:null,tr:o.q>=4?(o.h2>o.h1*1.25?1:o.h2<o.h1*.75?-1:0):0,dd:dd,dead:stock>0&&dd>=S('dead',45),inv:stock*buy}}
+   mg:o.rr>0?(o.rr-o.rc)/o.rr*100:null,rq:o.rq,ra:o.rq?o.rr/o.rq:0,cs:o.rq?o.rc/o.rq:0,cl:o.cl,ch:o.ch,er:o.er,noc:!!i&&!(buy0>0),be:!(buy0>0),tr:o.q>=4?(o.h2>o.h1*1.25?1:o.h2<o.h1*.75?-1:0):0,dd:dd,dead:stock>0&&dd>=S('dead',45),inv:stock*buy}}
  D.items.forEach(function(i){seen[i.id]=1;out.push(mk(i,i.id))});Object.keys(A.it).forEach(function(k){if(!seen[k])out.push(mk(null,k))});
  var sold=out.filter(function(r){return r.q>0}),v=sold.map(function(r){return r.vel}).sort(function(a,b){return a-b}),rv=sold.map(function(r){return r.r}).sort(function(a,b){return a-b}),
   p75=v[Math.floor(v.length*.75)]||0,p25=v[Math.floor(v.length*.25)]||0,med=rv[Math.floor(rv.length/2)]||0;
  out.forEach(function(r){r.fast=r.q>0&&sold.length>=4&&r.vel>=p75;r.slow=r.q>0&&sold.length>=4&&r.vel<=p25;r.hiV=r.q>0&&r.r>=med;r.hiM=r.mg!=null&&r.mg>=tm});
  return out}
 function sug(r){var tm=S('tm',20),mm=S('mm',8),cv=S('cov',30);if(!r.n&&!(r.stock>0))return null;
- if(r.n&&r.buy&&r.avg&&r.avg<r.buy)return {t:'loss',c:'red',p:rp(r.buy*(1+mm/100)),w:'Sold below cost (avg ₹'+Math.round(r.avg)+' vs cost ₹'+Math.round(r.buy)+'). Raise the price.'};
+ if(r.rq>0&&r.ra<r.cs*0.995)return {t:'loss',c:'red',p:rp(Math.max(r.buy,r.cs)*(1+mm/100)),w:'Sold below its purchase cost: avg sale ₹'+Math.round(r.ra)+' vs cost ₹'+Math.round(r.cs)+' (each sale is matched with the purchase it came from)'+(r.buy>r.cs*1.02?'. Latest purchase price is ₹'+Math.round(r.buy):'')+'. Raise the price.'};
  if(r.fast&&r.mg!=null&&r.mg<tm)return {t:'raise',c:'grn',p:rp(Math.max(r.list,r.avg)*1.04),w:'Top mover but margin is only '+pc(r.mg)+'. A ~4% rise rarely hurts a fast product.'};
  if(r.stock>0&&r.dead)return {t:'clear',c:'red',p:rp(Math.max(r.buy*1.03,(r.list||r.buy)*.9)),w:(r.dd>900?'Never sold':'No sale for '+Math.round(r.dd)+' days')+', ₹'+Math.round(r.inv).toLocaleString('en-IN')+' locked in stock. Clear it at a lower price.'};
  if(r.slow&&r.stock>0&&r.cover>cv*2&&r.mg!=null&&r.mg>mm+6)return {t:'cut',c:'',p:rp(Math.max(r.buy*(1+mm/100),r.avg*.93)),w:'Slow mover with '+Math.round(r.cover)+' days of stock. A small discount still keeps margin above '+mm+'%.'};
@@ -3576,11 +3658,11 @@ function head(f,t){var P=[['7','Last 7 days'],['30','Last 30 days'],['90','Last 
   +'<button class="s" onclick="render()">↻ Refresh</button><span class="mu">Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+'</span></div>'
   +'<div class="antabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+T.map(function(x){return '<button class="'+(AN.tab===x[0]?'b':'s')+'" onclick="anSet(\'tab\',\''+x[0]+'\')">'+x[1]+'</button>'}).join('')+'</div></div>'}
 function sets(){var f=function(k,l,d,h){return '<label class="mu" style="display:block">'+l+'<input type="number" min="0" value="'+S(k,d)+'" onchange="anS(\''+k+'\',this.value)"></label>'};
- return '<details class="card"><summary><b>Rules used for suggestions</b></summary><div class="g" style="margin-top:8px">'+f('tm','Target margin %',20)+f('mm','Lowest safe margin %',8)+f('lead','Supplier delivery days',7)+f('cov','Stock to hold (days of sales)',30)+f('dead','Not moving after (days)',45)+'</div><label class="ck" style="display:flex;gap:10px;align-items:center;margin-top:10px"><input type="checkbox" style="width:22px;height:22px;margin:0" '+(S('shownc',0)?'checked':'')+' onchange="anS(\'shownc\',this.checked?1:0)"><span>Also show items without a purchase price</span></label><div class="mu">Off: they are left out of profit, margin and rankings. Margin uses the purchase price saved on each item.</div></details>'}
-function ov(A,R,pv,f,t){var sn=S('shownc',0),bs=sn?A.rev:A.crev,gp=bs-A.cost,pg=pv?(sn?pv.rev:pv.crev)-pv.cost:0,inv=R.reduce(function(s,r){return s+r.inv},0),dv=R.filter(function(r){return r.dead}).reduce(function(s,r){return s+r.inv},0),nob=window.__anHid||0;
+ return '<details class="card"><summary><b>Rules used for suggestions</b></summary><div class="g" style="margin-top:8px">'+f('tm','Target margin %',20)+f('mm','Lowest safe margin %',8)+f('lead','Supplier delivery days',7)+f('cov','Stock to hold (days of sales)',30)+f('dead','Not moving after (days)',45)+'</div><div class="mu" style="margin-top:10px">Items with no purchase price: assumed profit is <b>'+(CE.on()?'ON ('+CE.pct()+'%)':'OFF')+'</b>. Change it in <a href="#" onclick="sTab=\'gen\';nav(\'set\');return false">Settings</a>. Margin uses the real cost of the purchase each sale came from (oldest stock sold first).</div></details>'}
+function ov(A,R,pv,f,t){var sn=CE.on(),bs=A.crev,gp=bs-A.cost,pg=pv?pv.crev-pv.cost:0,inv=R.reduce(function(s,r){return s+r.inv},0),dv=R.filter(function(r){return r.dead}).reduce(function(s,r){return s+r.inv},0),nob=window.__anHid||0;
  var ins=insights(A,R,pv);
  return '<div class="stats">'+kpi('Sales',money(A.rev),pv&&dlt(A.rev,pv.rev))+kpi('Gross profit',money(gp),pv&&dlt(gp,pg))+kpi('Margin',bs?pc(gp/bs*100):'-',null)+kpi('Bills',A.n,pv&&dlt(A.n,pv.n))+kpi('Average bill',money(Math.round(A.n?A.rev/A.n:0)),null)+kpi('Discount given',money(A.disc),null)+kpi('Stock value (cost)',money(inv),null)+kpi('Not-moving stock',money(dv),null)+'</div>'
- +(nob?'<div class="card mu">'+(sn?'⚠ '+nob+' sold item(s) have no purchase price, so profit looks higher than real.':nob+' item(s) without a purchase price are hidden from profit and rankings.')+' Add the price in Items → Edit, or change this in "Rules used for suggestions" below.</div>':'')
+ +(nob?'<div class="card mu">'+(sn?'ⓘ '+nob+' sold item(s) have no purchase price, so their profit is assumed to be '+CE.pct()+'% of sale price (about '+money(A.estP)+' of the profit above is this estimate). ':nob+' item(s) without a purchase price are left out of profit and rankings. ')+'<a href="#" onclick="IFL=\'nobuy\';nav(\'items\');return false">See the list and add prices →</a></div>':'')
  +'<div class="card"><b>Smart insights</b>'+(ins.map(function(x){return '<div class="row" style="padding:8px 0;border-top:1px solid var(--bd);cursor:pointer" onclick="anSet(\'tab\',\''+x[2]+'\')"><span>'+x[0]+' '+esc(x[1])+'</span><span class="mu">›</span></div>'}).join('')||'<div class="mu">Make some sales to see insights.</div>')+'</div>'
  +'<div class="card"><b>Sales trend</b>'+trend(A,f,t)+'</div>'}
 function prod(A,R){var m=AN.m,M=[['r','Sales'],['q','Quantity'],['p','Profit']],tp=top(R,m,8),mgS=R.filter(function(r){return r.q>0&&r.mg!=null}),
@@ -3588,7 +3670,7 @@ function prod(A,R){var m=AN.m,M=[['r','Sales'],['q','Quantity'],['p','Profit']],
  stars=mgS.filter(function(r){return r.hiV&&r.hiM}).sort(function(a,b){return b.p-a.p}).slice(0,6),low=R.filter(function(r){return r.q>0&&!r.hiV&&!r.hiM}).sort(function(a,b){return a.r-b.r}).slice(0,6),
  nos=R.filter(function(r){return r.q===0&&r.stock>0}).sort(function(a,b){return b.inv-a.inv}).slice(0,8),fm=function(v){return m==='q'?(Math.round(v*100)/100):money(v)};
  var lst=function(L,f){return L.length?L.map(function(r){return '<div class="row" style="padding:5px 0;border-top:1px solid var(--bd)"><span>'+esc(r.name)+'</span><span class="mu">'+f(r)+'</span></div>'}).join(''):'<div class="mu">Nothing here right now.</div>'};
- return '<div class="card"><div class="row"><b>Top sellers</b><span style="display:flex;gap:4px">'+M.map(function(x){return '<button class="'+(m===x[0]?'b':'s')+'" onclick="anSet(\'m\',\''+x[0]+'\')">'+x[1]+'</button>'}).join('')+'</span></div>'+hbars(tp.map(function(r){return [r.name,r[m],money(r.r)+' · '+(Math.round(r.q*100)/100)+' '+esc(r.unit)+(r.mg!=null?' · margin '+pc(r.mg):'')]}),fm)+'</div>'
+ return '<div class="card"><div class="row"><b>Top sellers</b><span style="display:flex;gap:4px">'+M.map(function(x){return '<button class="'+(m===x[0]?'b':'s')+'" onclick="anSet(\'m\',\''+x[0]+'\')">'+x[1]+'</button>'}).join('')+'</span></div>'+hbars(tp.map(function(r){return [r.name,r[m],money(r.r)+' · '+(Math.round(r.q*100)/100)+' '+esc(r.unit)+(r.mg!=null?' · margin '+pc(r.mg):'')+(r.noc?' · cost assumed':'')]}),fm)+'</div>'
  +'<div class="card"><b>Product matrix</b><div class="mu">Sales (vs your median item) × margin (vs target '+S('tm',20)+'%)</div><div class="g" style="margin-top:8px">'
  +'<div class="ok"><b>⭐ Stars</b><div class="mu">Keep in stock, hold price</div>'+lst(stars,function(r){return pc(r.mg)})+'</div><div class="card" style="margin:0"><b>🚚 Volume drivers</b><div class="mu">Sell well, thin margin: raise price or cut cost</div>'+lst(drv,function(r){return pc(r.mg)})+'</div>'
  +'<div class="card" style="margin:0"><b>💎 Hidden gems</b><div class="mu">High margin, low sales: promote, bundle</div>'+lst(gem,function(r){return pc(r.mg)})+'</div><div class="card" style="margin:0"><b>🐢 Underperformers</b><div class="mu">Low sales, low margin</div>'+lst(low,function(r){return money(r.r)})+'</div></div></div>'
@@ -3596,7 +3678,7 @@ function prod(A,R){var m=AN.m,M=[['r','Sales'],['q','Quantity'],['p','Profit']],
 window.anApply=function(id,p){var i=I(id);if(!i||!confirm('Set default rate of '+i.name+' to ₹'+p+'? (now ₹'+i.rate+')'))return;i.rate=p;save();render()};
 function price(R){var L=R.map(function(r){return [r,sug(r)]}).filter(function(x){return x[1]}),o={loss:0,clear:1,raise:2,cut:3,leak:4,star:5},TX={loss:'Selling at a loss',clear:'Clear stock',raise:'Raise price',cut:'Offer discount',leak:'Fix list price',star:'Star: keep'};
  L.sort(function(a,b){return o[a[1].t]-o[b[1].t]||b[0].r-a[0].r});
- return '<div class="card mu">Suggestions come from your sales speed, margin and stock. Check them before applying: <b>Apply</b> only changes the default rate on the item.</div>'+(L.map(function(x){var r=x[0],s=x[1];return '<div class="card"><div class="row"><b>'+esc(r.name)+'</b><span class="'+s.c+'" style="font-weight:600">'+TX[s.t]+'</span></div><div class="mu" style="margin:3px 0">'+s.w+'</div><div class="row" style="flex-wrap:wrap"><span class="mu">Cost ₹'+Math.round(r.buy)+' · List ₹'+Math.round(r.list)+' · Sold avg ₹'+Math.round(r.avg)+(r.mg!=null?' · Margin '+pc(r.mg):'')+'</span>'+(s.p&&!/^n:/.test(r.id)?'<button class="b" onclick="anApply(\''+r.id+'\','+s.p+')">Suggested ₹'+s.p+' · Apply</button>':'')+'</div></div>'}).join('')||'<div class="card mu">No price suggestions yet. Add purchase prices on items and make more sales.</div>')}
+ return '<div class="card mu">Suggestions come from your sales speed, margin and stock. Check them before applying: <b>Apply</b> only changes the default rate on the item.<br>Cost is matched purchase by purchase (oldest stock sold first), so a later price change never turns an earlier profitable sale into a loss.</div>'+(L.map(function(x){var r=x[0],s=x[1];return '<div class="card"><div class="row"><b>'+esc(r.name)+'</b><span class="'+s.c+'" style="font-weight:600">'+TX[s.t]+'</span></div><div class="mu" style="margin:3px 0">'+s.w+'</div><div class="row" style="flex-wrap:wrap"><span class="mu">'+(r.rq>0?'Cost of units sold ₹'+Math.round(r.cs)+(r.cl!=null&&Math.round(r.cl)!==Math.round(r.ch)?' (₹'+Math.round(r.cl)+' to ₹'+Math.round(r.ch)+')':'')+' · ':'')+'Latest buy ₹'+Math.round(r.buy)+(r.be?' (assumed)':'')+' · List ₹'+Math.round(r.list)+' · Sold avg ₹'+Math.round(r.avg)+(r.mg!=null?' · Margin '+pc(r.mg):'')+'</span>'+(s.p&&!/^n:/.test(r.id)?'<button class="b" onclick="anApply(\''+r.id+'\','+s.p+')">Suggested ₹'+s.p+' · Apply</button>':'')+'</div></div>'}).join('')||'<div class="card mu">No price suggestions yet. Add purchase prices on items and make more sales.</div>')}
 window.anCopy=function(){var t=window.__anOrd||'';try{navigator.clipboard.writeText(t);alert('Order list copied')}catch(e){prompt('Copy this',t)}};
 function mcards(h,rows){return rows.map(function(r){return '<div class="card mcard"><div class="row"><b>'+r[0]+'</b><span>'+r[4]+'</span></div><div class="row"><span class="mu">Stock '+r[1]+' · '+r[2]+'/day</span><span class="mu">'+(r[3]?'Lasts '+r[3]:'')+'</span></div>'+(r[5]?'<div class="ok" style="margin:6px 0 0">Order <b>'+r[5]+'</b></div>':'')+'</div>'}).join('')}
 function stock(R){var L=R.map(function(r){return [r,plan(r)]}).filter(function(x){return x[1]}),o={now:0,soon:1,ok:3,over:4,dead:5};
@@ -3612,8 +3694,8 @@ function more(A,R,f,t){var pr=Object.keys(A.pr).map(function(k){return [k,A.pr[k
  +'<div class="card"><b>Bought together</b><div class="mu">Offer these as a bundle or suggest the second item at billing.</div>'+(pr.map(function(x){var k=x[0].split('|');return '<div class="row" style="padding:5px 0;border-top:1px solid var(--bd)"><span>'+esc(nm(k[0]))+' + '+esc(nm(k[1]))+'</span><b>'+x[1]+' bills</b></div>'}).join('')||'<div class="mu">Not enough repeat combinations yet.</div>')+'</div>'
  +'<div class="card"><b>Top customers</b>'+hbars(tc.map(function(id){var p=P(id);return [p?p.name:'?',cu[id]]}),money)+'</div>'
  +'<div class="card"><b>Win-back: stopped buying</b><div class="mu">Regular customers with no bill for 45+ days.</div>'+(wb.slice(0,8).map(function(x){return '<div class="row" style="padding:6px 0;border-top:1px solid var(--bd)"><span>'+esc(x[0].name)+' <span class="mu">'+x[1]+' days</span></span><button class="s" onclick="openWA(P(\''+x[0].id+'\'),\'Namaste '+esc(x[0].name).replace(/\'/g,'')+', it has been a while since your last visit to '+esc(D.shop).replace(/\'/g,'')+'. New stock and offers are available. Please visit us.\')">WhatsApp</button></div>'}).join('')||'<div class="mu">Nobody to win back right now.</div>')+'</div>'}
-function vAna(){var r=rng(),f=r[0],t=r[1],days=Math.max(1,Math.round((t-f)/DY)),A=agg(f,t),R=rows(A,days),hid=R.filter(function(r){return r.q>0&&!(r.buy>0)}).length,pv=AN.per==='all'?null:agg(f-(t-f),f),B;
- window.__anHid=hid;if(!S('shownc',0))R=R.filter(function(r){return r.buy>0});
+function vAna(){var r=rng(),f=r[0],t=r[1],days=Math.max(1,Math.round((t-f)/DY)),A=agg(f,t),R=rows(A,days),hid=R.filter(function(r){return r.q>0&&r.noc}).length,pv=AN.per==='all'?null:agg(f-(t-f),f),B;
+ window.__anHid=hid;if(!CE.on())R=R.filter(function(r){return !r.noc});
  try{B=AN.tab==='prod'?prod(A,R):AN.tab==='price'?price(R):AN.tab==='stock'?stock(R):AN.tab==='more'?more(A,R,f,t):ov(A,R,pv,f,t)}catch(e){B='<div class="card red">Could not build this view: '+esc(e.message)+'</div>'}
  return '<div class="ana">'+head(f,t)+B+sets()+'</div>'}
 var _vPa=vPage;vPage=function(){return pg==='ana'?vAna():_vPa()};
