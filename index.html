@@ -2812,6 +2812,66 @@ saveEdit=function(){var no=draft&&draft.edit,b0=no!=null?bl(no):null,s0=b0?JSON.
  var b1=no!=null?bl(no):null;
  if(b1&&s0&&JSON.stringify(b1)!==s0){var p=P(b1.pid);if(awGo('upd',p)){_awUpd='bill';try{wa(b1.no)}finally{_awUpd=0}}}};
 
+/* ---------- SALE SCREEN: mobile layout copied from reference screenshots ---------- */
+(function(){var st=document.createElement('style');st.textContent=
+'.sfw{max-width:600px;margin:0 auto;color:#3d4160}.sfw *{box-sizing:border-box}'+
+'.sfback{display:none}@media(min-width:900px){.sfback{display:block;margin:6px 0}}'+
+'.sfh{display:grid;grid-template-columns:1fr 1.15fr 1fr;border-bottom:1px solid #e3e7ee;margin:0 -12px;padding:10px 12px}.sfh div{padding:0 10px;border-left:1px solid #e3e7ee}.sfh div:first-child{padding:0;border:0}.sfh small{display:block;color:#9094b3;font-size:13px}.sfh b{font-weight:400;font-size:16px}'+
+'.sfirm{margin:0 -12px;padding:12px;font-size:16px}.sfirm span{color:#9094b3}.sfsep{height:12px;background:#e3f0fc;margin:0 -12px}'+
+'.fl{position:relative;margin:16px 0 4px}.fl label{position:absolute;top:-9px;left:12px;background:#fff;padding:0 4px;font-size:13px;font-weight:500;color:#8e92b0;z-index:1}.fl input,.fl textarea{width:100%;margin:0;padding:14px;font-size:17px;color:#3d4160;border:1.5px solid #bfc3da;border-radius:8px;background:#fff}.fl textarea{resize:none}'+
+'.sfpb{text-align:right;font-size:14px;color:#8e92b0;margin-top:14px;min-height:18px}'+
+'.sfbi{background:#98c8f8;color:#fff;border-radius:8px;padding:9px 12px;font-weight:600;display:flex;align-items:center;gap:10px;margin:18px 0 8px}.sfbi i{width:22px;height:22px;border-radius:50%;background:#fff;color:#98c8f8;display:grid;place-items:center;font-style:normal;font-size:12px}'+
+'.sfit{background:#f0f3f7;border:1px solid #e3e7ee;border-radius:10px;padding:14px;margin:10px 0}.sfit .t{display:flex;justify-content:space-between;font-size:19px;font-weight:600;gap:8px}.sfit .t em{font-style:normal;font-size:13px;font-weight:400;border:1px solid #bfc3da;border-radius:4px;padding:1px 8px;margin-right:10px;color:#6b6f8f;vertical-align:middle}.sfit .s{display:flex;justify-content:space-between;color:#6b6f8f;font-size:17px;margin-top:8px}.sfit .n{margin-top:8px;font-size:13px;color:#6b6f8f}.sfit .x{border:0;background:none;color:#f01a3c;font-size:18px;padding:0 4px}'+
+'.sfad{border:1.5px dashed #98c8f8;border-radius:10px;padding:2px 12px 14px;margin:12px 0}.sfg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.sfab{width:100%;margin-top:12px;background:#e3f0fc;color:#1a73e8;border:0;border-radius:999px;padding:12px;font-weight:600;font-size:16px}'+
+'.sfs{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 4px;color:#7b8194;font-size:17px}.sfs span:nth-child(even){text-align:right}'+
+'.sft{font-size:20px;font-weight:600;padding:18px 0 12px;border-bottom:1px solid #d9dde8;margin-bottom:14px}'+
+'.sfr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0;font-size:19px}'+
+'.sfd{display:flex;gap:10px}.sfd .p,.sfd .a{display:flex;border-radius:8px;overflow:hidden;width:150px}.sfd .p{border:1.5px solid #f59a1b}.sfd .a{border:1.5px solid #bfc3da}.sfd input{border:0;margin:0;width:100%;font-size:20px;padding:10px;background:#fff;border-radius:0}.sfd .p input{color:#f08a00}.sfd b{display:grid;place-items:center;padding:0 12px;font-weight:400}.sfd .p b{background:#fde3c8;color:#f08a00}.sfd .a b{background:#eceef6}'+
+'.sftot{background:#f0f3f7;margin:14px -12px;padding:8px 12px}.sftot .sfr{font-size:20px}.sftot input[type=number],.sfpr input{width:160px;border:0;border-bottom:2px dashed #3d4160;border-radius:0;background:transparent;text-align:right;font-size:20px;margin:0;padding:4px 0}.sftot input[type=checkbox]{width:32px;height:32px;margin:0 14px 0 0;accent-color:#8e92b0}.sfbd{color:#12b76a}'+
+'.sfpr{display:flex;justify-content:space-between;align-items:center;margin:16px 0;font-size:19px;gap:10px}.sfpr span:first-child{color:#8e92b0}.sfpr select{border:0;background:none;font-size:19px;color:#3d4160;width:auto;margin:0}'+
+'.sfbar{position:sticky;bottom:0;display:flex;gap:14px;background:#fff;margin:14px -12px 0;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));z-index:5}.sfbar button{flex:1;border:0;border-radius:999px;padding:17px;font-size:19px;font-weight:600;background:#eeeef5;color:#6b6f8f}.sfbar .r{background:#f01a3c;color:#fff}'+
+'body.sf #mtop{background:#fff;border-bottom:1px solid #e3e7ee}body.sf #mtop button{background:none;color:#3d4160;font-size:26px;padding:4px 10px}body.sf #mtop .mttl{color:#3d4160;font-size:24px;font-weight:700}';
+document.head.appendChild(st)})();
+function sfF(id,lb,v,a,ta){return '<div class="fl"><label>'+lb+'</label>'+(ta?'<textarea id="'+id+'" rows="2" '+a+'>'+esc(v)+'</textarea>':'<input id="'+id+'" '+a+' value="'+esc(v)+'">')+'</div>'}
+function sfUpd(){var s=subTot(),d=+draft.disc||0,t=Math.max(s-d,0),r=+(($('#bp')||{}).value)||0,q=0;draft.lines.forEach(function(l){q+=+l.qty||0});
+ [['sfbd',money(Math.max(t-r,0))],['sfq',q],['sfsb',money(s)],['sfdd',money(d)]].forEach(function(a){var e=$('#'+a[0]);if(e)e.textContent=a[1]})}
+var _rtSF=refTot;refTot=function(){_rtSF();sfUpd()};
+var _dnSF=dueNow;dueNow=function(t){_dnSF(t);sfUpd()};
+vBill2=function(){
+ var eb=draft.edit?bl(draft.edit):null,nx=D.bills.reduce(function(m,x){return Math.max(m,x.no)},0)+1,dd=eb?new Date(eb.date):new Date(),sub=0,d=+draft.disc||0,h='';
+ if(draft.terms===undefined)draft.terms=PS().terms||'';if(draft.pt===undefined)draft.pt='Cash';
+ draft.lines.forEach(function(l){sub+=l.amt});
+ if(last){var lb=D.bills.find(function(x){return x.no===last});if(lb)h+='<div class="ok">Bill #'+lb.no+' saved. <button class="b" onclick="wa('+lb.no+')">Send text</button> <button class="b" onclick="shareBill('+lb.no+')">Send bill picture</button> <button class="s" onclick="printHtml(\'Bill '+lb.no+'\',billHtml(bl('+lb.no+')))">Print</button></div>'}
+ h+='<div class="sfh"><div><small>Invoice No.</small><b>'+(eb?eb.no:nx)+'</b></div><div><small>Date</small><b>'+dd.toLocaleDateString('en-IN')+'</b></div><div><small>Time</small><b>'+dd.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+'</b></div></div>'+
+ '<div class="sfirm"><span>Firm Name:</span> &nbsp;'+esc(PS().name||D.shop)+'</div><div class="sfsep"></div>'+
+ '<div id="bb" class="sfpb"></div><datalist id="pl">'+D.parties.map(function(p){return '<option value="'+esc(p.name)+'">'}).join('')+'</datalist>'+
+ sfF('bn','Customer Name *',draft.name||'','list="pl" autocomplete="off" oninput="draft.name=this.value;fillP()"')+
+ sfF('bph','Phone Number',draft.phone||'','type="tel" oninput="draft.phone=this.value"')+
+ sfF('bad','Billing Address',draft.addr||'','oninput="draft.addr=this.value"',1)+
+ '<div style="text-align:right;margin:2px 0"><a style="color:#1a73e8;font-size:13px" onclick="shipSame2()">Shipping same as billing</a></div>'+
+ sfF('bsh','Shipping Address',draft.ship||'','oninput="draft.ship=this.value"',1)+
+ '<div class="sfbi"><i>▾</i>Billed Items</div>'+
+ draft.lines.map(function(l,k){return '<div class="sfit"><div class="t"><span><em>#'+(k+1)+'</em>'+esc(l.name)+'</span><span>'+money(l.amt)+'</span></div><div class="s"><span>Item Subtotal</span><span>'+l.qty+' '+esc(l.unit)+' x '+l.rate+' = '+money(l.amt)+'</span></div><div class="n">'+sentCell(l,k)+' <button class="x" style="float:right" onclick="draft.lines.splice('+k+',1);render()">✕</button></div></div>'}).join('')+
+ '<datalist id="il">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist>'+
+ '<div class="sfad">'+sfF('bi','Item name','','list="il" autocomplete="off" oninput="fillI(this.value)"')+'<div class="sfg">'+sfF('bq','Qty','','type="number" inputmode="decimal" oninput="rowAmt()"')+sfF('bu','Unit','','')+sfF('br','Price/Unit','','type="number" inputmode="decimal" oninput="rowAmt()" onkeydown="if(event.key===\'Enter\')addLine2()"')+'</div>'+
+ '<div class="sfr" style="font-size:15px;margin-bottom:0"><span style="white-space:nowrap"><input type="checkbox" id="bk" style="width:22px;height:22px;vertical-align:middle;margin:0 6px 0 0" onchange="bkTick(this.checked)">Send now</span><input id="bs" type="number" inputmode="decimal" placeholder="Qty sent now" style="width:130px;margin:0" oninput="bsType()"><b id="ba"></b></div><button class="sfab" onclick="addLine2()">+ Add Item</button></div>'+
+ '<div class="sfs"><span>Total Disc: <b id="sfdd"></b></span><span>Total Tax Amt: 0.00</span><span>Total Qty: <b id="sfq"></b></span><span>Subtotal: <b id="sfsb"></b></span></div><div class="sfsep"></div>'+
+ '<div class="sft">Discount &amp; Charges</div><div class="sfr"><span>Discount</span><span class="sfd"><span class="p"><input id="dpc" type="number" inputmode="decimal" value="'+((d&&sub)?Math.round(d/sub*10000)/100:'')+'" oninput="discPct(this.value)"><b>%</b></span><span class="a"><b>₹</b><input id="dsc" type="number" inputmode="decimal" value="'+(d||'')+'" oninput="discIn(this.value)"></span></span></div>'+
+ sfF('btn','Transporter\'s Name',draft.tn||'','oninput="draft.tn=this.value"')+sfF('bvn','Vehicle Number',draft.vn||'','oninput="draft.vn=this.value"')+
+ '<div class="sftot"><div class="sfr"><b>Total Amount</b><b>₹ <span id="dsT">'+money(Math.max(sub-d,0))+'</span></b></div><div class="sfr"><label style="display:flex;align-items:center"><input type="checkbox" onchange="recvAll(this.checked)">Received</label><input id="bp" type="number" inputmode="decimal" placeholder="0.00" value="'+(draft.paid||'')+'" oninput="dueNow(subTot())"></div><div class="sfr sfbd"><span>Balance Due</span><b>₹ <span id="sfbd"></span></b></div><div id="dn" class="mu" style="text-align:right"></div></div><div class="sfsep"></div>'+
+ '<div class="sfpr"><span>Payment Type</span><select onchange="draft.pt=this.value">'+['Cash','UPI','Bank Transfer','Cheque'].map(function(o){return '<option'+(draft.pt===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div>'+
+ '<div class="sfpr"><span>Payment Ref No.</span><input placeholder="Reference No." value="'+esc(draft.pref||'')+'" oninput="draft.pref=this.value"></div><div class="sfsep"></div>'+
+ sfF('bds','Description',draft.desc||'','oninput="draft.desc=this.value"',1)+'<div class="sfsep" style="margin-top:16px"></div>'+
+ '<div class="sft">Terms &amp; Conditions</div>'+sfF('btc','',draft.terms||'','oninput="draft.terms=this.value" style="min-height:90px"',1)+
+ '<div class="sfbar"><button onclick="saveAndPrint()">Print</button><button class="r" onclick="doSave()">'+(eb?'Save changes':'Save')+'</button></div>';
+ setTimeout(function(){fillP();dueNow(sub)},0);
+ return '<div class="sfw"><button class="s sfback" onclick="leaveForm()">← Sale Invoices</button>'+h+'</div>'};
+function sfPut(b,x){if(!b)return;b.pt=x.pt||'';b.pref=x.pref||'';b.desc=x.desc||'';b.terms=x.terms||'';if(x.terms!=null)PS().terms=x.terms;save()}
+var _sbSF=saveBill2;saveBill2=function(){var x={pt:draft.pt,pref:draft.pref,desc:draft.desc,terms:draft.terms},n0=D.bills.length;_sbSF();if(D.bills.length>n0)sfPut(D.bills[D.bills.length-1],x)};
+var _seSF=saveEdit;saveEdit=function(){var x={pt:draft.pt,pref:draft.pref,desc:draft.desc,terms:draft.terms},no=draft.edit;_seSF();if(no!=null&&draft.edit==null)sfPut(bl(no),x)};
+var _ebSF=editBill;editBill=function(no){_ebSF(no);var b=bl(no);if(b&&draft.edit===no){draft.pt=b.pt||'Cash';draft.pref=b.pref||'';draft.desc=b.desc||'';draft.terms=b.terms!=null?b.terms:(PS().terms||'');render()}};
+var _rSF=render;render=function(){_rSF();try{document.body.classList.toggle('sf',!!form);var t=document.querySelector('#mtop .mttl');if(t&&form)t.textContent=draft&&draft.edit?'Edit Sale':'Sale'}catch(e){}};
+
 lockCk();
 render();
 initAuth();
