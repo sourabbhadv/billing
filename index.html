@@ -2873,7 +2873,7 @@ var _vBdesk=vBill2;var _vBmob=function(){
  sfF('bph','Phone Number',draft.phone||'','type="tel" oninput="draft.phone=this.value"')+
  '<button class="sfob" onclick="sfTg(\'sfad2\')">Billing / Shipping Address</button><div id="sfad2" style="display:'+(hasA?'':'none')+'">'+sfF('bad','Billing Address',draft.addr||'','oninput="draft.addr=this.value"',1)+'<div style="text-align:right"><a style="color:#1a73e8;font-size:12px" onclick="shipSame2()">Shipping same as billing</a></div>'+sfF('bsh','Shipping Address',draft.ship||'','oninput="draft.ship=this.value"',1)+'</div>'+
  (draft.lines.length?'<div class="sfbi"><i>▾</i>Billed Items</div>':'')+
- draft.lines.map(function(l,k){return '<div class="sfit"><div class="t"><span><em>#'+(k+1)+'</em>'+esc(l.name)+'</span><span>'+money(l.amt)+'</span></div><div class="s"><span>Item Subtotal</span><span>'+l.qty+' '+esc(l.unit)+' x '+l.rate+' = '+money(l.amt)+'</span></div><div class="n">'+sentCell(l,k)+'<button class="x" onclick="draft.lines.splice('+k+',1);render()">✕</button></div></div>'}).join('')+
+ draft.lines.map(function(l,k){return '<div class="sfit" onclick="if(!event.target.closest(\'.n\'))lnEdit(\'b\','+k+')"><div class="t"><span><em>#'+(k+1)+'</em>'+esc(l.name)+'</span><span>'+money(l.amt)+' <span style="color:#1a73e8">&#9998;</span></span></div><div class="s"><span>Item Subtotal</span><span>'+l.qty+' '+esc(l.unit)+' x '+l.rate+' = '+money(l.amt)+'</span></div><div class="n">'+sentCell(l,k)+'<button class="x" onclick="draft.lines.splice('+k+',1);render()">✕</button></div></div>'}).join('')+
  '<datalist id="il">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist>'+
  '<div class="sfad">'+sfF('bi','Add Items','','list="il" autocomplete="off" placeholder="Item name" oninput="fillI(this.value)"')+'<div class="sfg">'+sfF('bq','Qty','','type="number" inputmode="decimal" oninput="rowAmt()"')+sfF('bu','Unit','','')+sfF('br','Price/Unit','','type="number" inputmode="decimal" oninput="rowAmt()" onkeydown="if(event.key===\'Enter\')addLine2()"')+'<button class="sfab" onclick="addLine2()">+ Add</button></div>'+
  '<div class="sfr" style="font-size:12px;margin:6px 0 0"><span><input type="checkbox" id="bk" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin:0 5px 0 0" onchange="bkTick(this.checked)">Send now</span><input id="bs" type="number" inputmode="decimal" placeholder="Qty sent now" style="width:120px;margin:0;padding:4px 6px;font-size:12px" oninput="bsType()"><b id="ba"></b></div></div>'+
@@ -3769,4 +3769,47 @@ var st=document.createElement('style');st.textContent='#prov{position:fixed;inse
 +'.ana select,.ana input[type=date]{width:100%!important;font-size:16px;padding:12px}.ana .card>.row{flex-wrap:wrap}.ana button.b,.ana button.s{min-height:42px}.ana .mcard .row{padding:2px 0}'
 +'}';document.head.appendChild(st)})();
 </script>
-<script>(function(){var t=document.createElement('style');t.textContent='@media(max-width:899px){.ana>h2{display:none}.ana .card,.ana .stat{border-radius:10px}}';document.head.appendChild(t)})();</script></body></html>
+<script>(function(){var t=document.createElement('style');t.textContent='@media(max-width:899px){.ana>h2{display:none}.ana .card,.ana .stat{border-radius:10px}}';document.head.appendChild(t)})();</script><script>
+/* ================= PHONE: tap any item row of a bill / sale return to edit it (no need to delete and add again) ================= */
+(function(){
+function arr(c){return c==='b'?draft.lines:c==='r'?rdraft.lines:ddraft.lines}
+window.closeLne=function(){var o=document.getElementById('lne');if(o)o.remove()};
+window.lnEdit=function(c,k){var l=arr(c)[k];if(!l)return;closeLne();
+ var o=document.createElement('div');o.id='lne';o.dataset.c=c;o.dataset.k=k;o.dataset.n=l.name;
+ o.onclick=function(e){if(e.target===o)closeLne()};
+ o.innerHTML='<div class="lnb"><div class="lnh"><b>Edit item #'+(k+1)+'</b><span onclick="closeLne()">&times;</span></div>'
+ +'<label>Item name</label><input id="lne_n" autocomplete="off" value="'+esc(l.name)+'" onchange="lneName()">'
+ +'<div class="lng"><div><label>Quantity</label><input id="lne_q" type="number" inputmode="decimal" value="'+esc(l.qty)+'" oninput="lneAmt()"></div><div><label>Unit</label><input id="lne_u" autocomplete="off" value="'+esc(l.unit||'')+'"></div></div>'
+ +'<label>Price / Unit</label><input id="lne_r" type="number" inputmode="decimal" value="'+esc(l.rate)+'" oninput="lneAmt()">'
+ +'<div class="lnt"><span>Amount</span><b id="lne_a"></b></div>'
+ +'<div class="lnbt"><button class="lnd" onclick="lneDel()">Delete</button><button class="lns" onclick="lneSave()">Save</button></div></div>';
+ document.body.appendChild(o);lneAmt()};
+window.lneAmt=function(){var q=+(document.getElementById('lne_q')||{}).value||0,r=+(document.getElementById('lne_r')||{}).value||0,a=document.getElementById('lne_a');if(a)a.textContent=money(Math.round(q*r*100)/100)};
+window.lneName=function(){var o=document.getElementById('lne');if(!o)return;var v=document.getElementById('lne_n').value.trim();if(!v||v===o.dataset.n)return;var i=findI(v);if(!i)return;
+ document.getElementById('lne_u').value=i.unit||document.getElementById('lne_u').value;
+ var c=o.dataset.c,pr=(c==='d'&&ddraft&&(ddraft.t==='pur'||ddraft.t==='pret'))?(+i.buy||+i.rate):+i.rate;if(pr)document.getElementById('lne_r').value=pr;lneAmt()};
+function again(c){
+ if(c!=='b'){render();return}
+ var ids=['bi','bq','bu','br','bs'],keep={},kk=document.getElementById('bk');ids.forEach(function(i){var e=document.getElementById(i);keep[i]=e?e.value:''});var ck=kk&&kk.checked;
+ render();ids.forEach(function(i){var e=document.getElementById(i);if(e&&keep[i]!=='')e.value=keep[i]});var k2=document.getElementById('bk');if(k2&&ck)k2.checked=true;try{refTot()}catch(e){}}
+window.lneSave=function(){var o=document.getElementById('lne');if(!o)return;var c=o.dataset.c,k=+o.dataset.k,l=arr(c)[k];if(!l)return closeLne();
+ var n=document.getElementById('lne_n').value.trim(),q=+document.getElementById('lne_q').value,rv=document.getElementById('lne_r').value;
+ if(!n)return alert('Enter item name');if(!(q>0))return alert('Enter a quantity more than 0');if(rv===''||isNaN(+rv))return alert('Enter the price per unit');
+ l.name=n;l.qty=q;l.unit=document.getElementById('lne_u').value.trim()||l.unit||'pcs';l.rate=+rv;l.amt=Math.round(q*(+rv)*100)/100;
+ if(c==='b'&&l.nowq>l.qty)l.nowq=l.qty;
+ closeLne();again(c)};
+window.lneDel=function(){var o=document.getElementById('lne');if(!o)return;var c=o.dataset.c,k=+o.dataset.k;if(!confirm('Remove this item from the list?'))return;arr(c).splice(k,1);closeLne();again(c)};
+/* sale return on phone: rows become tappable */
+var _vrL=vRet;vRet=function(){var h=_vrL.apply(this,arguments);if(!isM()||typeof h!=='string')return h;
+ return h.replace(/<tr><td>(\d+)<\/td><td>/g,function(m,n){return '<tr style="cursor:pointer" onclick="if(!event.target.closest(\'button\'))lnEdit(\'r\','+(n-1)+')"><td>'+n+'</td><td>'+(n==='1'?'':'')});};
+var st=document.createElement('style');
+st.textContent='#lne{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45)}#lne .lnb{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:6px 18px calc(16px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow-y:auto}'
++'#lne .lnh{display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:18px;color:#2d3350}#lne .lnh span{font-size:30px;color:#7b8194;line-height:1;padding:0 6px}'
++'#lne label{display:block;font-size:12.5px;color:#8b90ac;margin:10px 0 3px}#lne input{width:100%;box-sizing:border-box;font-size:17px;padding:11px 12px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0;background:#fff;color:#2d3350}'
++'#lne .lng{display:grid;grid-template-columns:1fr 1fr;gap:10px}#lne .lnt{display:flex;justify-content:space-between;align-items:center;margin:14px 2px 4px;font-size:17px;color:#2d3350}'
++'#lne .lnbt{display:flex;gap:10px;margin-top:12px}#lne .lnbt button{flex:1;border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:700}#lne .lnd{background:#fdecee;color:#e8213a}#lne .lns{background:#1a73e8;color:#fff;flex:2!important}'
++'.sfit{cursor:pointer}';
+document.head.appendChild(st);
+})();
+</script>
+</body></html>
