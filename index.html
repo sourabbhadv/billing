@@ -1480,7 +1480,7 @@ function mBar(){
  bar.innerHTML='<button class="'+on('home')+'" onclick="nav(\'home\')"><b>🏠</b>Home</button><button class="'+(g==='sale'?'on':'')+'" onclick="nav(\'sale\')"><b>🧾</b>Sale</button><button class="'+on('party')+'" onclick="nav(\'party\')"><b>👥</b>Parties</button><button class="'+on('items')+'" onclick="nav(\'items\')"><b>📦</b>Items</button><button onclick="mMore()"><b>☰</b>More</button>';
  var detail=!!(form||sub||viewB||openB||viewD||pg!=='home');
  top.style.display=(detail?'':'none');bar.style.display=form?'none':'';
- var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings'};
+ var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',ana:'Analytics'};
  var tt=$('#mtt');if(tt)tt.textContent=form?'New Sale':(nm[pg]||'')}
 var _r8=render;render=function(){_r8();try{mBar()}catch(e){}};
 var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTimeout(_sr8,400)};
@@ -1650,7 +1650,7 @@ mBar=function(){
  bar.style.display=form?'none':'';
  if(root){var sy=document.getElementById('sy');
   top.innerHTML='<div class="mlogo">'+esc((D.shop||'A').charAt(0).toUpperCase())+'</div><div class="mnm"><b>'+esc(D.shop)+'</b><small>'+esc(sy?sy.textContent:'')+'</small></div><button onclick="nav(\'set\')">⚙</button>'}
- else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns'};
+ else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns',ana:'Analytics'};
   var t=form?'New Sale':sub==='pin'?(pdraft&&pdraft.out?'Payment-Out':'Payment-In'):sub==='ret'?'Sale Return':viewB?'Sale #'+viewB:(pg==='party'&&P(selP))?P(selP).name:(pg==='items'&&I(selI))?I(selI).name:pform?'Party':iform?'Item':(nm[pg]||'');
   top.innerHTML='<button onclick="goBack()">←</button><div class="mttl">'+esc(t)+'</div>'}
  top.style.display='';
@@ -3420,11 +3420,11 @@ function prFull(c,type,prev){var body,css;
   for(var i=0;i<nc;i++){var d=regDoc(c,th,nc>1?COPIES[i]:cl);parts.push(i<nc-1?d.replace('class="pgw','class="pgw brk'):d)}
   body=parts.join('');css=regCss(th,prev)}
  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(c.title+' '+c.no)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+body+'</body></html>'}
-function prOpen(c,type){var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write(prFull(c,type,false));w.document.close();w.focus();setTimeout(function(){w.print()},700)}
+function prOpen(c,type){if(window.innerWidth<900&&window.prMobileOpen)return window.prMobileOpen(c,type);var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write(prFull(c,type,false));w.document.close();w.focus();setTimeout(function(){w.print()},700)}
 printBill=function(no,type){var b=bl(no);if(b)prOpen(ctxBill(b),type||g('pr_tp','reg'))};
 printDoc=function(id,type){var d=docById(id);if(d)prOpen(ctxDoc(d),type||g('pr_tp','reg'))};
 prTest=function(type){prOpen(prCtx(),type||PRT)};
-window.prSetT=function(t){PRT=t;render()};window.prSetS=function(s){PRS=s;render()};
+window.prSetT=function(t){PRT=t;render()};window.prFull=prFull;window.prCtxX=prCtx;window.prGetT=function(){return PRT};window.prSetS=function(s){PRS=s;render()};
 
 /* ---- settings screen ---- */
 function thumb(id,A){var r=function(x,y,w,h,f){return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="1" fill="'+(f||'#c9cfdc')+'"/>'},s='',grid=id==='g1'||id==='g2',solid=id==='modern'||id==='stripe'||id==='card';
@@ -3463,6 +3463,7 @@ function thermSec(){
   +'<div style="margin-top:10px"><button class="b" onclick="prTest(\'th\')">Test print</button></div></div>'}
 function defSec(){return '<div class="sec"><h3>Default printer</h3>'+prSel('pr_tp','Print button uses',[['reg','Regular printer (A4 / A5)'],['th','Thermal printer']],'reg')+'<div class="hint">This is what the print icon on a bill uses.</div></div>'}
 
+function macc(B){return B.split('<div class="sec">').filter(function(x){return x.trim()}).map(function(x){var t=(/<h3>([^<]*)<\/h3>/.exec(x)||[0,'Options'])[1];return '<details class="sec msec"'+(window.MO&&MO[t]?' open':'')+' ontoggle="MO[\''+t+'\']=this.open"><summary>'+t+'</summary>'+x.replace(/<h3>[^<]*<\/h3>/,'').replace(/<\/div>\s*$/,'')+'</details>'}).join('')}
 var _vS3=vSettings;
 vSettings=function(){
  if(sTab!=='prt')return _vS3();
@@ -3472,8 +3473,10 @@ vSettings=function(){
  var tabs='<div class="prtabs"><button class="'+(!th?'on':'')+'" onclick="prSetT(\'reg\')">REGULAR PRINTER</button><button class="'+(th?'on':'')+'" onclick="prSetT(\'th\')">THERMAL PRINTER</button></div>'
   +'<div class="prsub"><button class="'+(PRS==='lay'?'on':'')+'" onclick="prSetS(\'lay\')">CHANGE LAYOUT</button><button class="'+(PRS==='col'?'on':'')+'" onclick="prSetS(\'col\')">'+(th?'CHANGE TEXT':'CHANGE COLORS')+'</button></div>';
  var A=tabs+(PRS==='lay'?'<div class="sec" style="margin-top:10px"><h3>Choose a '+(th?'receipt':'bill')+' theme</h3>'+gallery()+'</div>':colorsUI());
- var R='<div class="sec"><div class="row"><b>Live preview</b><span class="mu" id="prn">'+(th?'Thermal':'Regular')+' · your latest bill</span></div><div id="prbox" style="margin-top:8px"><iframe id="prfr" title="Preview"></iframe></div></div>';
+ if(isM())A+='<div class="mbtns"><button class="s" onclick="prMPrev()">👁 Preview</button><button class="b" onclick="prMTest()">🖨 Test print</button></div>';
+ var R=isM()?'':'<div class="sec"><div class="row"><b>Live preview</b><span class="mu" id="prn">'+(th?'Thermal':'Regular')+' · your latest bill</span></div><div id="prbox" style="margin-top:8px"><iframe id="prfr" title="Preview"></iframe></div></div>';
  var B=(th?biz.join('')+thermSec():biz.join('')+layoutSec()+other.join(''))+defSec();
+ if(isM())B=macc(B);
  return pre+'<div class="prwrap"><div class="prA">'+A+'</div><div class="prR">'+R+'</div><div class="prB"><div class="sgrid">'+B+'</div></div></div>'};
 
 function pgPx(){var a5=PS().size==='A5',l=pr('pr_or','port')==='land',w=a5?559:794,h=a5?794:1123;return l?[h,w]:[w,h]}
@@ -3496,4 +3499,158 @@ var st=document.createElement('style');st.textContent='.prwrap{display:grid;grid
 document.head.appendChild(st);
 render();
 })();
-</script></body></html>
+</script>
+<script>
+/* ================= ANALYTICS: sales, margin, pricing, stock planner ================= */
+(function(){
+var DY=864e5,AN={per:'30',m:'r',tab:'ov',a:'',b:''},WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function S(k,d){var v=PS()['an_'+k];return v==null?d:+v}
+window.anS=function(k,v){PS()['an_'+k]=+v||0;save();render()};
+window.anSet=function(k,v){AN[k]=v;render()};
+function pc(x){return (Math.round(x*10)/10)+'%'}
+function rp(x){return x<100?Math.round(x):Math.round(x/5)*5}
+function key(l){var i=(l.iid&&I(l.iid))||findI(l.name);return i?i.id:'n:'+String(l.name).toLowerCase()}
+function nm(k){var i=I(k);return i?i.name:String(k).slice(2)}
+function rng(){var n=Date.now(),t0=new Date();t0.setHours(0,0,0,0);var d0=t0.getTime(),f,t=n+1,p=AN.per,Y=t0.getFullYear(),M=t0.getMonth();
+ if(p==='month')f=new Date(Y,M,1).getTime();else if(p==='lmonth'){f=new Date(Y,M-1,1).getTime();t=new Date(Y,M,1).getTime()}
+ else if(p==='year')f=new Date(Y,0,1).getTime();else if(p==='custom'){f=AN.a?ld(AN.a):0;t=AN.b?ld(AN.b)+DY:n+1}
+ else if(p==='all'){f=n;D.bills.forEach(function(b){if(!b.x&&b.date<f)f=b.date})}else f=d0-(+p-1)*DY;
+ return [f,t]}
+function agg(f,t){var A={it:{},rev:0,crev:0,cost:0,n:0,disc:0,wd:[0,0,0,0,0,0,0],pr:{},ser:[]},mid=(f+t)/2;
+ D.bills.forEach(function(b){if(b.x||b.date<f||b.date>=t)return;var sub=0,seen={},bc=0;b.lines.forEach(function(l){sub+=+l.amt||0});var k=sub>0?b.total/sub:1;
+  A.n++;A.rev+=b.total;A.disc+=+b.disc||0;A.wd[new Date(b.date).getDay()]+=b.total;
+  b.lines.forEach(function(l){var ky=key(l),o=A.it[ky]||(A.it[ky]={q:0,r:0,c:0,n:0,h1:0,h2:0}),c=(+l.qty||0)*itemBuy(l);
+   if(itemBuy(l)>0)A.crev+=(+l.amt||0)*k;o.q+=+l.qty||0;o.r+=(+l.amt||0)*k;o.c+=c;o.n++;o[b.date<mid?'h1':'h2']+=+l.qty||0;bc+=c;seen[ky]=1});
+  A.cost+=bc;A.ser.push([b.date,b.total,b.total-bc]);
+  var ks=Object.keys(seen).sort();for(var i=0;i<ks.length;i++)for(var j=i+1;j<ks.length;j++){var pk=ks[i]+'|'+ks[j];A.pr[pk]=(A.pr[pk]||0)+1}});
+ return A}
+function rows(A,days){var first={},last={},now=Date.now(),out=[],seen={},tm=S('tm',20);
+ D.bills.forEach(function(b){if(b.x)return;b.lines.forEach(function(l){var k=key(l);if(!first[k]||b.date<first[k])first[k]=b.date;if(!last[k]||b.date>last[k])last[k]=b.date})});
+ function mk(i,k){var o=A.it[k]||{q:0,r:0,c:0,n:0,h1:0,h2:0},buy=i?+i.buy||0:0,stock=i?+i.qty||0:0,ed=Math.max(7,Math.min(days,(now-(first[k]||now))/DY)),vel=o.q/ed,avg=o.q?o.r/o.q:0,
+  dd=last[k]?(now-last[k])/DY:(stock>0?999:0);
+  return {id:k,name:i?i.name:nm(k),unit:i?i.unit:o.unit||'',q:o.q,r:o.r,n:o.n,p:o.r-o.c,buy:buy,list:i?+i.rate||0:0,avg:avg,stock:stock,vel:vel,cover:vel>0?stock/vel:Infinity,
+   mg:(o.r&&buy)?(o.r-o.c)/o.r*100:null,tr:o.q>=4?(o.h2>o.h1*1.25?1:o.h2<o.h1*.75?-1:0):0,dd:dd,dead:stock>0&&dd>=S('dead',45),inv:stock*buy}}
+ D.items.forEach(function(i){seen[i.id]=1;out.push(mk(i,i.id))});Object.keys(A.it).forEach(function(k){if(!seen[k])out.push(mk(null,k))});
+ var sold=out.filter(function(r){return r.q>0}),v=sold.map(function(r){return r.vel}).sort(function(a,b){return a-b}),rv=sold.map(function(r){return r.r}).sort(function(a,b){return a-b}),
+  p75=v[Math.floor(v.length*.75)]||0,p25=v[Math.floor(v.length*.25)]||0,med=rv[Math.floor(rv.length/2)]||0;
+ out.forEach(function(r){r.fast=r.q>0&&sold.length>=4&&r.vel>=p75;r.slow=r.q>0&&sold.length>=4&&r.vel<=p25;r.hiV=r.q>0&&r.r>=med;r.hiM=r.mg!=null&&r.mg>=tm});
+ return out}
+function sug(r){var tm=S('tm',20),mm=S('mm',8),cv=S('cov',30);if(!r.n&&!(r.stock>0))return null;
+ if(r.n&&r.buy&&r.avg&&r.avg<r.buy)return {t:'loss',c:'red',p:rp(r.buy*(1+mm/100)),w:'Sold below cost (avg ₹'+Math.round(r.avg)+' vs cost ₹'+Math.round(r.buy)+'). Raise the price.'};
+ if(r.fast&&r.mg!=null&&r.mg<tm)return {t:'raise',c:'grn',p:rp(Math.max(r.list,r.avg)*1.04),w:'Top mover but margin is only '+pc(r.mg)+'. A ~4% rise rarely hurts a fast product.'};
+ if(r.stock>0&&r.dead)return {t:'clear',c:'red',p:rp(Math.max(r.buy*1.03,(r.list||r.buy)*.9)),w:(r.dd>900?'Never sold':'No sale for '+Math.round(r.dd)+' days')+', ₹'+Math.round(r.inv).toLocaleString('en-IN')+' locked in stock. Clear it at a lower price.'};
+ if(r.slow&&r.stock>0&&r.cover>cv*2&&r.mg!=null&&r.mg>mm+6)return {t:'cut',c:'',p:rp(Math.max(r.buy*(1+mm/100),r.avg*.93)),w:'Slow mover with '+Math.round(r.cover)+' days of stock. A small discount still keeps margin above '+mm+'%.'};
+ if(r.n>=3&&r.list&&r.avg<r.list*.92)return {t:'leak',c:'',p:rp(r.avg),w:'List price ₹'+Math.round(r.list)+' but you sell at avg ₹'+Math.round(r.avg)+' ('+pc((1-r.avg/r.list)*100)+' off). Make the list price realistic.'};
+ if(r.fast&&r.hiM)return {t:'star',c:'grn',p:0,w:'Star product: high sales and good margin. Keep price, never run out.'};
+ return null}
+function plan(r){var lead=S('lead',7),cv=S('cov',30);if(!(r.q>0||r.stock>0))return null;
+ var st=r.dead?'dead':r.vel>0?(r.cover<=lead?'now':r.cover<=lead+7?'soon':r.cover>90?'over':'ok'):(r.stock>0?'dead':null);if(!st)return null;
+ var need=r.vel>0?Math.max(0,Math.ceil(r.vel*(lead+cv)*(r.tr>0?1.2:1)-r.stock)):0;
+ return {st:st,need:need,date:r.vel>0?new Date(Date.now()+r.cover*DY).toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'-'}}
+var ST={now:['🔴','Order now'],soon:['🟠','Order soon'],ok:['🟢','OK'],over:['🔵','Overstock'],dead:['⚫','Not moving']};
+function kpi(l,v,d){return '<div class="stat"><span class="mu">'+l+'</span><b>'+v+'</b>'+(d==null||!isFinite(d)?'':'<span class="'+(d>=0?'grn':'red')+'" style="font-size:12px">'+(d>=0?'▲ ':'▼ ')+pc(Math.abs(d))+' vs before</span>')+'</div>'}
+function dlt(a,b){return b?(a-b)/b*100:null}
+function hbars(L,fmt){var mx=Math.max.apply(null,L.map(function(x){return Math.abs(x[1])}).concat([1e-9]));return L.map(function(x){return '<div style="margin:5px 0"><div class="row" style="font-size:13px"><span>'+esc(x[0])+'</span><b>'+fmt(x[1])+'</b></div><div style="background:#e8ebf3;border-radius:4px;height:7px"><i style="display:block;height:7px;border-radius:4px;background:'+(x[1]<0?'#e5333f':'var(--ac)')+';width:'+Math.max(2,Math.abs(x[1])/mx*100)+'%"></i></div>'+(x[2]?'<div class="mu" style="font-size:12px">'+x[2]+'</div>':'')+'</div>'}).join('')||'<div class="mu">No data in this period.</div>'}
+function cols(L){var mx=Math.max.apply(null,L.map(function(x){return x[1]}).concat([1]));return '<div style="display:flex;gap:3px;align-items:flex-end;height:130px;overflow-x:auto">'+L.map(function(x,i){return '<div style="flex:1;min-width:14px;text-align:center;font-size:10px;color:var(--mu)"><i style="display:block;background:var(--ac);border-radius:3px 3px 0 0;height:'+Math.max(2,x[1]/mx*100)+'px" title="'+esc(x[0])+': '+money(x[1])+'"></i>'+(L.length<=12||i%Math.ceil(L.length/10)===0?x[0]:'&nbsp;')+'</div>'}).join('')+'</div>'}
+function trend(A,f,t){var days=(t-f)/DY,g=days<=35?0:days<=200?1:2,m={},o=[];A.ser.forEach(function(s){var d=new Date(s[0]),k,lb;
+  if(g===0){k=Math.floor(s[0]/DY);lb=d.getDate()+'/'+(d.getMonth()+1)}else if(g===1){var w=new Date(d);w.setDate(d.getDate()-d.getDay());k=Math.floor(w.getTime()/DY);lb=w.getDate()+'/'+(w.getMonth()+1)}else{k=d.getFullYear()*12+d.getMonth();lb=d.toLocaleString('en-IN',{month:'short'})}
+  if(!m[k]){m[k]=[lb,0];o.push(k)}m[k][1]+=s[1]});return cols(o.sort(function(a,b){return a-b}).slice(-40).map(function(k){return m[k]}))}
+function top(R,f,n){return R.filter(function(r){return r.q>0}).sort(function(a,b){return b[f]-a[f]}).slice(0,n)}
+function insights(A,R,pv){var o=[],tot=A.rev,s=top(R,'r',1)[0],pl=R.map(function(r){return [r,plan(r)]}).filter(function(x){return x[1]&&x[1].st==='now'}).sort(function(a,b){return b[0].r-a[0].r}),
+ dead=R.filter(function(r){return r.dead}),dv=dead.reduce(function(s,r){return s+r.inv},0),loss=R.filter(function(r){var q=sug(r);return q&&q.t==='loss'}),
+ gem=R.filter(function(r){return r.hiM&&!r.hiV&&r.q>0&&r.mg!=null}).sort(function(a,b){return b.mg-a.mg})[0],bw=A.wd.indexOf(Math.max.apply(null,A.wd)),recv=0;
+ D.parties.forEach(function(p){var b=bal(p);if(b>0)recv+=b});
+ if(pv&&pv.rev)o.push([dlt(tot,pv.rev)>=0?'📈':'📉','Sales are '+pc(Math.abs(dlt(tot,pv.rev)))+(dlt(tot,pv.rev)>=0?' higher':' lower')+' than the previous period.','ov']);
+ if(s)o.push(['🏆',s.name+' is your top seller: '+money(s.r)+' ('+pc(tot?s.r/tot*100:0)+' of sales).','prod']);
+ if(pl.length)o.push(['⚠️','Running out soon: '+pl.slice(0,3).map(function(x){return x[0].name}).join(', ')+(pl.length>3?' +'+(pl.length-3)+' more':'')+'. Order now.','stock']);
+ if(loss.length)o.push(['🚨',loss.length+' item(s) sold below cost, e.g. '+loss[0].name+'.','price']);
+ if(gem)o.push(['💎',gem.name+' has a '+pc(gem.mg)+' margin but sells slowly. Push it to customers.','prod']);
+ if(dv>0)o.push(['🧊',money(dv)+' is locked in '+dead.length+' item(s) not selling for '+S('dead',45)+'+ days.','price']);
+ if(tot&&A.disc/tot>0.03)o.push(['🏷️','Discounts given are '+pc(A.disc/tot*100)+' of sales ('+money(A.disc)+').','more']);
+ if(tot)o.push(['📅','Best day for sales: '+WD[bw]+'. Keep stock and staff ready.','more']);
+ if(recv>0)o.push(['💰',money(recv)+' is pending to collect from parties.','more']);
+ return o}
+function head(f,t){var P=[['7','Last 7 days'],['30','Last 30 days'],['90','Last 90 days'],['month','This month'],['lmonth','Last month'],['year','This year'],['all','All time'],['custom','Pick dates']],T=[['ov','Overview'],['prod','Products'],['price','Pricing'],['stock','Stock planner'],['more','Patterns & customers']];
+ return '<h2 style="font-size:20px;margin:6px 0">Analytics</h2><div class="card"><div class="row" style="flex-wrap:wrap;justify-content:flex-start;gap:8px"><select style="width:auto;margin:0" onchange="anSet(\'per\',this.value)">'+P.map(function(x){return '<option value="'+x[0]+'"'+(AN.per===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'
+  +(AN.per==='custom'?'<input type="date" value="'+AN.a+'" style="width:auto;margin:0" onchange="anSet(\'a\',this.value)"> to <input type="date" value="'+AN.b+'" style="width:auto;margin:0" onchange="anSet(\'b\',this.value)">':'')
+  +'<button class="s" onclick="render()">↻ Refresh</button><span class="mu">Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+'</span></div>'
+  +'<div class="antabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+T.map(function(x){return '<button class="'+(AN.tab===x[0]?'b':'s')+'" onclick="anSet(\'tab\',\''+x[0]+'\')">'+x[1]+'</button>'}).join('')+'</div></div>'}
+function sets(){var f=function(k,l,d,h){return '<label class="mu" style="display:block">'+l+'<input type="number" min="0" value="'+S(k,d)+'" onchange="anS(\''+k+'\',this.value)"></label>'};
+ return '<details class="card"><summary><b>Rules used for suggestions</b></summary><div class="g" style="margin-top:8px">'+f('tm','Target margin %',20)+f('mm','Lowest safe margin %',8)+f('lead','Supplier delivery days',7)+f('cov','Stock to hold (days of sales)',30)+f('dead','Not moving after (days)',45)+'</div><label class="ck" style="display:flex;gap:10px;align-items:center;margin-top:10px"><input type="checkbox" style="width:22px;height:22px;margin:0" '+(S('shownc',0)?'checked':'')+' onchange="anS(\'shownc\',this.checked?1:0)"><span>Also show items without a purchase price</span></label><div class="mu">Off: they are left out of profit, margin and rankings. Margin uses the purchase price saved on each item.</div></details>'}
+function ov(A,R,pv,f,t){var sn=S('shownc',0),bs=sn?A.rev:A.crev,gp=bs-A.cost,pg=pv?(sn?pv.rev:pv.crev)-pv.cost:0,inv=R.reduce(function(s,r){return s+r.inv},0),dv=R.filter(function(r){return r.dead}).reduce(function(s,r){return s+r.inv},0),nob=window.__anHid||0;
+ var ins=insights(A,R,pv);
+ return '<div class="stats">'+kpi('Sales',money(A.rev),pv&&dlt(A.rev,pv.rev))+kpi('Gross profit',money(gp),pv&&dlt(gp,pg))+kpi('Margin',bs?pc(gp/bs*100):'-',null)+kpi('Bills',A.n,pv&&dlt(A.n,pv.n))+kpi('Average bill',money(Math.round(A.n?A.rev/A.n:0)),null)+kpi('Discount given',money(A.disc),null)+kpi('Stock value (cost)',money(inv),null)+kpi('Not-moving stock',money(dv),null)+'</div>'
+ +(nob?'<div class="card mu">'+(sn?'⚠ '+nob+' sold item(s) have no purchase price, so profit looks higher than real.':nob+' item(s) without a purchase price are hidden from profit and rankings.')+' Add the price in Items → Edit, or change this in "Rules used for suggestions" below.</div>':'')
+ +'<div class="card"><b>Smart insights</b>'+(ins.map(function(x){return '<div class="row" style="padding:8px 0;border-top:1px solid var(--bd);cursor:pointer" onclick="anSet(\'tab\',\''+x[2]+'\')"><span>'+x[0]+' '+esc(x[1])+'</span><span class="mu">›</span></div>'}).join('')||'<div class="mu">Make some sales to see insights.</div>')+'</div>'
+ +'<div class="card"><b>Sales trend</b>'+trend(A,f,t)+'</div>'}
+function prod(A,R){var m=AN.m,M=[['r','Sales'],['q','Quantity'],['p','Profit']],tp=top(R,m,8),mgS=R.filter(function(r){return r.q>0&&r.mg!=null}),
+ gem=mgS.filter(function(r){return r.hiM&&!r.hiV}).sort(function(a,b){return b.mg-a.mg}).slice(0,6),drv=mgS.filter(function(r){return r.hiV&&!r.hiM}).sort(function(a,b){return b.r-a.r}).slice(0,6),
+ stars=mgS.filter(function(r){return r.hiV&&r.hiM}).sort(function(a,b){return b.p-a.p}).slice(0,6),low=R.filter(function(r){return r.q>0&&!r.hiV&&!r.hiM}).sort(function(a,b){return a.r-b.r}).slice(0,6),
+ nos=R.filter(function(r){return r.q===0&&r.stock>0}).sort(function(a,b){return b.inv-a.inv}).slice(0,8),fm=function(v){return m==='q'?(Math.round(v*100)/100):money(v)};
+ var lst=function(L,f){return L.length?L.map(function(r){return '<div class="row" style="padding:5px 0;border-top:1px solid var(--bd)"><span>'+esc(r.name)+'</span><span class="mu">'+f(r)+'</span></div>'}).join(''):'<div class="mu">Nothing here right now.</div>'};
+ return '<div class="card"><div class="row"><b>Top sellers</b><span style="display:flex;gap:4px">'+M.map(function(x){return '<button class="'+(m===x[0]?'b':'s')+'" onclick="anSet(\'m\',\''+x[0]+'\')">'+x[1]+'</button>'}).join('')+'</span></div>'+hbars(tp.map(function(r){return [r.name,r[m],money(r.r)+' · '+(Math.round(r.q*100)/100)+' '+esc(r.unit)+(r.mg!=null?' · margin '+pc(r.mg):'')]}),fm)+'</div>'
+ +'<div class="card"><b>Product matrix</b><div class="mu">Sales (vs your median item) × margin (vs target '+S('tm',20)+'%)</div><div class="g" style="margin-top:8px">'
+ +'<div class="ok"><b>⭐ Stars</b><div class="mu">Keep in stock, hold price</div>'+lst(stars,function(r){return pc(r.mg)})+'</div><div class="card" style="margin:0"><b>🚚 Volume drivers</b><div class="mu">Sell well, thin margin: raise price or cut cost</div>'+lst(drv,function(r){return pc(r.mg)})+'</div>'
+ +'<div class="card" style="margin:0"><b>💎 Hidden gems</b><div class="mu">High margin, low sales: promote, bundle</div>'+lst(gem,function(r){return pc(r.mg)})+'</div><div class="card" style="margin:0"><b>🐢 Underperformers</b><div class="mu">Low sales, low margin</div>'+lst(low,function(r){return money(r.r)})+'</div></div></div>'
+ +'<div class="card"><b>In stock but not sold in this period</b>'+lst(nos,function(r){return r.stock+' '+esc(r.unit)+' · '+money(r.inv)})+'</div>'}
+window.anApply=function(id,p){var i=I(id);if(!i||!confirm('Set default rate of '+i.name+' to ₹'+p+'? (now ₹'+i.rate+')'))return;i.rate=p;save();render()};
+function price(R){var L=R.map(function(r){return [r,sug(r)]}).filter(function(x){return x[1]}),o={loss:0,clear:1,raise:2,cut:3,leak:4,star:5},TX={loss:'Selling at a loss',clear:'Clear stock',raise:'Raise price',cut:'Offer discount',leak:'Fix list price',star:'Star: keep'};
+ L.sort(function(a,b){return o[a[1].t]-o[b[1].t]||b[0].r-a[0].r});
+ return '<div class="card mu">Suggestions come from your sales speed, margin and stock. Check them before applying: <b>Apply</b> only changes the default rate on the item.</div>'+(L.map(function(x){var r=x[0],s=x[1];return '<div class="card"><div class="row"><b>'+esc(r.name)+'</b><span class="'+s.c+'" style="font-weight:600">'+TX[s.t]+'</span></div><div class="mu" style="margin:3px 0">'+s.w+'</div><div class="row" style="flex-wrap:wrap"><span class="mu">Cost ₹'+Math.round(r.buy)+' · List ₹'+Math.round(r.list)+' · Sold avg ₹'+Math.round(r.avg)+(r.mg!=null?' · Margin '+pc(r.mg):'')+'</span>'+(s.p&&!/^n:/.test(r.id)?'<button class="b" onclick="anApply(\''+r.id+'\','+s.p+')">Suggested ₹'+s.p+' · Apply</button>':'')+'</div></div>'}).join('')||'<div class="card mu">No price suggestions yet. Add purchase prices on items and make more sales.</div>')}
+window.anCopy=function(){var t=window.__anOrd||'';try{navigator.clipboard.writeText(t);alert('Order list copied')}catch(e){prompt('Copy this',t)}};
+function mcards(h,rows){return rows.map(function(r){return '<div class="card mcard"><div class="row"><b>'+r[0]+'</b><span>'+r[4]+'</span></div><div class="row"><span class="mu">Stock '+r[1]+' · '+r[2]+'/day</span><span class="mu">'+(r[3]?'Lasts '+r[3]:'')+'</span></div>'+(r[5]?'<div class="ok" style="margin:6px 0 0">Order <b>'+r[5]+'</b></div>':'')+'</div>'}).join('')}
+function stock(R){var L=R.map(function(r){return [r,plan(r)]}).filter(function(x){return x[1]}),o={now:0,soon:1,ok:3,over:4,dead:5};
+ L.sort(function(a,b){return o[a[1].st]-o[b[1].st]||b[0].r-a[0].r});var ord=L.filter(function(x){return x[1].need>0&&(x[1].st==='now'||x[1].st==='soon')}),cap=0;
+ ord.forEach(function(x){cap+=x[1].need*x[0].buy});window.__anOrd='Order list - '+D.shop+'\n'+ord.map(function(x){return x[0].name+': '+x[1].need+' '+x[0].unit}).join('\n');
+ return '<div class="card"><div class="row"><div><b>When to refill</b><div class="mu">Delivery '+S('lead',7)+' days · hold '+S('cov',30)+' days of stock. Rising items get 20% extra.</div></div>'+(ord.length?'<button class="b" onclick="anCopy()">Copy order list</button>':'')+'</div>'+(ord.length?'<div class="ok" style="margin-top:8px">'+ord.length+' item(s) to order, about '+money(cap)+' at cost.</div>':'')+'</div>'
+ +(isM()?mcards:tbl)(['Item','Stock','Sells/day','Lasts','Status','Order'],L.slice(0,60).map(function(x){var r=x[0],p=x[1];return [esc(r.name)+(r.tr>0?' <span class="grn">↑</span>':r.tr<0?' <span class="red">↓</span>':''),r.stock+' '+esc(r.unit),r.vel?(Math.round(r.vel*100)/100):'-',r.vel?Math.round(r.cover)+' d<br><span class="mu">till '+p.date+'</span>':'-',ST[p.st][0]+' '+ST[p.st][1],p.need?'<b>'+p.need+'</b>':'']}))}
+function more(A,R,f,t){var pr=Object.keys(A.pr).map(function(k){return [k,A.pr[k]]}).sort(function(a,b){return b[1]-a[1]}).filter(function(x){return x[1]>=2}).slice(0,6),now=Date.now(),last={},cnt={},wb=[];
+ D.bills.forEach(function(b){if(b.x||b.pid==='__cash')return;cnt[b.pid]=(cnt[b.pid]||0)+1;if(!last[b.pid]||b.date>last[b.pid])last[b.pid]=b.date});
+ D.parties.forEach(function(p){if(cnt[p.id]>=2&&(now-last[p.id])/DY>=45)wb.push([p,Math.round((now-last[p.id])/DY)])});wb.sort(function(a,b){return b[1]-a[1]});
+ var cu={};D.bills.forEach(function(b){if(!b.x&&b.date>=f&&b.date<t&&b.pid!=='__cash')cu[b.pid]=(cu[b.pid]||0)+b.total});var tc=Object.keys(cu).sort(function(a,b){return cu[b]-cu[a]}).slice(0,6);
+ return '<div class="card"><b>Sales by weekday</b>'+cols(A.wd.map(function(v,i){return [WD[i],v]}))+'</div>'
+ +'<div class="card"><b>Bought together</b><div class="mu">Offer these as a bundle or suggest the second item at billing.</div>'+(pr.map(function(x){var k=x[0].split('|');return '<div class="row" style="padding:5px 0;border-top:1px solid var(--bd)"><span>'+esc(nm(k[0]))+' + '+esc(nm(k[1]))+'</span><b>'+x[1]+' bills</b></div>'}).join('')||'<div class="mu">Not enough repeat combinations yet.</div>')+'</div>'
+ +'<div class="card"><b>Top customers</b>'+hbars(tc.map(function(id){var p=P(id);return [p?p.name:'?',cu[id]]}),money)+'</div>'
+ +'<div class="card"><b>Win-back: stopped buying</b><div class="mu">Regular customers with no bill for 45+ days.</div>'+(wb.slice(0,8).map(function(x){return '<div class="row" style="padding:6px 0;border-top:1px solid var(--bd)"><span>'+esc(x[0].name)+' <span class="mu">'+x[1]+' days</span></span><button class="s" onclick="openWA(P(\''+x[0].id+'\'),\'Namaste '+esc(x[0].name).replace(/\'/g,'')+', it has been a while since your last visit to '+esc(D.shop).replace(/\'/g,'')+'. New stock and offers are available. Please visit us.\')">WhatsApp</button></div>'}).join('')||'<div class="mu">Nobody to win back right now.</div>')+'</div>'}
+function vAna(){var r=rng(),f=r[0],t=r[1],days=Math.max(1,Math.round((t-f)/DY)),A=agg(f,t),R=rows(A,days),hid=R.filter(function(r){return r.q>0&&!(r.buy>0)}).length,pv=AN.per==='all'?null:agg(f-(t-f),f),B;
+ window.__anHid=hid;if(!S('shownc',0))R=R.filter(function(r){return r.buy>0});
+ try{B=AN.tab==='prod'?prod(A,R):AN.tab==='price'?price(R):AN.tab==='stock'?stock(R):AN.tab==='more'?more(A,R,f,t):ov(A,R,pv,f,t)}catch(e){B='<div class="card red">Could not build this view: '+esc(e.message)+'</div>'}
+ return '<div class="ana">'+head(f,t)+B+sets()+'</div>'}
+var _vPa=vPage;vPage=function(){return pg==='ana'?vAna():_vPa()};
+var _bnA=buildNav;buildNav=function(){_bnA();var n=$('nav');if(!n||n.querySelector('[data-ana]'))return;var b=document.createElement('button');b.setAttribute('data-ana','1');b.textContent='Analytics';if(pg==='ana')b.className='on';b.onclick=function(){nav('ana')};var rp2=Array.prototype.find.call(n.children,function(x){return x.textContent==='Reports'});n.insertBefore(b,rp2||null)};
+var _vPm2=vPage;vPage=function(){var h=_vPm2();return pg==='more'&&typeof h==='string'?h.replace(/(<div class="mr" onclick="nav\('rep'\)">)/,'<div class="mr" onclick="nav(\'ana\')"><span>Analytics</span><span class="mrc">›</span></div>$1'):h};
+var _rA=render;render=function(){var r=_rA.apply(this,arguments);try{if(pg==='ana'){var tt=document.getElementById('mtt');if(tt)tt.textContent='Analytics'}}catch(e){}return r};
+render();
+})();
+</script>
+<script>
+/* ================= MOBILE LAYOUT (phones only, <900px) ================= */
+(function(){
+window.MO=window.MO||{};
+window.prClose=function(){var o=document.getElementById('prov');if(o)o.remove();document.body.style.overflow=''};
+window.prGo=function(){var c=window.__prc,t=window.__prt;if(!c)return;var f=document.createElement('iframe');f.style.cssText='position:fixed;width:0;height:0;border:0;left:-99px';
+ f.onload=function(){try{f.contentWindow.focus();f.contentWindow.print()}catch(e){alert('Printing is not available in this browser. Open the app in Chrome.')}setTimeout(function(){f.remove()},60000)};
+ f.srcdoc=prFull(c,t,false);document.body.appendChild(f)};
+window.prMobileOpen=function(c,type){window.__prc=c;window.__prt=type;prClose();var o=document.createElement('div');o.id='prov';
+ o.innerHTML='<div class="prh"><button class="s" onclick="prClose()">✕ Close</button><b>'+(type==='th'?'Thermal bill':'Bill')+' preview</b><button class="b" onclick="prGo()">🖨 Print</button></div><div id="prvb"><iframe id="prif"></iframe></div>';
+ document.body.appendChild(o);document.body.style.overflow='hidden';
+ var th=type==='th',a5=PS().size==='A5',l=PS().pr_or==='land',w=th?(PS().th_w==='58'?219:302):(l?(a5?794:1123):(a5?559:794)),box=document.getElementById('prvb'),fr=document.getElementById('prif');
+ fr.style.width=w+'px';fr.style.height='600px';
+ var fit=function(){var s=Math.min(1,(box.clientWidth-12)/w);try{fr.style.height=Math.max(300,fr.contentDocument.documentElement.scrollHeight)+'px'}catch(e){}fr.style.transform='scale('+s+')';fr.style.transformOrigin='0 0';fr.parentNode.style.height=(fr.offsetHeight*s+16)+'px';fr.style.margin='8px 6px'};
+ fr.onload=fit;fr.srcdoc=prFull(c,type,true)};
+window.prMPrev=function(){prMobileOpen(prCtxX(),prGetT())};
+window.prMTest=function(){prMobileOpen(prCtxX(),prGetT());setTimeout(prGo,900)};
+var _rM=render;render=function(){var y=window.scrollY,r=_rM.apply(this,arguments);if(pg==='set'||pg==='ana')window.scrollTo(0,y);return r};
+var st=document.createElement('style');st.textContent='#prov{position:fixed;inset:0;z-index:80;background:#e9ecf3;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}#prov .prh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}#prvb{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}#prif{border:0;background:#fff;display:block;box-shadow:0 1px 6px rgba(0,0,0,.25)}'
++'@media(max-width:899px){'
++'.prtabs button{padding:14px 4px;font-size:12px}.prsub button{padding:12px 4px}'
++'.thg{flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px;margin:8px -4px 0}.thm{flex:0 0 112px;scroll-snap-align:start;padding:10px 6px;font-size:13px}.thm svg{width:84px;height:110px}'
++'.mbtns{display:flex;gap:8px;margin:10px 0}.mbtns button{flex:1;padding:13px;font-size:15px;border-radius:12px}'
++'.msec{padding:0!important;margin:0 0 10px}.msec summary{list-style:none;padding:16px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:center}.msec summary::-webkit-details-marker{display:none}.msec summary:after{content:"⌄";color:#7b8194;font-size:20px;transition:.2s}.msec[open] summary:after{transform:rotate(180deg)}.msec[open] summary{border-bottom:1px solid var(--bd)}.msec>*:not(summary){margin-left:16px;margin-right:16px}.msec>*:last-child{margin-bottom:16px}'
++'.msec .ck{padding:12px 0;font-size:15px;border-top:1px solid var(--bd)}.msec .ck input[type=checkbox]{width:24px;height:24px;flex:0 0 24px}.msec select,.msec input,.msec textarea{font-size:16px;padding:12px}.msec .ck select{max-width:60%}'
++'.ana .stats{grid-template-columns:1fr 1fr;gap:8px}.ana .stat{padding:10px}.ana .stat b{font-size:19px}.ana .g{grid-template-columns:1fr}'
++'.ana .antabs{display:flex!important;gap:8px;overflow-x:auto;flex-wrap:nowrap!important;margin:10px -4px 0;padding:0 4px 4px}.ana .antabs button{flex:0 0 auto;white-space:nowrap;padding:10px 16px;border-radius:999px;font-size:14px}'
++'.ana select,.ana input[type=date]{width:100%!important;font-size:16px;padding:12px}.ana .card>.row{flex-wrap:wrap}.ana button.b,.ana button.s{min-height:42px}.ana .mcard .row{padding:2px 0}'
++'}';document.head.appendChild(st)})();
+</script>
+<script>(function(){var t=document.createElement('style');t.textContent='@media(max-width:899px){.ana>h2{display:none}.ana .card,.ana .stat{border-radius:10px}}';document.head.appendChild(t)})();</script></body></html>
