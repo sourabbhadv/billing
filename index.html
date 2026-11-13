@@ -3976,8 +3976,10 @@ window.aiSave=function(test){var p=gid('aip').value,k=cleanKey(gid('aik').value)
 window.aiProv=function(v){var m=gid('aim');if(m)m.value=PROV[v].m;var u=gid('aiu');if(u)u.textContent=PROV[v].u};
 window.aiForget=function(){if(!confirm('Remove the AI key from this device?'))return;setCfg({});AI.setup=true;AI.msg=null;render()};
 window.aiShowKey=function(on){var e=gid('aik');if(e)e.type=on?'text':'password'};
+function engUI(){if(!(SR&&cfg().p==='gemini'&&ready()))return '';var e=vp().eng==='sr'?'sr':'gm';return '<span class="mu" style="margin-left:8px">Listen with</span><button type="button" class="aichip eng'+(e==='gm'?' on':'')+'" data-e="gm" onclick="vcEng(\'gm\')">Gemini</button><button type="button" class="aichip eng'+(e==='sr'?' on':'')+'" data-e="sr" onclick="vcEng(\'sr\')">Browser</button>'}
+window.vcEng=function(e){var o=vp();o.eng=e;setVp(o);Array.prototype.forEach.call(document.querySelectorAll('.aichip.eng'),function(b){b.classList.toggle('on',b.getAttribute('data-e')===e)})};
 function chips(){var l=vlang();return VL.map(function(x){return '<button type="button" class="aichip'+(x[0]===l?' on':'')+'" data-l="'+x[0]+'" onclick="vcLang(\''+x[0]+'\')">'+x[1]+'</button>'}).join('')}
-window.vcLang=function(l){var o=vp();o.l=l;setVp(o);Array.prototype.forEach.call(document.querySelectorAll('.aichip'),function(b){b.classList.toggle('on',b.getAttribute('data-l')===l)})};
+window.vcLang=function(l){var o=vp();o.l=l;setVp(o);Array.prototype.forEach.call(document.querySelectorAll('.aichip[data-l]'),function(b){b.classList.toggle('on',b.getAttribute('data-l')===l)})};
 window.vcSay=function(on){var o=vp();o.say=on?1:0;setVp(o);if(!on){try{speechSynthesis.cancel()}catch(e){}}};
 var VEX=['Ramesh ko 10 bag cement ka bill banao','Suresh se 5000 rupaye mile','Who owes me the most money?'];
 window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='',mg=AI.msg;
@@ -3994,7 +3996,7 @@ window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.se
  var on=V.st==='listen'&&V.tgt==='page';
  h+='<div class="'+cl+'"><b>Ask your shop</b><div id="aiLog" class="ailog"></div><div class="aiex">'+ex.map(function(q){return '<button onclick="aiAsk(this.textContent)">'+esc(q)+'</button>'}).join('')+'</div>'
   +'<div class="aiin"><textarea id="aiQ" rows="2" placeholder="'+(m?'Type or tap the mic and speak':'Type your question or command, or press the mic (Alt+V opens Voice anywhere)')+'" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();aiAsk()}"></textarea><button class="aimic'+(on?' on':'')+'" id="aimic" onclick="aiMic()" aria-label="Speak">'+MIC+'</button><button class="b" onclick="aiAsk()">Ask</button></div>'
-  +'<div class="aivl"><span class="mu">Speak in</span>'+chips()+'<label class="mu aisay"><input type="checkbox" style="width:auto;margin:0"'+(vp().say?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label></div><div class="mu vsm" id="aivs2">'+(on?'Listening... tap the mic when done':'Try saying: &ldquo;'+VEX[0]+'&rdquo; or &ldquo;'+VEX[1]+'&rdquo;')+'</div></div>';
+  +'<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'<label class="mu aisay"><input type="checkbox" style="width:auto;margin:0"'+(vp().say?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label></div><div class="mu vsm" id="aivs2">'+(on?'Listening... tap the mic when done':'Try saying: &ldquo;'+VEX[0]+'&rdquo; or &ldquo;'+VEX[1]+'&rdquo;')+'</div></div>';
  h+='<div class="'+cl+'"><b>Scan a purchase bill</b><div class="mu" style="margin:4px 0 8px">Take a photo of a supplier bill. The AI reads the items, you check them, and a Purchase Bill opens ready to save. '+(c.p==='groq'?'<span class="red">This needs Google Gemini. Groq here is text only.</span>':'')+'</div><input type="file" id="aiF" accept="image/*" style="display:none" onchange="aiScan(this)"><button class="b" style="width:100%" onclick="aiFile()">Take / choose bill photo</button></div>';
  setTimeout(aiDraw,0);return h};
 window.aiFile=function(){if(!ready()){AI.setup=true;render();return alert('First add your free AI key in Setup.')}if(cfg().p!=='gemini')return alert('Reading photos needs Google Gemini. Change the AI service in Setup.');var f=document.getElementById('aiF');if(f){f.value='';f.click()}};
@@ -4033,10 +4035,14 @@ function vFin(txt,err){var o=V.o;V.st='idle';V.rec=null;V.mr=null;if(V.cancel){V
 function mrStart(why){var o=V.o;if(!(cfg().p==='gemini'&&ready())){V.st='idle';return o.onErr(why||'Voice typing is not supported in this browser. Use Chrome or Safari, or choose Google Gemini in Setup so it can listen to a recording.')}
  if(!navigator.mediaDevices||!window.MediaRecorder||!(window.AudioContext||window.webkitAudioContext)){V.st='idle';return o.onErr('This browser cannot record voice. Please use Chrome or Safari.')}
  if(window.isSecureContext===false){V.st='idle';return o.onErr('Voice needs the secure https:// address of the app.')}
- navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){var m=new MediaRecorder(s),ch=[];V.mr=m;m.ondataavailable=function(e){if(e.data&&e.data.size)ch.push(e.data)};
-  m.onstop=function(){s.getTracks().forEach(function(t){t.stop()});if(V.cancel)return vFin('');V.st='work';o.onState('work');
+ navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){var m=new MediaRecorder(s),ch=[],AC=window.AudioContext||window.webkitAudioContext,ac=null,an=null,buf=null,spoke=0,vad=0,last=0,peak=0,t0=Date.now(),iv=0;V.mr=m;
+  try{ac=new AC();if(ac.resume)ac.resume();an=ac.createAnalyser();an.fftSize=1024;ac.createMediaStreamSource(s).connect(an);buf=new Uint8Array(an.fftSize)}catch(e){an=null}
+  function stop(){if(m.state==='recording')m.stop()}
+  iv=setInterval(function(){if(!an||!ac||ac.state!=='running'||V.mr!==m)return;an.getByteTimeDomainData(buf);var mx=0,i;for(i=0;i<buf.length;i++){var dv=Math.abs(buf[i]-128);if(dv>mx)mx=dv}var now=Date.now();vad=1;if(mx>peak)peak=mx;if(mx>6){spoke=1;last=now}else if(spoke&&now-last>1800&&now-t0>1500)stop();else if(!spoke&&now-t0>10000)stop()},100);
+  m.ondataavailable=function(e){if(e.data&&e.data.size)ch.push(e.data)};
+  m.onstop=function(){clearInterval(iv);try{ac&&ac.close()}catch(e){}s.getTracks().forEach(function(t){t.stop()});if(V.cancel)return vFin('');if(vad&&peak<3)return vFin('');V.st='work';o.onState('work');
    toWav(new Blob(ch,{type:m.mimeType||'audio/webm'})).then(function(b64){return call([{role:'user',parts:[{text:'Transcribe this short voice note exactly as spoken. It is a shop owner speaking English, Hindi or Marathi (or a mix) about billing, items, customers and amounts. Return only the transcript text, nothing else. If there is no speech, return nothing.'},{inline_data:{mime_type:'audio/wav',data:b64}}]}],'',false,{t:35000})}).then(function(t){vFin(String(t||'').replace(/^["'\s]+|["'\s]+$/g,''))},function(e){vFin('',e.message)})};
-  m.start();V.st='listen';o.onState('listen');setTimeout(function(){if(V.mr===m&&m.state==='recording')m.stop()},40000)},function(){vFin('','The microphone is blocked. Allow the microphone for this site in your browser settings, then try again.')})}
+  m.start();V.st='listen';o.onState('listen');setTimeout(stop,40000)},function(){vFin('','The microphone is blocked. Allow the microphone for this site in your browser settings, then try again.')})}
 function srStart(){var r=new SR(),err='',o=V.o;V.rec=r;V.fin='';V.last='';r.lang=vlang();r.interimResults=true;r.continuous=!isM();r.maxAlternatives=1;
  r.onstart=function(){V.st='listen';o.onState('listen')};
  r.onresult=function(e){var f='',i2='',i;for(i=0;i<e.results.length;i++){var t=e.results[i][0].transcript;if(e.results[i].isFinal)f+=t+' ';else i2+=t}V.fin=f;V.last=(f+i2).trim();o.onPartial(V.last)};
@@ -4044,7 +4050,8 @@ function srStart(){var r=new SR(),err='',o=V.o;V.rec=r;V.fin='';V.last='';r.lang
  r.onend=function(){V.rec=null;if(V.cancel)return vFin('');if(/^(network|service-not-allowed|language-not-supported)$/.test(err)&&cfg().p==='gemini'&&ready()&&navigator.mediaDevices){V.st='idle';err='';return mrStart()}
   if(err&&err!=='no-speech'&&err!=='aborted')return vFin('',verr(err));vFin(V.last)};
  try{r.start()}catch(e){V.st='idle';o.onErr('Could not start the microphone. Please try again.')}}
-function vStart(o){if(V.st!=='idle')return;V.o=o;V.cancel=0;V.st='listen';if(SR)srStart();else mrStart()}
+function useMr(){return !SR||(vp().eng!=='sr'&&cfg().p==='gemini'&&ready()&&!!navigator.mediaDevices&&!!window.MediaRecorder)}
+function vStart(o){if(V.st!=='idle')return;V.o=o;V.cancel=0;V.st='listen';if(useMr())mrStart();else srStart()}
 function vStop(cancel){V.cancel=cancel?1:0;if(V.rec){try{V.rec.stop()}catch(e){}}else if(V.mr&&V.mr.state==='recording'){try{V.mr.stop()}catch(e){}}}
 /* microphone beside the Ask box (types what you say, then asks) */
 function pgSt(s,m){var b=gid('aimic'),t=gid('aivs2');if(b)b.classList.toggle('on',s==='listen');if(t){t.className='mu vsm'+(m?' red':'');t.textContent=m||(s==='listen'?'Listening... tap the mic when done':s==='work'?'Listening to the recording...':'Try saying: “'+VEX[0]+'” or “'+VEX[1]+'”')}}
@@ -4063,7 +4070,7 @@ window.vcSend=function(){var v=AI.vc;if(!v||v.st==='work'||v.conf)return;var e=g
  run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd')v.conf=r.conf;else if(r.k==='answer'){v.ans=r.t;if(vp().say)speak(r.t)}else v.msg=r.t;vcDraw()})};
 function capHtml(v){var h='';
  if(!ready())return '<div class="red" style="margin:8px 0">Add your free AI key first, then you can talk to the app.</div><div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSetup()">Open Setup</button></div>';
- h+='<div class="aivl"><span class="mu">Speak in</span>'+chips()+'</div>';
+ h+='<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'</div>';
  if(v.q&&!v.conf)h+='<div class="aib u" style="margin:4px 0 6px;align-self:flex-end;margin-left:auto">'+esc(v.q)+'</div>';
  if(v.ans)h+='<div class="aib a" style="margin:4px 0 8px;max-width:100%">'+fmt(v.ans)+'</div>';
  h+='<div class="aivm"><button type="button" class="aimic big'+(v.st==='listen'?' on':'')+'" id="aivmic" onclick="vcMic()" aria-label="Speak">'+MIC+'</button><div class="aivs'+(v.msg?' red':'')+'" id="aivs">'+esc(v.msg||(v.st==='work'?'Understanding...':'Tap the mic and speak'))+'</div></div>';
