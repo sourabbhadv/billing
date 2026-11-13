@@ -3939,10 +3939,26 @@ function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/
 var MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0};
 var CMD=/\b(bill|invoice|estimate|quotation|quote|challan|order|payment|received|receive|paid|jama|banao|bana|banaiye|banado|likho|create|make|add|entry|mile|mila|mili|diye|diya|liye|liya|bheje|bheja|udhar|credit|debit)\b|बिल|बना|बनवा|लिखो|जमा|मिले|मिला|दिए|दिये|पेमेंट|कोटेशन|ऑर्डर|तयार|करा/i;
-var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY JSON: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. NEVER guess or invent anything. Write party and item names exactly as heard (the app will ask the owner to pick from the saved list). If the quantity or rate was not clearly said, use 0. Write names in Latin letters.\n';
+var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY JSON: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names exactly as heard (the app will ask the owner to pick from the saved list). If the quantity or rate was not clearly said, use 0. Write names in Latin letters.\n';
+var DVR=/[\u0900-\u097f]/,
+DC={'\u0915':'k','\u0916':'kh','\u0917':'g','\u0918':'gh','\u0919':'n','\u091a':'ch','\u091b':'chh','\u091c':'j','\u091d':'jh','\u091e':'n','\u091f':'t','\u0920':'th','\u0921':'d','\u0922':'dh','\u0923':'n','\u0924':'t','\u0925':'th','\u0926':'d','\u0927':'dh','\u0928':'n','\u092a':'p','\u092b':'f','\u092c':'b','\u092d':'bh','\u092e':'m','\u092f':'y','\u0930':'r','\u0932':'l','\u0933':'l','\u0935':'v','\u0936':'sh','\u0937':'sh','\u0938':'s','\u0939':'h','\u095b':'z','\u095c':'r','\u095d':'rh','\u095e':'f'},
+DMt={'\u093e':'a','\u093f':'i','\u0940':'i','\u0941':'u','\u0942':'u','\u0947':'e','\u0948':'ai','\u094b':'o','\u094c':'au','\u0949':'o','\u0943':'ri','\u0945':'e','\u0946':'e','\u094a':'o'},
+DVw={'\u0905':'a','\u0906':'a','\u0907':'i','\u0908':'i','\u0909':'u','\u090a':'u','\u090f':'e','\u0910':'ai','\u0913':'o','\u0914':'au','\u0911':'o','\u090b':'ri'};
+function dev2lat(w){var o='',i,c,n;for(i=0;i<w.length;i++){c=w[i];n=w[i+1];
+ if(DC[c]!==undefined){o+=DC[c];if(n==='\u093c'){i++;n=w[i+1]}
+  if(n==='\u094d'){i++;continue}
+  if(DMt[n]!==undefined)continue;
+  if(n==='\u0902'||n==='\u0901'||n==='\u0903'){o+='a';continue}
+  if(n&&DC[n]!==undefined)o+='a'}
+ else if(DMt[c]!==undefined)o+=DMt[c];else if(DVw[c]!==undefined)o+=DVw[c];
+ else if(c==='\u0902'||c==='\u0901')o+='n';else if(c==='\u0903')o+='h';else if(/[\u0900-\u097f]/.test(c)&&c!=='\u094d'&&c!=='\u093c')o+='';else o+=c}
+ return o}
+/* sound-alike form used only when Hindi/Marathi letters are involved (tech/tek, cement/siment ...) */
+function ph(s){s=String(s||'').replace(/[\u0900-\u097f]+/g,dev2lat).toLowerCase();return s.replace(/ph/g,'f').replace(/w/g,'v').replace(/ck/g,'k').replace(/c(?=[eiy])/g,'s').replace(/c/g,'k').replace(/q/g,'k').replace(/x/g,'ks').replace(/z/g,'j').replace(/(ch|kh)/g,'k').replace(/(gh)/g,'g').replace(/(th|dh|bh|jh)/g,function(m){return m[0]}).replace(/sh/g,'s').replace(/oo/g,'u').replace(/ee/g,'i').replace(/aa/g,'a').replace(/(.)\1+/g,'$1')}
+function psim(a,b){if(DVR.test(a+b)){a=ph(a);b=ph(b)}a=nz(a);b=nz(b);if(!a||!b)return 0;return 1-lev(a,b)/Math.max(a.length,b.length)}
 function nz(s){return String(s||'').toLowerCase().replace(/[^a-z0-9ऀ-ॿ]+/g,'')}
 function lev(a,b){var p=[],i,j,c;for(j=0;j<=b.length;j++)p[j]=j;for(i=1;i<=a.length;i++){var d=p[0];p[0]=i;for(j=1;j<=b.length;j++){c=p[j];p[j]=Math.min(p[j]+1,p[j-1]+1,d+(a[i-1]===b[j-1]?0:1));d=c}}return p[b.length]}
-function sim(a,b){a=nz(a);b=nz(b);if(!a||!b)return 0;if(a===b)return 1;if(a.length>=3&&b.length>=3&&(a.indexOf(b)>=0||b.indexOf(a)>=0))return .9;return 1-lev(a,b)/Math.max(a.length,b.length)}
+function sim(a,b){if(DVR.test(String(a)+String(b))){a=ph(a);b=ph(b)}a=nz(a);b=nz(b);if(!a||!b)return 0;if(a===b)return 1;if(a.length>=3&&b.length>=3&&(a.indexOf(b)>=0||b.indexOf(a)>=0))return .9;return 1-lev(a,b)/Math.max(a.length,b.length)}
 function best(list,name,th){var bs=0,bo=null;if(!name)return null;list.forEach(function(o){var s=sim(o.name,name);if(s>bs){bs=s;bo=o}});return bs>=th?bo:null}
 function jparse(t){t=String(t).replace(/```json|```/g,'').trim();var a=t.indexOf('{'),b=t.lastIndexOf('}');try{return JSON.parse(t.slice(a,b+1))}catch(e){return null}}
 var ACT={sale:1,purchase:1,estimate:1,sale_order:1,challan:1,payment_in:1,payment_out:1};
@@ -3956,8 +3972,8 @@ var CMD2=/\b(sale|sold|purchase|bought|buy|sell|kharid\w*|bech\w*)\b/i;
 function isCmd(q){return CMD.test(q)||(CMD2.test(q)&&/[0-9\u0966-\u096f]/.test(q))}
 /* ---- ASK BACK: if anything is unclear, ask the owner before opening the form ---- */
 function qWords(s){return String(s||'').toLowerCase().split(/[^a-z0-9\u0900-\u097f]+/).filter(function(t){return t.length>1})}
-function qStrong(list,spoken){var s=nz(spoken),tk=qWords(spoken);if(s.length<4)return [];
- return list.filter(function(o){return nz(o.name).indexOf(s)>=0||(tk.length&&tk.every(function(t){return qWords(o.name).some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||(1-lev(x,t)/Math.max(x.length,t.length))>=.8})}))})}
+function qStrong(list,spoken){var s=nz(DVR.test(spoken)?ph(spoken):spoken),tk=qWords(spoken);if(s.length<4)return [];
+ return list.filter(function(o){return nz(DVR.test(spoken)?ph(o.name):o.name).indexOf(s)>=0||(tk.length&&tk.every(function(t){return qWords(o.name).some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||psim(x,t)>=(Math.max(x.length,t.length)>=6?.72:.8)})}))})}
 function qCands(list,spoken,top){var s=nz(spoken);if(!s)return [];var tk=qWords(spoken);
  var res=list.map(function(o){var n=nz(o.name),w=qWords(o.name),sc=sim(o.name,spoken);
   var m=tk.filter(function(t){return w.some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||sim(x,t)>=.75})}).length;
@@ -3970,36 +3986,38 @@ function qCands(list,spoken,top){var s=nz(spoken);if(!s)return [];var tk=qWords(
   var rt=null,rc=1e9;tk.forEach(function(t){var c=res.filter(function(x){return hit(x.o,t)}).length;if(c>0&&c<rc){rc=c;rt=t}});
   if(rt)res=res.filter(function(x){return hit(x.o,rt)||x.s>=.85})}
  return res.sort(function(a,b){return b.s-a.s||String(a.o.name).localeCompare(String(b.o.name))}).map(function(x){return x.o})}
-var stq=document.createElement('style');stq.textContent='#aiq{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}.aiqb{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-sizing:border-box}@media(min-width:700px){#aiq{align-items:center}.aiqb{border-radius:16px}}.aiqt{font-size:17px;font-weight:700;color:#1f2437;margin-bottom:4px}.aiqo{display:block;width:100%;text-align:left;background:#f4f6ff;border:1.5px solid #c9cde0;border-radius:10px;padding:10px 12px;margin:6px 0;font-size:15px;color:#1f2437}.aiqo small{display:block;color:#7b8194;font-size:12.5px;margin-top:2px}.aiqi{display:flex;gap:8px;align-items:center;margin-top:8px}.aiqi input{flex:1;min-width:0;font-size:16px;padding:10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0}';document.head.appendChild(stq);
+var stq=document.createElement('style');stq.textContent='#aiq{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}.aiqb{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-sizing:border-box}@media(min-width:700px){#aiq{align-items:center}.aiqb{border-radius:16px}}.aiqt{font-size:17px;font-weight:700;color:#1f2437;margin-bottom:2px}.aiqh{font-size:15.5px;color:#3d4468;margin-bottom:6px}.aiqo{display:block;width:100%;text-align:left;background:#f4f6ff;border:1.5px solid #c9cde0;border-radius:10px;padding:10px 12px;margin:6px 0;font-size:15px;color:#1f2437}.aiqo small{display:block;color:#7b8194;font-size:12.5px;margin-top:2px}.aiqi{display:flex;gap:8px;align-items:center;margin-top:8px}.aiqi input{flex:1;min-width:0;font-size:16px;padding:10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0}';document.head.appendChild(stq);
+var HIN={customer:'ग्राहक',supplier:'सप्लायर',party:'पार्टी'},HT={sale:'बिक्री बिल',purchase:'खरीद बिल',estimate:'एस्टिमेट',sale_order:'सेल ऑर्डर',challan:'डिलीवरी चालान',payment_in:'पेमेंट (मिला)',payment_out:'पेमेंट (दिया)'};
+function hiOf(tt){return HIN[tt]||'पार्टी'}
 /* shows a question card. Resolves {o:value} if an option was tapped, {t:text} if text typed, {n:number} if a number typed */
 function askQ(o){return new Promise(function(ok,no){
  var d=gid('aiq');if(d)d.remove();d=document.createElement('div');d.id='aiq';
- var opts=o.opts||[],h='<div class="aiqb"><div class="aiqt">'+esc(o.t)+'</div>'+(o.sub?'<div class="mu vsm">'+esc(o.sub)+'</div>':'');
+ var opts=o.opts||[],h='<div class="aiqb"><div class="aiqt">'+esc(o.t)+'</div>'+(o.hi?'<div class="aiqh">'+esc(o.hi)+'</div>':'')+(o.sub?'<div class="mu vsm">'+esc(o.sub)+(o.shi?'<br>'+esc(o.shi):'')+'</div>':'');
  opts.forEach(function(x,i){h+='<button type="button" class="aiqo" data-i="'+i+'"><b>'+esc(x.l)+'</b>'+(x.s?'<small>'+esc(x.s)+'</small>':'')+'</button>'});
  if(o.inp){h+='<div class="aiqi"><input id="aiqi" '+(o.inp==='number'?'type="number" inputmode="decimal" step="any"':'type="text" autocomplete="off"')+(o.dl?' list="aiqdl"':'')+' placeholder="'+esc(o.ph||'')+'"><button type="button" class="aimic" id="aiqm" aria-label="Speak">'+MIC+'</button><button type="button" class="b" id="aiqok">OK</button></div>'+(o.dl?'<datalist id="aiqdl">'+o.dl.map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>':'')+'<div class="mu vsm red" id="aiqs"></div>'}
- h+='<button type="button" class="s" id="aiqx" style="width:100%;margin-top:10px">Cancel</button></div>';
+ h+='<button type="button" class="s" id="aiqx" style="width:100%;margin-top:10px">Cancel · रद्द करें</button></div>';
  d.innerHTML=h;document.body.appendChild(d);
  var inp=gid('aiqi'),sts=gid('aiqs');
- if(vsay()){var sp2=o.t+'. ';opts.slice(0,5).forEach(function(x,i){sp2+=(i+1)+', '+x.l+'. '});if(o.inp&&!opts.length)sp2+=(o.inp==='number'?'Please say the number.':'Please say or type the name.');speak(sp2)}
- function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened.'));else ok(v)}
+ if(vsay()){var hn=o.hi&&vlang()!=='en-IN',sp2=(hn?o.hi:o.t)+'. ';opts.slice(0,5).forEach(function(x,i){var pr=String(x.l).split(' · ');sp2+=(i+1)+', '+(hn&&pr[1]?pr[1]:pr[0])+'. '});if(o.inp&&!opts.length)sp2+=hn?(o.inp==='number'?'कृपया संख्या बोलिए।':'कृपया नाम बोलिए या लिखिए।'):(o.inp==='number'?'Please say the number.':'Please say or type the name.');speak(sp2)}
+ function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened. · ठीक है, रद्द किया। कुछ नहीं खुला।'));else ok(v)}
  d.querySelectorAll('.aiqo').forEach(function(b){b.onclick=function(){done({o:opts[+b.getAttribute('data-i')].v})}});
  gid('aiqx').onclick=function(){done(null,1)};
  function say(m){if(sts)sts.textContent=m||''}
- function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer.');if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0.');return done({n:n})}done({t:v})}
+ function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer. · कृपया लिखें या बोलें।');if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0. · 0 से बड़ी संख्या बताइए।');return done({n:n})}done({t:v})}
  if(inp&&o.inp==='text')inp.addEventListener('input',function(){var ws=inp.value.trim().toLowerCase().split(/\s+/).filter(Boolean);d.querySelectorAll('.aiqo').forEach(function(b){var x=opts[+b.getAttribute('data-i')],l=String(x.l).toLowerCase();b.style.display=(!ws.length||(x.v&&x.v.nw)||ws.every(function(w){return l.indexOf(w)>=0}))?'':'none'})});
  if(inp){gid('aiqok').onclick=submit;inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();submit()}};if(!isM())inp.focus();
   var mb=gid('aiqm');mb.onclick=function(){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')return;V.tgt='q';say('');
    vStart({onPartial:function(t){inp.value=t},onState:function(s){mb.classList.toggle('on',s==='listen')},onErr:function(m){mb.classList.remove('on');say(m)},
     onEnd:function(t){mb.classList.remove('on');t=String(t||'').trim();
-     if(o.inp==='number'){var m=t.replace(/,/g,'').match(/\d+(\.\d+)?/);inp.value=m?m[0]:t;if(m)return submit();return say('I heard "'+t+'". Please type the number.')}
+     if(o.inp==='number'){var m=t.replace(/,/g,'').match(/\d+(\.\d+)?/);inp.value=m?m[0]:t;if(m)return submit();return say('I heard "'+t+'". Please type the number. · मैंने सुना "'+t+'"। कृपया संख्या लिखें।')}
      var dg=t.replace(/[^0-9]/g,'');if(opts.length&&dg&&+dg>=1&&+dg<=opts.length&&t.length<12)return done({o:opts[+dg-1].v});
      var bi=-1,bs=0;opts.forEach(function(x,i){var s=sim(x.l,t);if(s>bs){bs=s;bi=i}});if(bi>=0&&bs>=.75)return done({o:opts[bi].v});
-     inp.value=t;say('I heard "'+t+'". Press OK, or tap one of the names above.')}})}}
+     inp.value=t;say('I heard "'+t+'". Press OK, or tap a name above. · मैंने सुना "'+t+'"। OK दबाएँ या ऊपर से नाम चुनें।')}})}}
 })}
 async function clarify(j,force){
  var a=force||String(j&&j.action||'').toLowerCase().replace(/[^a-z_]/g,'');
  if(!ACT[a])return j;
- var pay=a==='payment_in'||a==='payment_out',pur=a==='purchase',tt=TT[a][1].toLowerCase();
+ var pay=a==='payment_in'||a==='payment_out',pur=a==='purchase',tt=TT[a][1].toLowerCase(),hP=hiOf(tt);
  j=JSON.parse(JSON.stringify(j));j._r=1;
  /* 1) WHO */
  var sp=String(j.party||'').trim();
@@ -4011,9 +4029,9 @@ async function clarify(j,force){
   if(ex&&(cs.length===1||qWords(sp).length>=2||st.length<=1))j.party=ex.name;
   else if(!ex&&st.length===1)j.party=st[0].name;
   else{
-   var po=cs.slice(0,150).map(function(p){return {l:p.name,s:[p.name===lp?'You chose this last time':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
-   if(sp)po.push({l:'New '+tt+': '+sp,s:'Not in my list. Create as new.',v:{n:sp,nw:1}});
-   var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"':'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',sub:cs.length?'Tap the right one, or type the name.':'Type or speak the name.',opts:po,inp:'text',ph:'Type name',dl:D.parties.map(function(p){return p.name})});
+   var po=cs.slice(0,150).map(function(p){return {l:p.name,s:[p.name===lp?'Last time you chose this · पिछली बार यही चुना था':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
+   if(sp)po.push({l:'New '+tt+' · नया '+hP+': '+sp,s:'Not in my list. Create as new. · लिस्ट में नहीं है, नया बनाएँ।',v:{n:sp,nw:1}});
+   var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"'+(cs.length>1?' ('+cs.length+' found)':''):'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',hi:sp?(cs.length?'कौन सा '+hP+'? आपने बोला "'+sp+'"'+(cs.length>1?' ('+cs.length+' नाम मिले)':''):'"'+sp+'" आपकी लिस्ट में नहीं मिला'):hP+' कौन है?',sub:cs.length?'Tap the right one, or type / speak the name.':'Type or speak the name.',shi:cs.length?'सही नाम पर टैप करें, या नाम लिखें / बोलें।':'नाम लिखें या बोलें।',opts:po,inp:'text',ph:'Type name · नाम लिखें',dl:D.parties.map(function(p){return p.name})});
    if(r.o){j.party=r.o.n;if(sp)lrnSet('p',sp,r.o.n)}else{var f=findP(r.t),sq=f?[f]:qStrong(D.parties,r.t);j.party=sq.length===1?sq[0].name:r.t}
   }
  }
@@ -4031,22 +4049,22 @@ async function clarify(j,force){
    if(nm&&e2&&(c2.length===1||qWords(nm).length>=2||sti.length<=1))it=e2;
    else if(nm&&!e2&&sti.length===1)it=sti[0];
    else{
-    var io=c2.slice(0,60).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'You chose this last time':'',p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
-    if(nm)io.push({l:'New item: '+nm,s:'Not in my stock list. Create as new item.',v:{n:nm,nw:1}});
-    var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"':'I could not find "'+nm+'" in your items'):'Which item?',sub:c2.length?'Tap the right one, or type the name.':'Type or speak the item name.',opts:io,inp:'text',ph:'Type item name',dl:D.items.map(function(p){return p.name})});
+    var io=c2.slice(0,60).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'Last time you chose this · पिछली बार यही चुना था':'',p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
+    if(nm)io.push({l:'New item · नया आइटम: '+nm,s:'Not in my stock list. Create as new item. · स्टॉक में नहीं है, नया बनाएँ।',v:{n:nm,nw:1}});
+    var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"'+(c2.length>1?' ('+c2.length+' found)':''):'I could not find "'+nm+'" in your items'):'Which item?',hi:nm?(c2.length?'कौन सा आइटम? आपने बोला "'+nm+'"'+(c2.length>1?' ('+c2.length+' मिले)':''):'"'+nm+'" आपके आइटम में नहीं मिला'):'कौन सा आइटम?',sub:c2.length?'Tap the right one, or type / speak the name.':'Type or speak the item name.',shi:c2.length?'सही आइटम पर टैप करें, या नाम लिखें / बोलें।':'आइटम का नाम लिखें या बोलें।',opts:io,inp:'text',ph:'Type item name · आइटम का नाम',dl:D.items.map(function(p){return p.name})});
     if(r2.o){x.name=r2.o.n;if(nm)lrnSet('i',nm,r2.o.n)}else{var f2=findI(r2.t),s2=f2?[f2]:qStrong(D.items,r2.t);x.name=s2.length===1?s2[0].name:r2.t}
     it=findI(x.name)||null;
    }
    if(it)x.name=it.name;
    if(!it&&!x.unit&&x.uh)x.unit=String(x.uh).replace(/^(bag|box|ton|meter|roll|packet|bundle|carton)s$/,'$1').replace(/^(pc|pcs|nos|nang|pieces?)$/,'pcs');
    var un=String(x.unit||'').trim()||(it&&it.unit)||'';
-   if(!(+x.qty>0)){var rq=await askQ({t:'How many'+(un?' '+un:'')+' of '+x.name+'?',sub:'You did not tell the quantity.',inp:'number',ph:'Quantity'});x.qty=rq.n}
+   if(!(+x.qty>0)){var rq=await askQ({t:'How many'+(un?' '+un:'')+' of '+x.name+'?',hi:x.name+' कितना'+(un?' ('+un+')':'')+' चाहिए?',sub:'You did not tell the quantity.',shi:'आपने मात्रा नहीं बताई।',inp:'number',ph:'Quantity · मात्रा'});x.qty=rq.n}
    if(!(+x.rate>0)){var sv=it?(pur?(+it.buy||+it.rate||0):(+it.rate||0)):0;
-    if(sv>0){x.rate=sv}else{var rr=await askQ({t:'What is the price of '+x.name+'?',sub:sv>0?'You did not tell the price. Saved price is Rs '+sv+(un?' per '+un:'')+'.':'You did not tell the price.',opts:sv>0?[{l:'Use saved price: Rs '+sv,s:un?'per '+un:'',v:sv}]:[],inp:'number',ph:'Price per '+(un||'unit')});
-    x.rate=rr.o!==undefined?rr.o:rr.n}}
+    var rr=await askQ({t:'What is the price of '+x.name+'?',hi:x.name+' का रेट कितना है?',sub:sv>0?'You did not tell the price. Saved price is Rs '+sv+(un?' per '+un:'')+'.':'You did not tell the price.',shi:sv>0?'आपने रेट नहीं बताया। सेव किया हुआ रेट Rs '+sv+(un?' प्रति '+un:'')+' है।':'आपने रेट नहीं बताया।',opts:sv>0?[{l:'Use saved price: Rs '+sv+' · सेव रेट Rs '+sv,s:un?'per '+un+' · प्रति '+un:'',v:sv}]:[],inp:'number',ph:'Price per '+(un||'unit')+' · रेट'});
+    x.rate=rr.o!==undefined?rr.o:rr.n}
   }
  }else if(!(+j.amount>0)&&!(+j.paid>0)){
-  var ra=await askQ({t:'How much money?',sub:'You did not tell the amount.',inp:'number',ph:'Amount in Rs'});j.amount=ra.n
+  var ra=await askQ({t:'How much money?',hi:'कितने रुपये?',sub:'You did not tell the amount.',shi:'आपने रकम नहीं बताई।',inp:'number',ph:'Amount in Rs · रकम'});j.amount=ra.n
  }
  return j}
 /* ================= OWN HELPER: reads simple spoken commands without any AI ================= */
@@ -4060,15 +4078,16 @@ var W_EST=wset('estimate estimates quotation quotations quote kotation कोट
  W_OUT=wset('paid pay diye diya dia bheje bheja दिए दिये दिया भेजे भेजा दिले दिला'),
  W_PAY=wset('payment payments पेमेंट'),
  W_RATE=wset('rate bhav bhaav price kimat kimmat भाव किंमत कीमत दर रेट'),
+ W_QTY=wset('quantity qty qnty quantiy matra \u092e\u093e\u0924\u094d\u0930\u093e \u0915\u094d\u0935\u093e\u0902\u091f\u093f\u091f\u0940 \u0928\u0917'),
  W_RSUF=wset('me mein में मध्ये each per'),
- W_UNIT=wset('bag bags bori boris बोरी गोणी piece pieces pcs pc nos nang नग box boxes peti पेटी ft feet kg kgs ton tons meter meters mtr sqft bundle bundles roll rolls packet packets carton cartons'),
+ W_UNIT=wset('bag bags bori boris बोरी गोणी piece pieces pcs pc nos nang नग box boxes peti पेटी ft feet kg kgs ton tons meter meters mtr sqft bundle bundles roll rolls packet packets carton cartons bucket buckets litre litres ltr बैग बॅग बाल्टी बॉक्स किलो टन मीटर फुट फीट पीस बंडल रोल पैकेट कार्टन'),
  W_SEP=wset('and aur और आणि ani plus + &'),
  W_FILL=wset('ko ka ki ke se ne of for to from the a an in out please make create add new entry de do dena dedo kar karo kardo bana banao banado banaiye banvao likho likh lagao rupees rupaye rupaya rs inr rupee रुपये रुपए रुपया रु के को का की से ने साठी ला चे चा ची बनाओ बनाइए बना बनवा करा liye लिए'),
  NW={ek:1,one:1,एक:1,do:2,two:2,दो:2,दोन:2,teen:3,three:3,तीन:3,char:4,chaar:4,four:4,चार:4,paanch:5,panch:5,five:5,पांच:5,पाँच:5,पाच:5,chhe:6,chha:6,six:6,छह:6,सहा:6,saat:7,seven:7,सात:7,aath:8,eight:8,आठ:8,nau:9,nine:9,नौ:9,नऊ:9,das:10,ten:10,दस:10,दहा:10,gyarah:11,barah:12,terah:13,chaudah:14,pandrah:15,solah:16,satrah:17,atharah:18,unnis:19,bees:20,vees:20,twenty:20,बीस:20,वीस:20,tees:30,thirty:30,तीस:30,chalis:40,forty:40,चालीस:40,pachas:50,fifty:50,पचास:50,पन्नास:50,saath:60,sixty:60,साठ:60,sattar:70,seventy:70,सत्तर:70,assi:80,eighty:80,अस्सी:80,nabbe:90,ninety:90,नब्बे:90},
  NM={sau:100,hundred:100,सौ:100,शंभर:100,hazaar:1000,hazar:1000,thousand:1000,हजार:1000,'हज़ार':1000,lakh:100000,lac:100000,लाख:100000},
  AMB={do:1,ek:1,one:1,दो:1,एक:1};
-function owSp(w){return !!(W_EST[w]||W_SO[w]||W_CH[w]||W_PUR[w]||W_SALE[w]||W_IN[w]||W_OUT[w]||W_PAY[w]||W_RATE[w]||W_RSUF[w]||W_UNIT[w]||W_SEP[w]||W_FILL[w]||w==='@'||w==='at')}
-function owTok(q){var DM=[],t=String(q||'').toLowerCase().replace(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/g,function(m,a,b){DM.push(a+'x'+b);return ' dimzz'+String.fromCharCode(96+DM.length)+'zz '}).replace(/[\u0966-\u096f]/g,function(c){return String(c.charCodeAt(0)-0x966)}).replace(/₹/g,' rs ').replace(/(\d),(?=\d)/g,'$1').replace(/[,;]+/g,' and ').replace(/@/g,' @ ').replace(/(\d)([a-z\u0900-\u097f])/g,'$1 $2').replace(/([a-z\u0900-\u097f])(\d)/g,'$1 $2');
+function owSp(w){return !!(W_QTY[w]||W_EST[w]||W_SO[w]||W_CH[w]||W_PUR[w]||W_SALE[w]||W_IN[w]||W_OUT[w]||W_PAY[w]||W_RATE[w]||W_RSUF[w]||W_UNIT[w]||W_SEP[w]||W_FILL[w]||w==='@'||w==='at')}
+function owTok(q){var DM=[],t=String(q||'').toLowerCase().replace(/(\d{1,3}):(\d{2})\b/g,'$1$2').replace(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/g,function(m,a,b){DM.push(a+'x'+b);return ' dimzz'+String.fromCharCode(96+DM.length)+'zz '}).replace(/[\u0966-\u096f]/g,function(c){return String(c.charCodeAt(0)-0x966)}).replace(/₹/g,' rs ').replace(/(\d),(?=\d)/g,'$1').replace(/[,;]+/g,' and ').replace(/@/g,' @ ').replace(/(\d)([a-z\u0900-\u097f])/g,'$1 $2').replace(/([a-z\u0900-\u097f])(\d)/g,'$1 $2');
  var raw=(t.match(/\d+(?:\.\d+)?|[a-z]+|[\u0900-\u097f]+|@|\+|&/g)||[]).map(function(w){return w.indexOf('dimzz')===0?(DM[w.charCodeAt(5)-97]||w):w}),i=0,out=[];
  while(i<raw.length){var w=raw[i],nx=raw[i+1];
   if(/^\d+(?:\.\d+)?$/.test(w)){var v=parseFloat(w),j=i+1;if(NM[nx]){v*=NM[nx];j++}else if(nx==='k'){v*=1000;j++}out.push({n:v});i=j;continue}
@@ -4089,10 +4108,11 @@ function owAct(T,force){if(force)return force;
   if(has(W_OUT)&&!has(W_IN)&&!hw('ne')&&!hw('ने'))return 'payment_out';
   return 'payment_in'}
  for(var i=0;i<T.length-1;i++)if(T[i].n!==undefined&&T[i+1].w&&W_UNIT[T[i+1].w])return 'sale';
+ var tx=T.map(function(x){return x.w||''}).join(' ');if(mentioned(D.parties,tx).length&&mentioned(D.items,tx).length)return 'sale';
  return null}
 function pScore(ws){var s=ws.join(' '),b=0;D.parties.forEach(function(p){var v=sim(p.name,s);if(v>b)b=v});return b}
 function iScore(ws){var s=ws.join(' '),b=0;D.items.forEach(function(p){var v=sim(p.name,s);if(v>b)b=v});return b}
-var OWNHELP='Sorry, I did not understand. You can say:\n• "Ramesh 10 bag cement sale bill"\n• "Suresh 5000 rupees received"\n• "Ramesh ka balance"\n• "cement ka stock"\n• "aaj ki sale" or "who owes me the most?"';
+var OWNHELP='Sorry, I did not understand. You can say:\n• "Raju 20 bag UltraTech 380 sale bill"\n• "Suresh 5000 rupees received"\n• "Ramesh ka balance" · "cement ka stock" · "aaj ki sale"\n\nमाफ़ कीजिए, समझ नहीं आया। ऐसे बोलिए:\n• "राजू को 20 बोरी अल्ट्राटेक 380 का बिल बनाओ"\n• "सुरेश से 5000 रुपये मिले"';
 function ownParse(q,force){var T=owTok(q);if(!T.length)return null;
  var a=owAct(T,force);if(!a)return null;
  var pay=a==='payment_in'||a==='payment_out',paid=0,i,k;
@@ -4102,9 +4122,13 @@ function ownParse(q,force){var T=owTok(q);if(!T.length)return null;
  /* runs of plain words = names */
  var runs=[],r=null;for(i=0;i<T.length;i++){var u=T[i];if(!u.x&&u.w&&!owSp(u.w)){if(!r){r={a:i,b:i};runs.push(r)}r.b=i}else r=null}
  function wd(rn){var o=[];for(var z=rn.a;z<=rn.b;z++)o.push(T[z].w);return o}
- if(runs.length===1&&!pay&&runs[0].b>runs[0].a){var r1=runs[0],bs=0,sp=-1,pre=0;
-  for(k=r1.a+1;k<=r1.b;k++){var pf=wd({a:r1.a,b:k-1}),sf=wd({a:k,b:r1.b}),s1=pScore(sf),s2=pScore(pf);if(s1>=.9&&s1>bs){bs=s1;sp=k;pre=0}if(s2>=.9&&s2>bs){bs=s2;sp=k;pre=1}}
-  if(sp>0)runs=[{a:r1.a,b:sp-1},{a:sp,b:r1.b}]}
+ if(runs.length===1&&!pay&&runs[0].b>runs[0].a){var r1=runs[0],bs=0,sp=-1,pre=0,whole=pScore(wd(r1)),hasNum=T.some(function(x){return x.n!==undefined&&!x.x});
+  if(whole>=.85&&!hasNum){/* the whole run is one saved party name and no item was said */}
+  else{
+   for(k=r1.a+1;k<=r1.b;k++){var pf=wd({a:r1.a,b:k-1}),sf=wd({a:k,b:r1.b}),a1=pScore(pf),b1=iScore(sf),a2=pScore(sf),b2=iScore(pf);
+    if(a1>=.6&&b1>=.6&&a1+b1>bs){bs=a1+b1;sp=k}if(a2>=.6&&b2>=.6&&a2+b2>bs){bs=a2+b2;sp=k}}
+   if(sp<0){bs=0;for(k=r1.a+1;k<=r1.b;k++){var pf2=wd({a:r1.a,b:k-1}),sf2=wd({a:k,b:r1.b}),s1=pScore(sf2),s2=pScore(pf2);if(s1>=.9&&s1>bs){bs=s1;sp=k;pre=0}if(s2>=.9&&s2>bs){bs=s2;sp=k;pre=1}}}
+   if(sp>0)runs=[{a:r1.a,b:sp-1},{a:sp,b:r1.b}]}}
  var party=null,firstNum=-1;for(i=0;i<T.length;i++)if(T[i].n!==undefined&&!T[i].x){firstNum=i;break}
  if(runs.length){var bd=-9,bi=-1;runs.forEach(function(rn,ix){var w=wd(rn),ps=pScore(w),is=iScore(w);if(ps>=.6&&ps-is>bd){bd=ps-is;bi=ix}});
   if(bi<0){if(pay)bi=0;else if(runs.length>=2){var f0=iScore(wd(runs[0])),fl2=iScore(wd(runs[runs.length-1]));bi=f0<=fl2?0:runs.length-1}
@@ -4117,15 +4141,17 @@ function ownParse(q,force){var T=owTok(q);if(!T.length)return null;
  function fl(){if(cur.name.length||cur.qty)items.push({name:cur.name.join(' '),qty:cur.qty,unit:'',uh:cur.unit,rate:cur.rate});cur={name:[],qty:0,unit:'',rate:0}}
  var L=T.filter(function(x){return !x.x});
  for(i=0;i<L.length;i++){var c=L[i],nx=L[i+1];
+  if(c.w&&W_QTY[c.w]){if(nx&&nx.n!==undefined){if(cur.qty>0)fl();cur.qty=nx.n;i++}continue}
   if(c.w==='@'||c.w==='at'||(c.w&&W_RATE[c.w])){if(nx&&nx.n!==undefined){cur.rate=nx.n;i++}continue}
   if(c.n!==undefined){
+   if(nx&&nx.w&&W_QTY[nx.w]){if(cur.qty>0)fl();cur.qty=c.n;i++;continue}
    if(nx&&nx.w&&W_RSUF[nx.w]){cur.rate=c.n;i++;continue}
    if(nx&&nx.w&&W_UNIT[nx.w]){if(cur.qty>0)fl();cur.qty=c.n;cur.unit=nx.w;i++;continue}
    if(cur.qty===0){cur.qty=c.n;continue}
    if(nx&&nx.w&&!owSp(nx.w)&&cur.name.length){fl();cur.qty=c.n;continue}
    if(!cur.rate)cur.rate=c.n;continue}
   if(W_UNIT[c.w]){if(!cur.unit)cur.unit=c.w;continue}
-  if(W_SEP[c.w]){fl();continue}
+  if(W_SEP[c.w]){if(nx&&nx.w&&(W_QTY[nx.w]||W_RATE[nx.w]||nx.w==='@'||nx.w==='at')&&cur.name.length)continue;fl();continue}
   if(owSp(c.w))continue;
   cur.name.push(c.w)}
  fl();
@@ -4184,7 +4210,7 @@ function localAnswer(q){var s=String(q||'').toLowerCase(),its=mentioned(D.items,
 function viaOwn(q,force){var j=null;try{j=ownParse(q,force)}catch(e){}return j?clarify(j,force).then(function(j2){return mkConf(j2,force)}):null}
 function parseCmd(q,force){AI.ownUsed=0;if(cfg().p==='own')return Promise.resolve().then(function(){return viaOwn(q,force)});var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');
  return call([{role:'user',parts:[{text:q}]}],PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
-function cmdLine(c){var t=TT[c.a];return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'+(AI.ownUsed?' AI was not available, so the own helper listened.':'')}
+function cmdLine(c){var t=TT[c.a];if(vlang()!=='en-IN')return (HT[c.a]||t[0])+(c.p?' '+c.p+' के लिए':'')+' खोल रहा हूँ। कृपया जाँचकर कन्फर्म करें।';return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'+(AI.ownUsed?' AI was not available, so the own helper listened.':'')}
 /* ---- ask: a command opens the confirm sheet, a question gets an answer ---- */
 SYS+='If the user asks you to create or enter a bill, estimate or payment, never say you cannot. Tell them to speak or type it like "Ramesh 10 bag cement sale bill" or "Suresh 5000 rupees received" and the app will open the form for them.\n\n';
 function run(q){AI.msgs.push({r:'user',t:q});var c=cfg();
@@ -4216,7 +4242,7 @@ function chips(){var l=vlang();return VL.map(function(x){return '<button type="b
 window.vcLang=function(l){var o=vp();o.l=l;setVp(o);Array.prototype.forEach.call(document.querySelectorAll('.aichip[data-l]'),function(b){b.classList.toggle('on',b.getAttribute('data-l')===l)})};
 window.vcSay=function(on){var o=vp();o.say=on?1:0;setVp(o);if(!on){try{speechSynthesis.cancel()}catch(e){}}};
 var VEX=['Ramesh ko 10 bag cement ka bill banao','Suresh se 5000 rupaye mile','Who owes me the most money?'];
-window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='',mg=AI.msg,cp=c.auto?'gemini':(cp);
+window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='',mg=AI.msg,cp=c.auto?'gemini':(c.p||'gemini');
  var ex=['How much did my top customer buy this year?','Which items earned me the most profit this year?','Who owes me the most money?','Compare this month sales with last month'];
  var msgH=mg&&mg.t?'<div class="'+(mg.c||'mu')+'" style="margin-top:8px;line-height:1.4">'+esc(mg.t)+'</div>':'';
  h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>'+(c.p==='own'?(c.auto?'Voice is ready (no key needed)':'Own helper is ready'):'AI is ready')+'</b><br><span class="mu">'+(c.p==='own'?'Makes bills and payments, and answers balance, stock and sales questions from your own data. Add a free AI key for answers in your own words.':esc(PROV[c.p].n.split(' (')[0])+' &middot; '+esc(c.m||PROV[c.p].m)+' &middot; key '+esc(mask(c.k)))+'</span></span><button class="s" onclick="AI.setup=true;AI.msg=null;render()">Setup</button></div>':
@@ -4226,7 +4252,7 @@ window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.se
   +'<div id="aikw"'+(cp==='own'?' style="display:none"':'')+'><label class="mu">Key</label><input id="aik" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(c.k?'Saved on this device ('+esc(mask(c.k))+'). Paste to replace':'Paste key here')+'"><label class="mu" style="display:flex;gap:6px;align-items:center;margin:0 0 6px"><input type="checkbox" style="width:auto;margin:0" onchange="aiShowKey(this.checked)"> Show key</label>'
   +'<label class="mu">Model name</label><input id="aim" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(c.m||PROV[cp].m)+'"></div>'
   +'<div class="mu" style="margin:4px 0 8px">If this model is busy, other free models are tried automatically. Your question and a summary of your shop data (item names, customer names, amounts, no phone numbers) are sent to the service you choose. Free services may use this data to improve their products, so read their terms. Voice: your browser turns speech into text (Chrome or Safari may send the sound to their own speech service). If that is not available, a short recording is sent to Gemini instead.</div>'
-  +'<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="b" onclick="aiSave(0)">Save</button><button class="s" id="aitb" onclick="aiSave(1)">Save and test</button>'+(c.k?'<button class="s" onclick="AI.setup=false;AI.msg=null;render()">Cancel</button><button class="s" onclick="aiForget()">Remove key</button>':'')+'</div>')+msgH+'</div>';
+  +'<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="b" onclick="aiSave(0)">Save</button><button class="s" id="aitb" onclick="aiSave(1)">Save and test</button>'+'<button class="s" onclick="AI.setup=false;AI.msg=null;render()">Cancel</button>'+(c.k?'<button class="s" onclick="aiForget()">Remove key</button>':'')+'</div>')+msgH+'</div>';
  var on=V.st==='listen'&&V.tgt==='page';
  h+='<div class="'+cl+'"><b>Ask your shop</b><div id="aiLog" class="ailog"></div><div class="aiex">'+ex.map(function(q){return '<button onclick="aiAsk(this.textContent)">'+esc(q)+'</button>'}).join('')+'</div>'
   +'<div class="aiin"><textarea id="aiQ" rows="2" placeholder="'+(m?'Type or tap the mic and speak':'Type your question or command, or press the mic (Alt+V opens Voice anywhere)')+'" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();aiAsk()}"></textarea><button class="aimic'+(on?' on':'')+'" id="aimic" onclick="aiMic()" aria-label="Speak">'+MIC+'</button><button class="b" onclick="aiAsk()">Ask</button></div>'
@@ -4300,7 +4326,7 @@ window.vcOpen=function(auto){if(AI.vc)return;AI.vc={txt:'',q:'',ans:'',st:'idle'
 window.vcClose=function(){if(V.st==='listen')vStop(true);AI.vc=null;vcDraw();fabSync();try{speechSynthesis.cancel()}catch(e){}};
 window.vcSetup=function(){vcClose();AI.setup=true;nav('ai')};
 function vcConfirm(conf,q){if(!AI.vc)AI.vc={txt:'',q:'',ans:'',st:'idle',msg:'',conf:null,err:''};AI.vc.conf=conf;AI.vc.q=q;AI.vc.err='';vcDraw();fabSync()}
-function vcStatus(){var v=AI.vc;if(!v)return;var b=gid('aivmic'),s=gid('aivs');if(b)b.classList.toggle('on',v.st==='listen');if(s){s.className='aivs'+(v.msg?' red':'');s.textContent=v.msg||(v.st==='listen'?'Listening... tap the mic when you finish':v.st==='work'?(V.st==='work'?'Listening to the recording...':'Understanding...'):'Tap the mic and speak')}}
+function vcStatus(){var v=AI.vc;if(!v)return;var b=gid('aivmic'),s=gid('aivs');if(b)b.classList.toggle('on',v.st==='listen');if(s){s.className='aivs'+(v.msg?' red':'');s.textContent=v.msg||(v.st==='listen'?'Listening... सुन रहा हूँ. Tap the mic when done · बोलकर माइक दबाइए':v.st==='work'?(V.st==='work'?'Listening to the recording... · रिकॉर्डिंग सुन रहा हूँ':'Understanding... · समझ रहा हूँ'):'Tap the mic and speak · माइक दबाकर बोलिए')}}
 window.vcMic=function(){var v=AI.vc;if(!v||v.conf||v.st==='work')return;if(V.st==='listen'&&V.tgt==='dlg')return vStop();if(V.st!=='idle')return;v.msg='';V.tgt='dlg';
  vStart({onPartial:function(t){v.txt=t;var e=gid('vct');if(e)e.value=t},onState:function(s){if(AI.vc===v&&!v.conf){v.st=s;vcStatus()}},onErr:function(m){if(AI.vc===v){v.st='idle';v.msg=m;vcStatus()}},onEnd:function(t){if(AI.vc===v){v.txt=t;vcSend()}}})};
 window.vcSend=function(){var v=AI.vc;if(!v||v.st==='work'||v.conf)return;var e=gid('vct'),q=((e&&e.value)||v.txt||'').trim();if(!q)return;
@@ -4311,7 +4337,7 @@ function capHtml(v){var h='';
  h+='<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'</div>';
  if(v.q&&!v.conf)h+='<div class="aib u" style="margin:4px 0 6px;align-self:flex-end;margin-left:auto">'+esc(v.q)+'</div>';
  if(v.ans)h+='<div class="aib a" style="margin:4px 0 8px;max-width:100%">'+fmt(v.ans)+'</div>';
- h+='<div class="aivm"><button type="button" class="aimic big'+(v.st==='listen'?' on':'')+'" id="aivmic" onclick="vcMic()" aria-label="Speak">'+MIC+'</button><div class="aivs'+(v.msg?' red':'')+'" id="aivs">'+esc(v.msg||(v.st==='work'?'Understanding...':'Tap the mic and speak'))+'</div></div>';
+ h+='<div class="aivm"><button type="button" class="aimic big'+(v.st==='listen'?' on':'')+'" id="aivmic" onclick="vcMic()" aria-label="Speak">'+MIC+'</button><div class="aivs'+(v.msg?' red':'')+'" id="aivs">'+esc(v.msg||(v.st==='work'?'Understanding... · समझ रहा हूँ':'Tap the mic and speak · माइक दबाकर बोलिए'))+'</div></div>';
  h+='<textarea id="vct" rows="3" placeholder="...or type here. Example: '+esc(VEX[0])+'" oninput="AI.vc.txt=this.value" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();vcSend()}">'+esc(v.txt)+'</textarea>';
  h+='<div class="aiex">'+VEX.map(function(x){return '<button onclick="var t=gid(\'vct\');t.value=this.textContent;AI.vc.txt=t.value">'+esc(x)+'</button>'}).join('')+'</div>';
  h+='<label class="mu aisay" style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto;margin:0"'+(vsay()?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label>';
@@ -4321,7 +4347,7 @@ function pinfo(n){var p=findP(n);if(p)return 'Existing party. Balance '+money(ba
 function ctot(c){var s=0;c.rows.forEach(function(r){s+=(+r.q||0)*(+r.r||0)});return s}
 function rowHtml(r,k){return '<div class="vr"><input class="vn'+(r.k?'':' nw')+'" value="'+esc(r.n)+'" placeholder="Item name" oninput="vcRow('+k+',\'n\',this.value)"><input class="vq" type="number" inputmode="decimal" step="any" placeholder="Qty" value="'+(r.q||'')+'" oninput="vcRow('+k+',\'q\',this.value)"><input class="vu" value="'+esc(r.u)+'" placeholder="Unit" oninput="vcRow('+k+',\'u\',this.value)"><input class="vrt" type="number" inputmode="decimal" step="any" placeholder="Rate" value="'+(r.r||'')+'" oninput="vcRow('+k+',\'r\',this.value)"><span class="va" id="vca'+k+'">'+money((+r.q||0)*(+r.r||0))+'</span><button type="button" class="x" onclick="vcDel('+k+')" aria-label="Remove">✕</button></div>'}
 function confHtml(v){var c=v.conf,t=TT[c.a],pay=c.a==='payment_in'||c.a==='payment_out',h='';
- h+='<div class="mu" style="margin-bottom:6px">I heard: &ldquo;'+esc(v.q)+'&rdquo;. Check it and fix anything wrong, then continue to the form.</div>';
+ h+='<div class="mu" style="margin-bottom:6px">I heard: &ldquo;'+esc(v.q)+'&rdquo;. Check it and fix anything wrong, then continue to the form.<br>मैंने यह सुना। जाँचें, गलती हो तो ठीक करें, फिर आगे बढ़ें।</div>';
  h+='<label class="mu">'+t[1]+'</label><input id="vcp" list="vcpl" autocomplete="off" value="'+esc(c.p)+'" oninput="vcSetP(this.value)"><datalist id="vcpl">'+D.parties.map(function(p){return '<option value="'+esc(p.name)+'">'}).join('')+'</datalist><div id="vcpb" class="mu vsm">'+esc(pinfo(c.p))+'</div>';
  if(pay)h+='<label class="mu">Amount (₹)</label><input type="number" inputmode="decimal" step="any" value="'+(c.amt||'')+'" oninput="AI.vc.conf.amt=+this.value||0"><label class="mu">Note (optional)</label><input value="'+esc(c.note)+'" oninput="AI.vc.conf.note=this.value">';
  else{h+='<div class="vrh"><span>Item</span><span>Qty</span><span>Unit</span><span>Rate</span><span>Amount</span><span></span></div><div id="vcr">'+c.rows.map(rowHtml).join('')+'</div>'+(c.rows.some(function(r){return !r.k})?'<div class="mu vsm">Amber items are not in your stock list yet. They are created as new items when you save the bill.</div>':'')+'<button type="button" class="s" onclick="vcAdd()">+ Add item</button>';
@@ -4348,7 +4374,7 @@ window.vcGo=function(){var v=AI.vc;if(!v||!v.conf)return;var c=v.conf,nm=(c.p||'
 function vcErr(){var e=gid('vce');if(e)e.textContent=AI.vc.err}
 function vcDraw(){var v=AI.vc,o=gid('aivc');if(!v){if(o)o.remove();return}
  if(!o){o=document.createElement('div');o.id='aivc';o.onclick=function(e){if(e.target===o)vcClose()};document.body.appendChild(o)}
- o.innerHTML='<div class="aibox aivbox"><div class="aih"><b>'+(v.conf?TT[v.conf.a][0]:'Voice assistant')+(!v.conf&&!isM()?' <small class="aikbd">Alt+V</small>':'')+'</b><span onclick="vcClose()">&times;</span></div>'+(v.conf?confHtml(v):capHtml(v))+'</div>';
+ o.innerHTML='<div class="aibox aivbox"><div class="aih"><b>'+(v.conf?TT[v.conf.a][0]:'Voice assistant · वॉइस असिस्टेंट')+(!v.conf&&!isM()?' <small class="aikbd">Alt+V</small>':'')+'</b><span onclick="vcClose()">&times;</span></div>'+(v.conf?confHtml(v):capHtml(v))+'</div>';
  if(!v.conf){var t=gid('vct');if(t&&!isM())t.focus()}}
 /* floating mic (mobile) and Voice button in the top bar (desktop) */
 function fabSync(){var f=gid('aifab');if(!f){f=document.createElement('button');f.id='aifab';f.className='aifab';f.setAttribute('aria-label','Voice');f.innerHTML=MIC;f.onclick=function(){vcOpen(true)};document.body.appendChild(f)}
