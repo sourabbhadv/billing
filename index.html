@@ -3939,7 +3939,7 @@ function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/
 var MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0};
 var CMD=/\b(bill|invoice|estimate|quotation|quote|challan|order|payment|received|receive|paid|jama|banao|bana|banaiye|banado|likho|create|make|add|entry|mile|mila|mili|diye|diya|liye|liya|bheje|bheja|udhar|credit|debit)\b|बिल|बना|बनवा|लिखो|जमा|मिले|मिला|दिए|दिये|पेमेंट|कोटेशन|ऑर्डर|तयार|करा/i;
-var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY JSON: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. Fix obvious speech mistakes by choosing from the known names below. Write names in Latin letters.\n';
+var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY JSON: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. NEVER guess or invent anything. Write party and item names exactly as heard (the app will ask the owner to pick from the saved list). If the quantity or rate was not clearly said, use 0. Write names in Latin letters.\n';
 function nz(s){return String(s||'').toLowerCase().replace(/[^a-z0-9ऀ-ॿ]+/g,'')}
 function lev(a,b){var p=[],i,j,c;for(j=0;j<=b.length;j++)p[j]=j;for(i=1;i<=a.length;i++){var d=p[0];p[0]=i;for(j=1;j<=b.length;j++){c=p[j];p[j]=Math.min(p[j]+1,p[j-1]+1,d+(a[i-1]===b[j-1]?0:1));d=c}}return p[b.length]}
 function sim(a,b){a=nz(a);b=nz(b);if(!a||!b)return 0;if(a===b)return 1;if(a.length>=3&&b.length>=3&&(a.indexOf(b)>=0||b.indexOf(a)>=0))return .9;return 1-lev(a,b)/Math.max(a.length,b.length)}
@@ -3948,14 +3948,91 @@ function jparse(t){t=String(t).replace(/```json|```/g,'').trim();var a=t.indexOf
 var ACT={sale:1,purchase:1,estimate:1,sale_order:1,challan:1,payment_in:1,payment_out:1};
 var TT={sale:['Sale bill','Customer','Open sale bill'],purchase:['Purchase bill','Supplier','Open purchase bill'],estimate:['Estimate','Customer','Open estimate'],sale_order:['Sale order','Customer','Open sale order'],challan:['Delivery challan','Customer','Open challan'],payment_in:['Payment received','Party','Open payment'],payment_out:['Payment paid','Party','Open payment']};
 var DOCT={purchase:'pur',estimate:'est',sale_order:'so',challan:'chal'};
-function mkConf(c,force){var a=force||String(c&&c.action||'').toLowerCase().replace(/[^a-z_]/g,'');if(!ACT[a])return null;var pay=a==='payment_in'||a==='payment_out',p=findP(c.party)||best(D.parties,c.party,.74),pn=p?p.name:String(c.party||'').trim(),rows=[];
- if(!pay)(c.items||[]).forEach(function(x){var nm=String(x&&x.name||'').trim();if(!nm)return;var it=findI(nm)||best(D.items,nm,.74),r=+x.rate||0;if(!(r>0)&&it)r=a==='purchase'?(+it.buy||+it.rate||0):(+it.rate||0);rows.push({n:it?it.name:nm,q:+x.qty||0,u:String(x.unit||'').trim()||(it&&it.unit)||'pcs',r:r,k:!!it})});
+function mkConf(c,force){var a=force||String(c&&c.action||'').toLowerCase().replace(/[^a-z_]/g,'');if(!ACT[a])return null;var pay=a==='payment_in'||a==='payment_out',p=findP(c.party)||(c._r?null:best(D.parties,c.party,.74)),pn=p?p.name:String(c.party||'').trim(),rows=[];
+ if(!pay)(c.items||[]).forEach(function(x){var nm=String(x&&x.name||'').trim();if(!nm)return;var it=findI(nm)||(c._r?null:best(D.items,nm,.74)),r=+x.rate||0;if(!(r>0)&&it)r=a==='purchase'?(+it.buy||+it.rate||0):(+it.rate||0);rows.push({n:it?it.name:nm,q:+x.qty||0,u:String(x.unit||'').trim()||(it&&it.unit)||'pcs',r:r,k:!!it})});
  if(!pay&&!rows.length)rows.push({n:'',q:0,u:'pcs',r:0,k:1});
  return {a:a,p:pn,rows:rows,paid:+c.paid||0,amt:+c.amount||+c.paid||0,note:String(c.note||'').slice(0,100)}}
 var CMD2=/\b(sale|sold|purchase|bought|buy|sell|kharid\w*|bech\w*)\b/i;
 function isCmd(q){return CMD.test(q)||(CMD2.test(q)&&/[0-9\u0966-\u096f]/.test(q))}
+/* ---- ASK BACK: if anything is unclear, ask the owner before opening the form ---- */
+function qWords(s){return String(s||'').toLowerCase().split(/[^a-z0-9\u0900-\u097f]+/).filter(function(t){return t.length>1})}
+function qCands(list,spoken){var s=nz(spoken);if(!s)return [];var tk=qWords(spoken);
+ return list.map(function(o){var n=nz(o.name),w=qWords(o.name),sc=sim(o.name,spoken);
+  if(s.length>=3&&n.indexOf(s)>=0)sc=Math.max(sc,.85);
+  if(tk.length&&tk.every(function(t){return w.some(function(x){return x.indexOf(t)===0||sim(x,t)>=.75})}))sc=Math.max(sc,.8);
+  return {o:o,s:sc}}).filter(function(x){return x.s>=.6}).sort(function(a,b){return b.s-a.s}).map(function(x){return x.o})}
+var stq=document.createElement('style');stq.textContent='#aiq{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}.aiqb{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-sizing:border-box}@media(min-width:700px){#aiq{align-items:center}.aiqb{border-radius:16px}}.aiqt{font-size:17px;font-weight:700;color:#1f2437;margin-bottom:4px}.aiqo{display:block;width:100%;text-align:left;background:#f4f6ff;border:1.5px solid #c9cde0;border-radius:10px;padding:10px 12px;margin:6px 0;font-size:15px;color:#1f2437}.aiqo small{display:block;color:#7b8194;font-size:12.5px;margin-top:2px}.aiqi{display:flex;gap:8px;align-items:center;margin-top:8px}.aiqi input{flex:1;min-width:0;font-size:16px;padding:10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0}';document.head.appendChild(stq);
+/* shows a question card. Resolves {o:value} if an option was tapped, {t:text} if text typed, {n:number} if a number typed */
+function askQ(o){return new Promise(function(ok,no){
+ var d=gid('aiq');if(d)d.remove();d=document.createElement('div');d.id='aiq';
+ var opts=o.opts||[],h='<div class="aiqb"><div class="aiqt">'+esc(o.t)+'</div>'+(o.sub?'<div class="mu vsm">'+esc(o.sub)+'</div>':'');
+ opts.forEach(function(x,i){h+='<button type="button" class="aiqo" data-i="'+i+'"><b>'+esc(x.l)+'</b>'+(x.s?'<small>'+esc(x.s)+'</small>':'')+'</button>'});
+ if(o.inp){h+='<div class="aiqi"><input id="aiqi" '+(o.inp==='number'?'type="number" inputmode="decimal" step="any"':'type="text" autocomplete="off"')+(o.dl?' list="aiqdl"':'')+' placeholder="'+esc(o.ph||'')+'"><button type="button" class="aimic" id="aiqm" aria-label="Speak">'+MIC+'</button><button type="button" class="b" id="aiqok">OK</button></div>'+(o.dl?'<datalist id="aiqdl">'+o.dl.map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>':'')+'<div class="mu vsm red" id="aiqs"></div>'}
+ h+='<button type="button" class="s" id="aiqx" style="width:100%;margin-top:10px">Cancel</button></div>';
+ d.innerHTML=h;document.body.appendChild(d);
+ var inp=gid('aiqi'),sts=gid('aiqs');
+ function done(v,bad){if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened.'));else ok(v)}
+ d.querySelectorAll('.aiqo').forEach(function(b){b.onclick=function(){done({o:opts[+b.getAttribute('data-i')].v})}});
+ gid('aiqx').onclick=function(){done(null,1)};
+ function say(m){if(sts)sts.textContent=m||''}
+ function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer.');if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0.');return done({n:n})}done({t:v})}
+ if(inp){gid('aiqok').onclick=submit;inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();submit()}};if(!isM())inp.focus();
+  var mb=gid('aiqm');mb.onclick=function(){if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')return;V.tgt='q';say('');
+   vStart({onPartial:function(t){inp.value=t},onState:function(s){mb.classList.toggle('on',s==='listen')},onErr:function(m){mb.classList.remove('on');say(m)},
+    onEnd:function(t){mb.classList.remove('on');t=String(t||'').trim();
+     if(o.inp==='number'){var m=t.replace(/,/g,'').match(/\d+(\.\d+)?/);inp.value=m?m[0]:t;if(m)return submit();return say('I heard "'+t+'". Please type the number.')}
+     var dg=t.replace(/[^0-9]/g,'');if(opts.length&&dg&&+dg>=1&&+dg<=opts.length&&t.length<12)return done({o:opts[+dg-1].v});
+     var bi=-1,bs=0;opts.forEach(function(x,i){var s=sim(x.l,t);if(s>bs){bs=s;bi=i}});if(bi>=0&&bs>=.75)return done({o:opts[bi].v});
+     inp.value=t;say('I heard "'+t+'". Press OK, or tap one of the names above.')}})}}
+})}
+async function clarify(j,force){
+ var a=force||String(j&&j.action||'').toLowerCase().replace(/[^a-z_]/g,'');
+ if(!ACT[a])return j;
+ var pay=a==='payment_in'||a==='payment_out',pur=a==='purchase',tt=TT[a][1].toLowerCase();
+ j=JSON.parse(JSON.stringify(j));j._r=1;
+ /* 1) WHO */
+ var sp=String(j.party||'').trim();
+ if(sp||!force){
+  var ex=sp?findP(sp):null,cs=sp?qCands(D.parties,sp):[];
+  if(ex)cs=[ex].concat(cs.filter(function(p){return p!==ex}));
+  if(ex&&cs.length===1)j.party=ex.name;
+  else{
+   var po=cs.slice(0,10).map(function(p){return {l:p.name,s:[p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
+   if(sp)po.push({l:'New '+tt+': '+sp,s:'Not in my list. Create as new.',v:{n:sp}});
+   var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"':'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',sub:cs.length?'Tap the right one, or type the name.':'Type or speak the name.',opts:po,inp:'text',ph:'Type name',dl:D.parties.map(function(p){return p.name})});
+   if(r.o)j.party=r.o.n;else{var f=findP(r.t);j.party=f?f.name:r.t}
+  }
+ }
+ /* 2) WHAT, HOW MANY, PRICE */
+ if(!pay){
+  var rows=Array.isArray(j.items)?j.items:[];j.items=rows;
+  if(!rows.length&&!force)rows.push({name:'',qty:0,rate:0});
+  for(var i=0;i<rows.length;i++){
+   var x=rows[i]=rows[i]||{},nm=String(x.name||'').trim();
+   if(force&&!nm&&!(+x.qty>0))continue;
+   var e2=nm?findI(nm):null,c2=nm?qCands(D.items,nm):[],it=null;
+   if(e2)c2=[e2].concat(c2.filter(function(p){return p!==e2}));
+   if(nm&&e2&&c2.length===1)it=e2;
+   else{
+    var io=c2.slice(0,12).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
+    if(nm)io.push({l:'New item: '+nm,s:'Not in my stock list. Create as new item.',v:{n:nm,nw:1}});
+    var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"':'I could not find "'+nm+'" in your items'):'Which item?',sub:c2.length?'Tap the right one, or type the name.':'Type or speak the item name.',opts:io,inp:'text',ph:'Type item name',dl:D.items.map(function(p){return p.name})});
+    if(r2.o)x.name=r2.o.n;else x.name=r2.t;
+    it=findI(x.name)||null;
+   }
+   if(it)x.name=it.name;
+   var un=String(x.unit||'').trim()||(it&&it.unit)||'';
+   if(!(+x.qty>0)){var rq=await askQ({t:'How many'+(un?' '+un:'')+' of '+x.name+'?',sub:'You did not tell the quantity.',inp:'number',ph:'Quantity'});x.qty=rq.n}
+   if(!(+x.rate>0)){var sv=it?(pur?(+it.buy||+it.rate||0):(+it.rate||0)):0;
+    var rr=await askQ({t:'What is the price of '+x.name+'?',sub:sv>0?'You did not tell the price. Saved price is Rs '+sv+(un?' per '+un:'')+'.':'You did not tell the price.',opts:sv>0?[{l:'Use saved price: Rs '+sv,s:un?'per '+un:'',v:sv}]:[],inp:'number',ph:'Price per '+(un||'unit')});
+    x.rate=rr.o!==undefined?rr.o:rr.n}
+  }
+ }else if(!(+j.amount>0)&&!(+j.paid>0)){
+  var ra=await askQ({t:'How much money?',sub:'You did not tell the amount.',inp:'number',ph:'Amount in Rs'});j.amount=ra.n
+ }
+ return j}
 function parseCmd(q,force){var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');
- return call([{role:'user',parts:[{text:q}]}],PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn,true,{t:22000}).then(function(t){var j=jparse(t);return j?mkConf(j,force):null})}
+ return call([{role:'user',parts:[{text:q}]}],PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
 function cmdLine(c){var t=TT[c.a];return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'}
 /* ---- ask: a command opens the confirm sheet, a question gets an answer ---- */
 SYS+='If the user asks you to create or enter a bill, estimate or payment, never say you cannot. Tell them to speak or type it like "Ramesh 10 bag cement sale bill" or "Suresh 5000 rupees received" and the app will open the form for them.\n\n';
