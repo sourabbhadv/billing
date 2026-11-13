@@ -3887,6 +3887,10 @@ var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash
 var MEM={};
 function cfg(){var c=null;try{var s=localStorage.getItem('ash_ai');if(s)c=JSON.parse(s)}catch(e){}c=c||MEM.c||{};return c.p?c:{p:'own',auto:1}}
 function setCfg(o){MEM.c=o;try{localStorage.setItem('ash_ai',JSON.stringify(o));return !!localStorage.getItem('ash_ai')}catch(e){return false}}
+/* Gemini Brain: keeps natural-language understanding available even when Own AI is selected for offline execution. */
+function brainGet(){try{var x=localStorage.getItem('ash_gemini_brain');return x?JSON.parse(x):null}catch(e){return MEM.gb||null}}
+function brainSet(x){MEM.gb=x;try{localStorage.setItem('ash_gemini_brain',JSON.stringify(x));return true}catch(e){return false}}
+function brainReady(){var b=brainGet();return !!(b&&b.k)}
 function vp(){try{var s=localStorage.getItem('ash_vp');if(s)return JSON.parse(s)}catch(e){}return MEM.vp||{}}
 function setVp(o){MEM.vp=o;try{localStorage.setItem('ash_vp',JSON.stringify(o))}catch(e){}}
 function cleanKey(s){return String(s||'').replace(/^\s*(key|api[_ -]?key)\s*[:=]\s*/i,'').replace(/[^\x21-\x7E]/g,'').replace(/^["'`]+|["'`]+$/g,'')}
@@ -3938,7 +3942,7 @@ function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/
 var MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0};
 var CMD=/\b(bill|invoice|estimate|quotation|quote|challan|order|payment|received|receive|paid|jama|banao|bana|banaiye|banado|likho|create|make|add|entry|mile|mila|mili|diye|diya|liye|liya|bheje|bheja|udhar|credit|debit)\b|बिल|बना|बनवा|लिखो|जमा|मिले|मिला|दिए|दिये|पेमेंट|कोटेशन|ऑर्डर|तयार|करा/i;
-var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY JSON: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names exactly as heard (the app will ask the owner to pick from the saved list). If the quantity or rate was not clearly said, use 0. Write names in Latin letters.\n';
+var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "sale_return" (customer returns goods), "purchase_return" (goods returned to supplier), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY one valid JSON object. No explanation, no markdown, no Hindi sentence outside JSON, and no code fences. Use exactly this schema: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}. Missing values must be empty string, 0, or an empty array; NEVER invent values.\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names exactly as heard (the app will ask the owner to pick from the saved list). If the quantity or rate was not clearly said, use 0. Write names in Latin letters. IMPORTANT FOR NATURAL HINDI/HINGLISH: understand everyday shop speech, not only formal commands. Examples: \"Raju ka maal vapsi aaya hai\" means action=sale_return, party=Raju; \"Raju ke 5000 rupaye aaye hain\" means action=payment_in, party=Raju, amount=5000; \"Raju ko 2000 rupaye diye\" means action=payment_out, party=Raju, amount=2000. For a return, words like maal/samaan together with wapas/vapsi/return mean a return even if the sentence also contains aaya/aayi/aaye. Never classify a return as a payment merely because it says aaya. Ask through missing fields later; do not invent item or quantity.\n';
 var DVR=/[\u0900-\u097f]/,
 DC={'\u0915':'k','\u0916':'kh','\u0917':'g','\u0918':'gh','\u0919':'n','\u091a':'ch','\u091b':'chh','\u091c':'j','\u091d':'jh','\u091e':'n','\u091f':'t','\u0920':'th','\u0921':'d','\u0922':'dh','\u0923':'n','\u0924':'t','\u0925':'th','\u0926':'d','\u0927':'dh','\u0928':'n','\u092a':'p','\u092b':'f','\u092c':'b','\u092d':'bh','\u092e':'m','\u092f':'y','\u0930':'r','\u0932':'l','\u0933':'l','\u0935':'v','\u0936':'sh','\u0937':'sh','\u0938':'s','\u0939':'h','\u095b':'z','\u095c':'r','\u095d':'rh','\u095e':'f'},
 DMt={'\u093e':'a','\u093f':'i','\u0940':'i','\u0941':'u','\u0942':'u','\u0947':'e','\u0948':'ai','\u094b':'o','\u094c':'au','\u0949':'o','\u0943':'ri','\u0945':'e','\u0946':'e','\u094a':'o'},
@@ -3960,15 +3964,22 @@ function lev(a,b){var p=[],i,j,c;for(j=0;j<=b.length;j++)p[j]=j;for(i=1;i<=a.len
 function sim(a,b){if(DVR.test(String(a)+String(b))){a=ph(a);b=ph(b)}a=nz(a);b=nz(b);if(!a||!b)return 0;if(a===b)return 1;if(a.length>=3&&b.length>=3&&(a.indexOf(b)>=0||b.indexOf(a)>=0))return .9;return 1-lev(a,b)/Math.max(a.length,b.length)}
 function best(list,name,th){var bs=0,bo=null;if(!name)return null;list.forEach(function(o){var s=sim(o.name,name);if(s>bs){bs=s;bo=o}});return bs>=th?bo:null}
 function jparse(t){t=String(t).replace(/```json|```/g,'').trim();var a=t.indexOf('{'),b=t.lastIndexOf('}');try{return JSON.parse(t.slice(a,b+1))}catch(e){return null}}
-var ACT={sale:1,purchase:1,estimate:1,sale_order:1,challan:1,payment_in:1,payment_out:1};
-var TT={sale:['Sale bill','Customer','Open sale bill'],purchase:['Purchase bill','Supplier','Open purchase bill'],estimate:['Estimate','Customer','Open estimate'],sale_order:['Sale order','Customer','Open sale order'],challan:['Delivery challan','Customer','Open challan'],payment_in:['Payment received','Party','Open payment'],payment_out:['Payment paid','Party','Open payment']};
-var DOCT={purchase:'pur',estimate:'est',sale_order:'so',challan:'chal'};
+var ACT={sale:1,purchase:1,estimate:1,sale_order:1,challan:1,payment_in:1,payment_out:1,sale_return:1,purchase_return:1};
+var TT={sale:['Sale bill','Customer','Open sale bill'],purchase:['Purchase bill','Supplier','Open purchase bill'],estimate:['Estimate','Customer','Open estimate'],sale_order:['Sale order','Customer','Open sale order'],challan:['Delivery challan','Customer','Open challan'],payment_in:['Payment received','Party','Open payment'],payment_out:['Payment paid','Party','Open payment'],sale_return:['Sale return','Customer','Open sale return'],purchase_return:['Purchase return','Supplier','Open purchase return']};
+var DOCT={purchase:'pur',estimate:'est',sale_order:'so',challan:'chal',purchase_return:'pret'};
 function mkConf(c,force){var a=force||String(c&&c.action||'').toLowerCase().replace(/[^a-z_]/g,'');if(!ACT[a])return null;var pay=a==='payment_in'||a==='payment_out',p=findP(c.party)||(c._r?null:best(D.parties,c.party,.74)),pn=p?p.name:String(c.party||'').trim(),rows=[];
  if(!pay)(c.items||[]).forEach(function(x){var nm=String(x&&x.name||'').trim();if(!nm)return;var it=findI(nm)||(c._r?null:best(D.items,nm,.74)),r=+x.rate||0;if(!(r>0)&&it)r=a==='purchase'?(+it.buy||+it.rate||0):(+it.rate||0);rows.push({n:it?it.name:nm,q:+x.qty||0,u:String(x.unit||'').trim()||(it&&it.unit)||'pcs',r:r,k:!!it})});
  if(!pay&&!rows.length)rows.push({n:'',q:0,u:'pcs',r:0,k:1});
  return {a:a,p:pn,rows:rows,paid:+c.paid||0,amt:+c.amount||+c.paid||0,note:String(c.note||'').slice(0,100)}}
 var CMD2=/\b(sale|sold|purchase|bought|buy|sell|kharid\w*|bech\w*)\b/i;
 function isCmd(q){return CMD.test(q)||(CMD2.test(q)&&/[0-9\u0966-\u096f]/.test(q))}
+/* Natural shop-language transaction gate: route everyday Hindi/Hinglish transaction speech to Gemini before normal chatbot answers. */
+function likelyTx(q){var z=String(q||'').toLowerCase();
+ if(/\b(maal|samaan|saman|goods|material)\b[^\n]{0,45}\b(wapas|vapas|vapsi|vaapsi|return|laut|lauta)|\b(wapas|vapas|vapsi|vaapsi|return|laut|lauta)[^\n]{0,45}\b(maal|samaan|saman|goods|material)\b|माल[^\n]{0,45}(वापस|वापसी|रिटर्न)|सामान[^\n]{0,45}(वापस|वापसी|रिटर्न)|(वापस|वापसी|रिटर्न)[^\n]{0,45}(माल|सामान)/i.test(z))return true;
+ if(/\b(rupees?|rupaye?|paise?|payment|cash)\b|रुपये|पैसे|पेमेंट/.test(z)&&/\b(aaye?|aaya|aayi|mile?|mila|mili|diye?|diya|dediya|de diya|received|paid)\b|आए|आया|मिले|मिला|दिए|दिया/.test(z))return true;
+ if(/\b(wapas|vapas|vapsi|vaapsi|return|laut|lauta)\b|वापस|वापसी|रिटर्न/.test(z)&&/\b(raju|ramesh|suresh|[a-z]{3,})\b/i.test(z))return true;
+ return false}
+
 /* ---- ASK BACK: if anything is unclear, ask the owner before opening the form ---- */
 function qWords(s){return String(s||'').toLowerCase().split(/[^a-z0-9\u0900-\u097f]+/).filter(function(t){return t.length>1})}
 function qStrong(list,spoken){var s=nz(DVR.test(spoken)?ph(spoken):spoken),tk=qWords(spoken);if(s.length<4)return [];
@@ -4044,7 +4055,7 @@ function askQ(o){return new Promise(function(ok,no){
 async function clarify(j,force){
  var a=force||String(j&&j.action||'').toLowerCase().replace(/[^a-z_]/g,'');
  if(!ACT[a])return j;
- var pay=a==='payment_in'||a==='payment_out',pur=a==='purchase',tt=TT[a][1].toLowerCase(),hP=hiOf(tt);
+ var pay=a==='payment_in'||a==='payment_out',pur=a==='purchase'||a==='purchase_return',tt=TT[a][1].toLowerCase(),hP=hiOf(tt);
  j=JSON.parse(JSON.stringify(j));j._r=1;
  /* 1) WHO */
  var sp=String(j.party||'').trim();
@@ -4268,15 +4279,17 @@ function localAnswer(q){var s=normAlias(String(q||'').toLowerCase()),fq=faqAnswe
  if(pts.length&&pts.length<=3&&R_QW.test(s))return pts.map(partyLine).join('\n');
  return null}
 function viaOwn(q,force){var j=null;try{j=ownParse(q,force)}catch(e){}return j?clarify(j,force).then(function(j2){return mkConf(j2,force)}):null}
-function parseCmd(q,force){AI.ownUsed=0;if(cfg().p==='own')return Promise.resolve().then(function(){return viaOwn(q,force)});var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');
- return call([{role:'user',parts:[{text:q}]}],PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
+function brainCall(parts,sys,json,opt){opt=opt||{};var b=brainGet();if(!b||!b.k)return Promise.reject(E('Gemini Brain is not configured yet. Open Setup once, select Google Gemini and save your Gemini key. Then you can switch back to Own AI.','brain',1));var c={p:'gemini',k:b.k,m:b.m||PROV.gemini.m},seen={},list=[],i=0,first=null;[c.m,PROV.gemini.m].concat(PROV.gemini.fb).forEach(function(m){if(m&&!seen[m]){seen[m]=1;list.push(m)}});function next(){if(i>=list.length)return Promise.reject(first||E('Gemini could not understand the request.','other'));var m=list[i++];return once(c,m,parts,sys,json,opt.t||22000).then(function(t){MEM.good=m;MEM.gp='gemini';return t},function(e){if(e.fatal||e.kind==='net')throw e;if(!first)first=e;return next()})}return next()}
+function parseCmd(q,force){AI.ownUsed=0;var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');var sys=PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn;
+ if(cfg().p==='own'){if(!brainReady())return Promise.resolve().then(function(){return viaOwn(q,force)});return brainCall([{role:'user',parts:[{text:q}]}],sys,true,{t:22000}).then(function(t){var j=jparse(t);if(j)return j;return brainCall([{role:'user',parts:[{text:'Convert the following shop command into ONLY the required JSON object, with no explanation: '+q}]}],sys+' STRICT: Your entire response must be one parseable JSON object.',true,{t:22000}).then(jparse)}).then(function(j){if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
+ return call([{role:'user',parts:[{text:q}]}],sys,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
 function cmdLine(c){var t=TT[c.a];if(vlang()!=='en-IN')return (HT[c.a]||t[0])+(c.p?' '+c.p+' के लिए':'')+' खोल रहा हूँ। कृपया जाँचकर कन्फर्म करें।';return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'+(AI.ownUsed?' AI was not available, so the own helper listened.':'')}
 /* ---- ask: a command opens the confirm sheet, a question gets an answer ---- */
 SYS+='APP HELP (use for how-to questions):\n'+FAQ.map(function(f){return f[1].split('\n')[0]}).join('\n')+'\n\n';
 SYS+='If the user asks you to create or enter a bill, estimate or payment, never say you cannot. Tell them to speak or type it like "Ramesh 10 bag cement sale bill" or "Suresh 5000 rupees received" and the app will open the form for them.\n\n';
 function run(q){AI.msgs.push({r:'user',t:q});var c=cfg();
  if(c.p==='own'&&!strongCmd(q)){var la0=null;try{la0=localAnswer(q)}catch(e){}if(la0){AI.msgs.push({r:'ai',t:la0});aiDraw();return Promise.resolve({k:'answer',t:la0})}}
- AI.busy=1;aiDraw();var pre=(isCmd(q)||c.p==='own')?parseCmd(q).then(function(x){return x},function(e){return {fail:e}}):Promise.resolve(null);
+ AI.busy=1;aiDraw();var pre=(isCmd(q)||likelyTx(q)||c.p==='own')?parseCmd(q).then(function(x){return x},function(e){return {fail:e}}):Promise.resolve(null);
  return pre.then(function(conf){if(conf&&conf.fail)throw conf.fail;if(conf)return {k:'cmd',conf:conf};if(c.p==='own')return {k:'answer',t:OWNHELP};
   var hist=AI.msgs.filter(function(m){return !m.e}).slice(-8).map(function(m){return {role:m.r==='user'?'user':'assistant',parts:[{text:m.t}]}}),sys=SYS+'SHOP DATA:\n'+pack(PROV[c.p].lim);
   return call(hist,sys,false).then(function(t){return {k:'answer',t:t}})}).then(function(r){AI.msgs.push({r:'ai',t:r.k==='cmd'?cmdLine(r.conf):r.t});return r},function(e){var la=null;if(c.p!=='own'){try{la=localAnswer(q)}catch(x){}}if(la){la+='\n\n(The AI could not be reached, so this answer comes from your saved shop data.)';AI.msgs.push({r:'ai',t:la});return {k:'answer',t:la}}AI.msgs.push({r:'ai',t:e.message,e:1});return {k:'err',t:e.message}}).then(function(r){AI.busy=0;aiDraw();return r})}
@@ -4287,10 +4300,10 @@ window.aiDraw=function(){var l=gid('aiLog');if(!l)return;l.innerHTML=AI.msgs.len
 window.aiAsk=function(q){var inp=gid('aiQ');q=(q||(inp&&inp.value)||'').trim();if(!q||AI.busy)return;if(!ready()){AI.setup=true;AI.msg={t:'First add your free AI key below.',c:'red'};return render()}
  AI.msg=null;if(inp)inp.value='';run(q).then(function(r){if(r.k==='cmd'){vcConfirm(r.conf,q);if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'&&vsay())speak(r.t)})};
 window.aiSave=function(test){var p=gid('aip').value,k=cleanKey(gid('aik').value),m=gid('aim').value.trim(),o=cfg();
- if(p==='own'){var pk=o.p==='own'?o.pp:o.p;setCfg({p:'own',k:o.k||'',m:o.m||'',pp:pk||''});MEM.good='';AI.setup=false;AI.msg={t:'Own helper is ON. No AI key is needed. It makes bills and payments only.',c:'grn'};return render()}
+ if(p==='own'){var pk=o.p==='own'?o.pp:o.p;setCfg({p:'own',k:o.k||'',m:o.m||'',pp:pk||''});MEM.good='';AI.setup=false;AI.msg={t:'Own AI is ON. It executes transactions locally. If Gemini Brain was configured earlier, Gemini understands natural Hindi/Hinglish and Own AI opens the correct app transaction form.',c:'grn'};return render()}
  var okey=(o.p==='own'&&o.pp&&o.pp!==p)?'':o.k;
  if(!k&&!okey){AI.msg={t:'Paste your free key first.',c:'red'};return render()}
- var nk=k||okey,stored=setCfg({p:p,k:nk,m:m||PROV[p].m}),warn=(stored?'':' Your browser blocks saving, so the key is kept only until this page is closed.')+((p==='gemini'&&!/^(AIza|AQ\.)/.test(nk))?' Note: Gemini keys usually start with "AIza" or "AQ.". Check that you copied the whole key.':'');MEM.good='';
+ var nk=k||okey,stored=setCfg({p:p,k:nk,m:m||PROV[p].m}); if(p==='gemini')brainSet({k:nk,m:m||PROV[p].m}); var warn=(stored?'':' Your browser blocks saving, so the key is kept only until this page is closed.')+((p==='gemini'&&!/^(AIza|AQ\.)/.test(nk))?' Note: Gemini keys usually start with "AIza" or "AQ.". Check that you copied the whole key.':'');MEM.good='';
  if(!test){AI.setup=false;AI.msg={t:'Key saved.'+warn,c:'grn'};return render()}
  AI.msg={t:'Key saved. Testing the connection...',c:'mu'};render();
  call([{role:'user',parts:[{text:'Reply with the single word OK'}]}],'',false,{t:20000}).then(function(){AI.setup=false;AI.msg={t:'Connected. AI is ready ('+(AI.used||'')+').'+warn,c:'grn'};render()},function(e){var soft=/busy|limit|timeout/.test(e.kind);if(soft)AI.setup=false;AI.msg={t:(soft?'Key saved. '+e.message+' This is not a problem with your key. Ask again shortly, other free models are tried automatically.':e.message)+warn,c:soft?'amb':'red'};render()})};
@@ -4463,5 +4476,337 @@ var st2=document.createElement('style');st2.textContent='.aimic{flex:0 0 auto;wi
 document.head.appendChild(st2);try{fabSync();topBtn()}catch(e){}
 try{buildNav()}catch(e){}
 })();
+
+/* ================= OFFLINEAI TRANSACTION ROUTER v5 ================= */
+(function(){
+  var _parseCmdTx=parseCmd;
+  parseCmd=function(q,force){
+    var z=String(q||'').toLowerCase();
+    if(!force && /(?:return|returned|wapas|vapas|वापस|वापसी|रिटर्न)/i.test(z)){
+      if(/purchase|supplier|kharid|खरीद|खरीदी|सप्लायर/i.test(z)) force='purchase_return';
+      else if(/sale|customer|bill|invoice|bikri|बेचा|बिक्री|ग्राहक|सेल/i.test(z)) force='sale_return';
+    }
+    return _parseCmdTx(q,force);
+  };
+  var _vcGoTx=vcGo;
+  vcGo=function(){
+    var v=AI.vc;if(!v||!v.conf)return;var c=v.conf;
+    if(c.a!=='sale_return'&&c.a!=='purchase_return')return _vcGoTx();
+    var nm=(c.p||'').trim(),p=findP(nm);
+    if(!nm){v.err='Enter the '+(c.a==='sale_return'?'customer':'supplier')+' name.';return vcErr()}
+    var rows=c.rows.filter(function(r){return (r.n||'').trim()&&+r.q>0});
+    if(!rows.length){v.err='Keep at least one item with a quantity.';return vcErr()}
+    var lines=rows.map(function(r){return {name:r.n.trim(),unit:(r.u||'').trim()||'pcs',qty:+r.q||0,rate:+r.r||0,amt:Math.round((+r.q||0)*(+r.r||0)*100)/100}});
+    vcClose();
+    if(c.a==='sale_return'){newRet();rdraft.name=nm;rdraft.lines=lines;render()}
+    else{newDoc('pret');ddraft.name=nm;ddraft.phone=(p&&p.phone)||'';ddraft.lines=lines.map(function(l){l.loc='';return l});render()}
+  };
+})();
+
+/* ================= OFFLINEAI HINGLISH / DAILY SPEECH PATCH v6 ================= */
+(function(){
+  /* Make the command detector recognise ordinary Indian shop language before AI routing. */
+  var _oldIsCmd=isCmd;
+  isCmd=function(q){
+    var z=String(q||'').toLowerCase();
+    if(/\b(aaye|aaya|aayi|aya|ayi|mile|mila|mili|diye|diya|dediya|de diya|liya|liye|vaapsi|wapasi|wapas|vapas|vapsi|return|laaya|laya|laayi|layi)\b|वापसी|वापस|लाया|लाई|आये|आया|आई|मिले|मिला|मिली|दिया|दिए|लिया|लिए/i.test(z)) return true;
+    return _oldIsCmd(q);
+  };
+
+  var _parseDaily=parseCmd;
+  parseCmd=function(q,force){
+    var raw=String(q||'');
+    var z=raw.toLowerCase();
+    /* Common speech-to-text spellings of the same words. */
+    z=z.replace(/\bvaapsi\b/g,'wapasi').replace(/\bvapsi\b/g,'wapasi').replace(/\bvaapasi\b/g,'wapasi');
+
+    if(!force){
+      /* Customer bringing goods back: default to Sale Return. */
+      var bringBack=/(?:\b(return|returned|wapas|vapas|wapasi|laaya|laya|laayi|layi)\b|वापस|वापसी|रिटर्न|लाया|लाई)/i.test(z);
+      if(bringBack){
+        if(/\b(purchase|supplier|vendor|kharid|kharidi)\b|खरीद|खरीदी|सप्लायर|विक्रेता/i.test(z)) force='purchase_return';
+        else force='sale_return';
+      }
+      /* Natural received-money phrases, including: "Raju ke 5000 rs aaye hai" */
+      else if(/(?:\b(aaye|aaya|aayi|aya|ayi|mile|mila|mili|received|receive|jama)\b|आये|आया|आई|मिले|मिला|मिली|जमा)/i.test(z)
+              && /(?:\d|ek|do|teen|char|paanch|das|sau|hazaar|हजार|हज़ार|एक|दो|तीन|चार|पांच|पाँच|दस|सौ)/i.test(z)){
+        force='payment_in';
+      }
+      /* Natural paid-money phrases. */
+      else if(/(?:\b(diye|diya|dediya|de diya|paid|pay)\b|दिए|दिये|दिया|भुगतान)/i.test(z)
+              && /(?:\d|ek|do|teen|char|paanch|das|sau|hazaar|हजार|हज़ार|एक|दो|तीन|चार|पांच|पाँच|दस|सौ)/i.test(z)){
+        force='payment_out';
+      }
+    }
+    return _parseDaily(raw,force);
+  };
+
+  /* Add more everyday words to the offline parser dictionaries. */
+  ['aaye','aaya','aayi','aya','ayi','aaaye','mile','mila','mili'].forEach(function(w){W_IN[w]=1});
+  ['vaapsi','wapasi','wapas','vapas','vapsi','return','returned','laaya','laya','laayi','layi'].forEach(function(w){W_FILL[w]=1});
+
+  /* Clearer examples in the assistant itself. */
+  OWNHELP='Try speaking naturally:\n• "Raju ke 5000 rs aaye hai" → Payment-In ₹5000\n• "Raju ne 15 bori vaapsi laaya hai" → Sale Return\n• "Raju ko 2000 rs diye" → Payment-Out ₹2000\n\nप्राकृतिक तरीके से बोलें:\n• "राजू के 5000 रुपये आए हैं"\n• "राजू ने 15 बोरी वापसी लाया है"';
+})();
+
+/* ================= NATURAL HINDI / HINGLISH SHOP LANGUAGE TRAINING =================
+   Everyday phrases used at a counter: "Raju ke 5000 aaye", "Raju 15 bori wapas laya".
+   This layer runs BEFORE the generic parser and falls back to it for everything else. */
+(function(){
+ var _oldOwnParse=ownParse, _oldIsCmd=isCmd;
+ function ntext(q){return normAlias(String(q||'').toLowerCase()).replace(/[।!?]/g,' ').replace(/\s+/g,' ').trim()}
+ function toks(q){return owTok(q)}
+ function nums(q){return toks(q).filter(function(x){return x.n!==undefined}).map(function(x){return +x.n})}
+ function firstAmt(q){var a=nums(q);return a.length?a[0]:0}
+ function partyFrom(q){
+   var z=ntext(q), bestP=null, bestScore=0;
+   D.parties.forEach(function(p){var nm=ntext(p.name), sc=sim(nm,z); if(nm&&z.indexOf(nm)>=0)sc=Math.max(sc,.99); if(sc>bestScore){bestScore=sc;bestP=p}});
+   if(bestP&&bestScore>=.72)return bestP.name;
+   /* common form: name + ke/ko/se/ne/ka/ki/ke */
+   var m=z.match(/^\s*([^0-9]+?)\s+(?:ke|ko|se|ne|ka|ki|ke|के|को|से|ने|का|की)\b/i);
+   if(m){var x=m[1].trim().replace(/^(mere|hamare|apne)\s+/,''); if(x)return x.split(/\s+/).slice(-3).join(' ')}
+   return '';
+ }
+ function isReturn(q){return /\b(return|wapas|wapsi|wapasi|vaapsi|vapasi|vapsi|laut|lauta|lautaya|laaya\s+hai|laya\s+hai)\b|वापस|वापसी|लौटा|लाया/i.test(q)}
+ function isPurchaseReturn(q){return /\b(supplier|saplaier|supplier ko|supplier se)\b|सप्लायर|खरीद.*(?:वापस|वापसी|लौटा)|purchase.*return/i.test(q)}
+ function isMoneyIn(q){return /(?:\b|^)(?:aaye|aye|aaya|aayi|mila|mile|mili|milaye|jama\s*(?:hua|huye|hui)?|paise\s+aaye|paisa\s+aaya|payment\s+aaya)(?:\b|$)|आए|आया|आई|मिले|मिला|मिली|जमा\s*हुआ|पैसे\s*आए/i.test(q)}
+ function isMoneyOut(q){return /\b(?:diye|diya|de\s*diya|de\s*diye|payment\s*diya|paisa\s*diya|bheja|bheje)\b|दिए|दिया|दे\s*दिया|पेमेंट\s*दिया|भेजा/i.test(q)}
+ function natural(q,force){
+   if(force)return null;
+   var z=ntext(q), amount=firstAmt(z), party=partyFrom(z);
+   /* RETURN: customer brought goods back. If item/rate is missing, clarify() will ask. */
+   if(isReturn(z)){
+     var a=isPurchaseReturn(z)?'purchase_return':'sale_return';
+     var tt=toks(z), qty=0, unit='';
+     for(var i=0;i<tt.length;i++){
+       if(tt[i].n!==undefined && tt[i+1]&&tt[i+1].w&&W_UNIT[tt[i+1].w]){qty=+tt[i].n;unit=tt[i+1].w;break}
+     }
+     /* remove party / transaction words / quantity from a rough item phrase */
+     var words=z.split(/\s+/).filter(function(w){return !W_FILL[w]&&!W_UNIT[w]&&!W_SEP[w]&&!/^(return|wapas|wapsi|wapasi|vaapsi|vapasi|vapsi|laaya|laya|laayi|laayi|laut|lauta|lautaya)$/.test(w)&&!/^\d+(?:\.\d+)?$/.test(w)});
+     if(party){var pw=ntext(party).split(/\s+/); words=words.filter(function(w){return pw.indexOf(w)<0})}
+     words=words.filter(function(w){return !/^(ke|ko|se|ne|ka|ki|hai|hain|tha|thi|maal|samaan)$/.test(w)});
+     var item=words.join(' ').trim();
+     return {action:a,party:party,items:[{name:item,qty:qty,unit:unit,rate:0}],paid:0,amount:0,note:'',mk:1};
+   }
+   /* PAYMENT IN: "Raju ke 5000 rs aaye hai", "Raju se 5000 mile" */
+   if(amount>0 && isMoneyIn(z) && !isMoneyOut(z)){
+     return {action:'payment_in',party:party,items:[],paid:0,amount:amount,note:'',mk:1};
+   }
+   /* PAYMENT OUT: "Raju ko 5000 diye", "Raju ko paise de diye" */
+   if(amount>0 && isMoneyOut(z)){
+     return {action:'payment_out',party:party,items:[],paid:0,amount:amount,note:'',mk:1};
+   }
+   return null;
+ }
+ ownParse=function(q,force){var j=natural(q,force);return j||_oldOwnParse(q,force)};
+ isCmd=function(q){return !!natural(q)||_oldIsCmd(q)};
+ strongCmd=function(q){var j=null;try{j=ownParse(q)}catch(e){}if(!j)return false;if(j.action==='payment_in'||j.action==='payment_out')return j.amount>0;if(j.action==='sale_return'||j.action==='purchase_return')return true;return !!(j.mk||(j.items||[]).some(function(x){return x.qty>0}))};
+})();
+
+/* ================= DAILY HINDI SPEECH FIX v8 =================
+   Handles natural word order such as:
+   "maal vapsi aaya hai raju ka"
+   "raju ka maal wapas aaya hai"
+   "raju ke 5000 rupaye aaye hain" */
+(function(){
+  var _prevOwn=ownParse, _prevIs=isCmd;
+  function zz(q){return normAlias(String(q||'').toLowerCase()).replace(/[।!?.,]/g,' ').replace(/\s+/g,' ').trim()}
+  function words(q){return zz(q).split(/\s+/).filter(Boolean)}
+  function partyAnywhere(q){
+    var z=zz(q), bp='', bs=0;
+    D.parties.forEach(function(p){
+      var n=zz(p.name); if(!n)return;
+      var sc=sim(n,z);
+      if(z.indexOf(n)>=0)sc=Math.max(sc,.99);
+      if(sc>bs){bs=sc;bp=p.name}
+    });
+    if(bp&&bs>=.72)return bp;
+    /* "maal wapas aaya hai Raju ka" -> take name before/after possessive particle */
+    var w=words(q), i, bad={maal:1,samaan:1,maal:1,vapas:1,wapas:1,vapsi:1,vaapsi:1,wapasi:1,aaya:1,aaye:1,aayi:1,hai:1,hain:1,aa:1,gaya:1,gayi:1};
+    for(i=w.length-1;i>=0;i--){
+      if(/^(ka|ki|ke|का|की|के)$/.test(w[i]) && i>0 && !bad[w[i-1]]) return w[i-1];
+    }
+    return '';
+  }
+  function dailyReturn(q){
+    var z=zz(q), w=words(q);
+    var hasBack=/\b(vapas|wapas|vapsi|vaapsi|wapasi|return|laut|lautaya|lota|lotaya)\b|वापस|वापसी|लौटा|लौटाया|रिटर्न/i.test(z);
+    /* Everyday phrase: maal/samaan + aaya/aaye with a party reference */
+    var hasGoods=/(\bmaal\b|\bsamaan\b|माल|सामान)/i.test(z);
+    var came=/\b(aaya|aaye|aayi|aya|aye|ayi)\b|आया|आए|आई/i.test(z);
+    var party=partyAnywhere(z);
+    if((hasBack || (hasGoods&&came&&party)) && (party||hasGoods)){
+      var purchase=/\b(supplier|vendor|saplaier)\b|सप्लायर|विक्रेता|खरीद/i.test(z);
+      /* Find qty + unit if spoken; otherwise leave blank so clarification asks. */
+      var qty=0, unit='', item='';
+      for(var i=0;i<w.length-1;i++){
+        var n=Number(w[i]);
+        if(isFinite(n)&&n>0&&W_UNIT[w[i+1]]){qty=n;unit=w[i+1];break}
+      }
+      /* If a real item name from stock is spoken, preserve it; generic maal/samaan is NOT an item. */
+      var hit='';
+      D.items.forEach(function(it){var n=zz(it.name);if(n&&z.indexOf(n)>=0&&n.length>hit.length)hit=it.name});
+      item=hit;
+      return {action:purchase?'purchase_return':'sale_return',party:party,items:[{name:item,qty:qty,unit:unit,rate:0}],paid:0,amount:0,note:'',mk:1};
+    }
+    return null;
+  }
+  function dailyPayment(q){
+    var z=zz(q), party=partyAnywhere(z), m=z.match(/(?:₹|rs\.?|rupaye?|rupees?|रुपये?)?\s*(\d+(?:\.\d+)?)/i), amount=m?+m[1]:0;
+    /* number anywhere + natural incoming words */
+    if(amount>0 && /\b(aaye|aaya|aayi|aya|aye|mila|mile|mili|jama)\b|आए|आया|आई|मिले|मिला|मिली|जमा/i.test(z) && !/\b(diya|diye|de diya|paid)\b|दिया|दिए|भुगतान/i.test(z))
+      return {action:'payment_in',party:party,items:[],paid:0,amount:amount,note:'',mk:1};
+    if(amount>0 && /\b(diya|diye|de diya|de diye|paid|bheja)\b|दिया|दिए|भेजा/i.test(z))
+      return {action:'payment_out',party:party,items:[],paid:0,amount:amount,note:'',mk:1};
+    return null;
+  }
+  ownParse=function(q,force){
+    if(!force){var r=dailyReturn(q); if(r)return r; var p=dailyPayment(q); if(p)return p;}
+    return _prevOwn(q,force);
+  };
+  isCmd=function(q){return !!dailyReturn(q)||!!dailyPayment(q)||_prevIs(q)};
+  OWNHELP='Aise naturally bol sakte hain:\n• "Maal vapsi aaya hai Raju ka" → Sale Return, phir item/quantity poochega\n• "Raju ka maal wapas aaya hai" → Sale Return\n• "Raju ke 5000 rupaye aaye hain" → Payment-In ₹5000\n• "Raju ko 2000 rupaye diye" → Payment-Out ₹2000';
+})();
+
+
+
+/* ================= OFFLINEAI CORE INTENT FIX v9 =================
+   Local Hindi/Hinglish intent is checked BEFORE any generic/remote parser.
+   Intent words have priority over the generic word "aaya". */
+(function(){
+  var _baseOwn=ownParse, _baseIs=isCmd, _baseStrong=strongCmd, _baseParse=parseCmd;
+  function N(q){return normAlias(String(q||'').toLowerCase()).replace(/[।!?.,]/g,' ').replace(/\s+/g,' ').trim()}
+  function has(z,re){return re.test(z)}
+  function num(z){var t=owTok(z);for(var i=0;i<t.length;i++)if(t[i].n!==undefined&&+t[i].n>0)return +t[i].n;return 0}
+  function spokenParty(z){
+    var ws=N(z).split(/\s+/), stop={maal:1,samaan:1,mal:1,vaapsi:1,vapsi:1,wapas:1,vapas:1,wapasi:1,aaya:1,aaye:1,aayi:1,aya:1,aye:1,ayi:1,hai:1,hain:1,tha:1,thi:1,ka:1,ki:1,ke:1,ko:1,se:1,ne:1,rupaye:1,rupees:1,rs:1};
+    /* First, extract the natural name around "ka/ki/ke/ko/se/ne". */
+    var cand='';
+    for(var i=0;i<ws.length;i++){
+      if(/^(ka|ki|ke|ko|se|ne|का|की|के|को|से|ने)$/.test(ws[i])){
+        var j=i-1, a=[];while(j>=0&&a.length<4&&!stop[ws[j]]){a.unshift(ws[j]);j--}
+        if(a.length)cand=a.join(' ');
+      }
+    }
+    if(!cand){
+      for(var k=0;k<ws.length;k++)if(!stop[ws[k]]&&!/^\d/.test(ws[k])){cand=ws[k];break}
+    }
+    if(!cand)return '';
+    /* Only auto-resolve an exact/unique spoken match. Never silently choose a longer party. */
+    var c=N(cand), hits=D.parties.filter(function(p){var n=N(p.name);return n===c});
+    if(hits.length===1)return hits[0].name;
+    return cand;
+  }
+  function localIntent(q,force){
+    if(force)return null;
+    var z=N(q);
+    var ret=has(z,/\b(maal|mal|samaan)\b.*\b(vaapsi|vapsi|wapas|vapas|wapasi|return|laut|lautaya)\b|\b(vaapsi|vapsi|wapas|vapas|wapasi|return|laut|lautaya)\b.*\b(maal|mal|samaan)\b|वापसी|वापस|लौटाया|लौटा/);
+    /* "Raju ka maal vapsi aaya hai" and "maal vapsi aaya hai Raju ka" */
+    if(ret){
+      var pr=has(z,/\b(supplier|vendor|saplaier|purchase|kharid|kharidi)\b|सप्लायर|खरीद/);
+      var qn=0, un='', tt=owTok(z);
+      for(var i=0;i<tt.length-1;i++)if(tt[i].n!==undefined&&tt[i+1].w&&W_UNIT[tt[i+1].w]){qn=+tt[i].n;un=tt[i+1].w;break}
+      var item='';D.items.forEach(function(it){var n=N(it.name);if(n&&z.indexOf(n)>=0&&n.length>item.length)item=it.name});
+      return {action:pr?'purchase_return':'sale_return',party:spokenParty(z),items:[{name:item,qty:qn,unit:un,rate:0}],paid:0,amount:0,note:'',mk:1,_local:1};
+    }
+    var amount=num(z);
+    if(amount>0 && has(z,/\b(aaye|aaya|aayi|aye|aya|ayi|mile|mila|mili|jama|received)\b|आए|आया|आई|मिले|मिला|मिली|जमा/) && !has(z,/\b(diya|diye|de diya|de diye|paid)\b|दिया|दिए|भुगतान/))
+      return {action:'payment_in',party:spokenParty(z),items:[],paid:0,amount:amount,note:'',mk:1,_local:1};
+    if(amount>0 && has(z,/\b(diya|diye|de diya|de diye|paid|bheja|bheje)\b|दिया|दिए|भेजा/))
+      return {action:'payment_out',party:spokenParty(z),items:[],paid:0,amount:amount,note:'',mk:1,_local:1};
+    return null;
+  }
+  ownParse=function(q,force){return localIntent(q,force)||_baseOwn(q,force)};
+  isCmd=function(q){return !!localIntent(q)||_baseIs(q)};
+  strongCmd=function(q){var j=localIntent(q);if(j)return true;return _baseStrong(q)};
+  /* Important: even when an online AI provider is selected, obvious daily Hindi transactions
+     are parsed locally first so AI can never misclassify "maal vapsi" as payment received. */
+  parseCmd=function(q,force){
+    var j=localIntent(q,force);
+    if(j)return clarify(j,force).then(function(x){return mkConf(x,force)});
+    return _baseParse(q,force);
+  };
+  OWNHELP='Natural Hindi/Hinglish examples:\n• "Raju ka maal vapsi aaya hai" → Sale Return\n• "Maal vapsi aaya hai Raju ka" → Sale Return\n• "Raju ke 5000 rupaye aaye hain" → Payment In\n• "Raju ko 2000 rupaye diye" → Payment Out';
+})();
+
+
+/* ================= HARD DAILY HINDI ROUTER v10 =================
+   This is deliberately independent of the older parsers. It runs first and
+   recognises shop-style word order such as "Raju ka maal vapsi aaya hai". */
+(function(){
+  var prevParse=parseCmd, prevOwn=ownParse, prevIs=isCmd;
+  function H(q){
+    return String(q||'').toLowerCase()
+      .replace(/[।!?.,]/g,' ')
+      .replace(/\s+/g,' ').trim();
+  }
+  function retWords(z){
+    return /(?:^|\s)(?:vapsi|vapsi|wapasi|wapas|vapas|vaapsi|return|laut|lauta|lautaya|lautaya)(?:\s|$)|वापसी|वापस|लौटा|लौटाया/.test(z);
+  }
+  function goodsWords(z){return /(?:^|\s)(?:maal|mal|samaan|saman)(?:\s|$)|माल|सामान/.test(z)}
+  function exactPartyFromSpeech(z){
+    var clean=H(z), exact=[];
+    D.parties.forEach(function(p){
+      var n=H(p.name);
+      if(!n)return;
+      if(clean.indexOf(n)>=0)exact.push(p);
+    });
+    if(exact.length===1)return exact[0].name;
+    /* Prefer an exact spoken token that exactly equals a party's first word,
+       but do NOT silently select a longer party when several are possible. */
+    var ws=clean.split(/\s+/), cand='';
+    for(var i=0;i<ws.length;i++){
+      if(/^(ka|ki|ke|ko|se|ne|का|की|के|को|से|ने)$/.test(ws[i])){
+        if(i>0)cand=ws[i-1];
+        else if(i+1<ws.length)cand=ws[i+1];
+      }
+    }
+    if(!cand){
+      for(var j=0;j<ws.length;j++){
+        if(!/^(maal|mal|samaan|saman|vapsi|vapsi|wapasi|wapas|vapas|vaapsi|aaya|aaye|aayi|aya|aye|ayi|hai|hain|ka|ki|ke|ko|se|ne|rupaye|rupees|rs)$/.test(ws[j])&&!/^\d/.test(ws[j])){cand=ws[j];break;}
+      }
+    }
+    if(!cand)return '';
+    var hits=D.parties.filter(function(p){return H(p.name)===cand});
+    if(hits.length===1)return hits[0].name;
+    return cand;
+  }
+  function hardIntent(q,force){
+    if(force)return null;
+    var z=H(q);
+    /* CRITICAL RULE: maal/samaan + any return word ALWAYS wins over aaya/aaye. */
+    if(goodsWords(z)&&retWords(z)){
+      var party=exactPartyFromSpeech(z), item='', qty=0, unit='';
+      D.items.forEach(function(it){var n=H(it.name);if(n&&z.indexOf(n)>=0&&n.length>item.length)item=it.name});
+      var tt=owTok(z);
+      for(var i=0;i<tt.length-1;i++){
+        if(tt[i].n!==undefined&&tt[i+1]&&tt[i+1].w&&W_UNIT[tt[i+1].w]){qty=+tt[i].n;unit=tt[i+1].w;break;}
+      }
+      var pur=/\b(supplier|vendor|saplaier|purchase|kharid|kharidi)\b|सप्लायर|खरीद/.test(z);
+      return {action:pur?'purchase_return':'sale_return',party:party,items:[{name:item,qty:qty,unit:unit,rate:0}],paid:0,amount:0,note:'',mk:1,_hardHindi:1};
+    }
+    /* Payment language only applies when there is a numeric amount. */
+    var amount=0, tok=owTok(z);
+    for(var k=0;k<tok.length;k++)if(tok[k].n!==undefined&&+tok[k].n>0){amount=+tok[k].n;break;}
+    if(amount>0){
+      var party2=exactPartyFromSpeech(z);
+      if(/\b(diya|diye|de diya|de diye|bheja|bheje|paid)\b|दिया|दिए|भेजा/.test(z))
+        return {action:'payment_out',party:party2,items:[],paid:0,amount:amount,note:'',mk:1,_hardHindi:1};
+      if(/\b(aaya|aaye|aayi|aya|aye|ayi|mila|mile|mili|jama|received)\b|आया|आए|आई|मिला|मिले|मिली|जमा/.test(z))
+        return {action:'payment_in',party:party2,items:[],paid:0,amount:amount,note:'',mk:1,_hardHindi:1};
+    }
+    return null;
+  }
+  ownParse=function(q,force){return hardIntent(q,force)||prevOwn(q,force)};
+  isCmd=function(q){return !!hardIntent(q)||prevIs(q)};
+  parseCmd=function(q,force){
+    var j=hardIntent(q,force);
+    if(j)return clarify(j,force).then(function(x){return mkConf(x,force)});
+    return prevParse(q,force);
+  };
+  /* expose for testing/debugging without changing UI */
+  window.__offlineHindiIntent=hardIntent;
+})();
+
 </script>
 </body></html>
