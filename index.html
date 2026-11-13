@@ -778,6 +778,58 @@ function printHtml(title,body){var w=window.open('','_blank');if(!w)return alert
 }
 </style>
 
+
+<script>
+/* ================= MESSAGE TEMPLATES v22 =================
+   Separate editable templates for Sale, Payment In, Reminder, Sale Return,
+   Purchase, Purchase Return and Dispatch (Customer + Transporter).
+   Settings are shared data; the editor is responsive and renders differently
+   on phone/desktop without changing any transaction logic. */
+(function(){
+ var DEF={
+  sale:'🙏 Namaste {{partyName}}!\n\nThank you for shopping with {{businessName}}.\n\n🧾 Invoice No: {{invoiceNo}}\n💰 Total: ₹{{total}}\n💳 Paid: ₹{{paid}}\n⏳ Balance: ₹{{balance}}\n\nThank you! 🙏',
+  paymentIn:'🙏 Namaste {{partyName}}!\n\n₹{{amount}} payment has been received successfully. ✅\n\n💳 Remaining Balance: ₹{{balance}}\n\nThank you! 🙏',
+  reminder:'🙏 Namaste {{partyName}},\n\nA friendly reminder that ₹{{balance}} is pending in your account. Kindly clear the payment at your convenience. 🙏\n\nThank you,\n{{businessName}}',
+  saleReturn:'📦 Namaste {{partyName}}!\n\nYour returned goods have been recorded successfully.\n\n🧾 Return No: {{invoiceNo}}\n💰 Return Amount: ₹{{amount}}\n\nThank you! 🙏',
+  purchase:'🧾 {{businessName}}\nPurchase recorded successfully.\n\nSupplier: {{partyName}}\nBill No: {{invoiceNo}}\nAmount: ₹{{total}}',
+  purchaseReturn:'↩️ {{businessName}}\nPurchase return recorded successfully.\n\nSupplier: {{partyName}}\nAmount: ₹{{amount}}',
+  dispatchCustomer:'🚚🎉 Good news, {{partyName}}!\n\nYour goods from {{businessName}} are on the way! 📦\n\n🧾 Bill No: {{invoiceNo}}\n🚛 Transporter: {{transporterName}}\n\n📦 Coming to you:\n{{items}}\n\nPlease be ready to receive your goods. 😊🙏\n\nThank you for choosing {{businessName}}!',
+  dispatchTransporter:'🚚 *LOADING / DELIVERY DETAILS*\n\nHello {{transporterName}},\n\nCustomer: {{partyName}}\n📞 {{phone}}\n📍 {{address}}\n🧾 Bill No: {{invoiceNo}}\n\n📦 Goods to deliver:\n{{items}}\n\nPlease load and deliver the above goods safely, then confirm after delivery. 🙏\n\n- {{businessName}}'
+ };
+ function MT(){D.msgTpl=D.msgTpl||{};Object.keys(DEF).forEach(function(k){if(typeof D.msgTpl[k]!=='string'||!D.msgTpl[k].trim())D.msgTpl[k]=DEF[k]});return D.msgTpl}
+ function mt(k,o){var t=(MT()[k]||DEF[k]||'');o=o||{};return t.replace(/{{\s*([\w]+)\s*}}/g,function(_,x){return o[x]===undefined||o[x]===null?'':String(o[x])})}
+ window.MT=MT;window.mt=mt;
+ var labels={sale:'Sale / Invoice',paymentIn:'Payment Received (In)',reminder:'Payment Reminder',saleReturn:'Sale Return',purchase:'Purchase',purchaseReturn:'Purchase Return',dispatchCustomer:'Dispatch → Customer',dispatchTransporter:'Dispatch → Transporter'};
+ var _oldSettings=window.vSettings;
+ window.vSettings=function(){
+  var base=_oldSettings();
+  /* add a real Messages tab without disturbing existing settings tabs */
+  if(window.sTab==='msg'){
+   var tabs='<h2 style="font-size:20px;margin:6px 0">Settings · Message Templates</h2><div class="pills msgtabs">'+Object.keys(labels).map(function(k){return '<button class="s" onclick="msgEdit(\''+k+'\')">'+labels[k]+'</button>'}).join('')+'</div><div class="msghelp">✏️ Edit every WhatsApp message yourself. Dynamic fields are filled automatically when a transaction is created or dispatched.</div><div id="msgEditor" class="card msgeditor"></div>';
+   setTimeout(function(){msgEdit(window.msgKey||'sale')},0);return tabs;
+  }
+  /* insert Messages button next to existing settings pills */
+  return base.replace('<button class="s" onclick="sTab=\'chk\';render()">Stock check</button>','<button class="s" onclick="sTab=\'msg\';render()">💬 Messages</button><button class="s" onclick="sTab=\'chk\';render()">Stock check</button>');
+ };
+ window.msgEdit=function(k){window.msgKey=k;var e=document.getElementById('msgEditor');if(!e)return;var fields='{{partyName}}, {{businessName}}, {{invoiceNo}}, {{date}}, {{total}}, {{paid}}, {{balance}}, {{amount}}, {{items}}, {{transporterName}}, {{address}}, {{phone}}';e.innerHTML='<div class="row"><div><b>'+labels[k]+'</b><div class="mu">Template is used automatically when available.</div></div><button class="s" onclick="msgRestore(\''+k+'\')">Restore default</button></div><label class="mu" style="display:block;margin-top:12px">Message</label><textarea id="msgTplText" rows="13" style="width:100%;box-sizing:border-box;white-space:pre-wrap">'+esc(MT()[k])+'</textarea><div class="mu" style="margin:10px 0;line-height:1.5"><b>Available fields:</b><br>'+fields+'</div><div class="row" style="justify-content:flex-start;gap:8px"><button class="b" onclick="msgSave(\''+k+'\')">Save template</button><button class="s" onclick="msgPreview(\''+k+'\')">Preview</button></div>'};
+ window.msgSave=function(k){var e=document.getElementById('msgTplText');if(!e)return;MT()[k]=e.value;save();setMsg('Message template saved ✓')};
+ window.msgRestore=function(k){if(!confirm('Restore the default message for '+labels[k]+'?'))return;MT()[k]=DEF[k];save();msgEdit(k)};
+ window.msgPreview=function(k){var x={partyName:'Raju',businessName:D.shop||'Your Shop',invoiceNo:'101',date:dt(Date.now()),total:'12,500',paid:'5,000',balance:'7,500',amount:'5,000',items:'• 10 Box Tiles\n• 2 Wash Basins',transporterName:'ABC Transport',address:'Customer delivery address',phone:'9876543210'};alert(mt(k,x))};
+ /* Sale WhatsApp uses the editable Sale template. */
+ var _wa=window.wa;
+ window.wa=function(no){var b=bl(no);if(!b)return _wa(no);var p=P(b.pid)||{};var pd=+b.paid||0,due=Math.max((+b.total||0)-pd,0);openWA(p,mt('sale',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),total:(+b.total||0).toFixed(2),paid:pd.toFixed(2),balance:due.toFixed(2),amount:(+b.total||0).toFixed(2)}))};
+ /* Dispatch customer message: only the current dispatch items when available. */
+ window.waRem=function(no,now){var b=bl(no),p=P(b.pid);if(!p)return;var items=[];if(now&&lastDisp&&lastDisp.no===no)items=lastDisp.items;else b.lines.forEach(function(l){if(dq(l)>0)items.push({name:l.name,q:dq(l),unit:l.unit})});var tr='';if(lastDisp&&lastDisp.dspId){var d=DSP().find(function(x){return x.id===lastDisp.dspId}),t=d&&TRS().find(function(x){return x.id===d.tid});tr=t?t.name:''}var a=bAddr(b);openWA(p,mt('dispatchCustomer',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),items:items.map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit}).join('\n')||'Goods dispatch update',transporterName:tr||'Our delivery team',address:(a.s||a.a||''),phone:p.phone||''}))};
+ /* Transporter message uses separate editable template. */
+ window.trMsg=function(d){var t=TRS().find(function(x){return x.id===d.tid})||{},items=d.items.slice().map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit+(x.loc?'\n  📦 Godown / Block: '+x.loc:'')}).join('\n');return mt('dispatchTransporter',{partyName:d.cust||'',businessName:D.shop||'',invoiceNo:d.no,date:dt(d.date),items:items,transporterName:t.name||'',address:d.addr||'',phone:d.cph||''})};
+ /* Payment-in template helper for current and future payment buttons. */
+ window.paymentInMessage=function(p,amount,balance){return mt('paymentIn',{partyName:(p&&p.name)||'',businessName:D.shop||'',amount:(+amount||0).toFixed(2),balance:(+balance||0).toFixed(2)})};
+ window.reminderMessage=function(p,balance){return mt('reminder',{partyName:(p&&p.name)||'',businessName:D.shop||'',balance:(+balance||0).toFixed(2)})};
+ var css=document.createElement('style');css.textContent='.msgtabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.msgtabs .s{font-size:13px}.msghelp{background:#eef4fe;border:1px solid #d9e5fb;color:#355078;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0}.msgeditor{max-width:760px}.msgeditor textarea{font-family:inherit;font-size:14px;line-height:1.5;min-height:250px}@media(max-width:899px){.msgtabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.msgtabs .s{white-space:nowrap;min-height:36px}.msgeditor{padding:12px}.msgeditor textarea{font-size:15px;min-height:48vh}.msghelp{font-size:12.5px}.msgeditor .row{align-items:flex-start}.msgeditor .row .s{white-space:nowrap}}@media(min-width:900px){.msgeditor{padding:18px}.msgtabs{max-width:850px}.msgtabs .s:hover{border-color:#1a73e8}}';document.head.appendChild(css);
+ MT();save();
+})();
+</script>
+
 </body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},400)}
 function saleStatus(b){var pd=paidOn(b);return b.x?'Cancelled':(b.total-pd<=0.009?'Paid':pd>0?'Partly paid':'Unpaid')}
 function stH(s){var c=(s==='Paid'||s==='Received'||s==='Returned'||s==='Converted')?'grn':(s==='Cancelled'||s==='Open')?'mu':s==='Partly paid'?'':'red';return '<span class="'+c+'"'+(s==='Partly paid'?' style="color:#c77700;font-weight:600"':'')+'>'+s+'</span>'}
@@ -1117,7 +1169,59 @@ printHtml=function(title,body){var p=PS(),n=p.name||D.shop,w=window.open('','_bl
  body=body.replace(/^<h2>[\s\S]*?<\/h2>/,'');
  var ft='<div class="ft"><div class="ftt">'+esc(p.terms||'Thank you for your business!').replace(/\n/g,'<br>')+'</div>'+(p.nosign?'':'<div class="sg">For '+esc(n)+'<br><br><br>Authorised Signatory</div>')+'</div>';
  var css='@page{size:'+(p.size==='A5'?'A5':'A4')+';margin:12mm}*{box-sizing:border-box}body{font-family:Roboto,Arial,sans-serif;color:#1a1d2e;font-size:13px;margin:0;padding:0}.lh{text-align:center;border-bottom:3px solid #1d3a8a;padding-bottom:10px;margin-bottom:14px}.lhn{font-size:26px;font-weight:700;color:#1d3a8a;letter-spacing:.5px}.lht{font-style:italic;color:#555;margin:2px 0}h3{margin:6px 0 10px;font-size:17px;letter-spacing:1px;text-transform:uppercase;color:#1d3a8a}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#e8edf9;color:#1d3a8a;text-align:left;padding:8px 6px;border-top:1px solid #b9c4e6;border-bottom:1px solid #b9c4e6;font-size:12px}td{border-bottom:1px solid #dde2ee;padding:7px 6px;vertical-align:top}thead{display:table-header-group}tr{page-break-inside:avoid}.r{text-align:right}.m{color:#666;font-size:11.5px}.bx{display:flex;gap:8px;margin:10px 0}.bx div{flex:1;border:1px solid #c9d2ec;border-radius:6px;padding:8px 10px}.bx small{display:block;color:#667;font-size:11px;text-transform:uppercase}.bx b{font-size:16px}.big{background:#1d3a8a;color:#fff;border-color:#1d3a8a!important}.big small{color:#cfd8f6}.sum{border:2px solid #1d3a8a;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:15px;text-align:center}.ft{display:flex;justify-content:space-between;align-items:flex-end;margin-top:28px;border-top:1px solid #ccd;padding-top:10px;page-break-inside:avoid}.ftt{color:#555;max-width:60%;font-size:12px}.sg{text-align:center;font-size:12px;border-top:1px solid #333;padding-top:4px;min-width:170px}';
- w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+letterhead()+body+ft+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},700)};
+ w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+letterhead()+body+ft+'
+<script>
+/* ================= MESSAGE TEMPLATES v22 =================
+   Separate editable templates for Sale, Payment In, Reminder, Sale Return,
+   Purchase, Purchase Return and Dispatch (Customer + Transporter).
+   Settings are shared data; the editor is responsive and renders differently
+   on phone/desktop without changing any transaction logic. */
+(function(){
+ var DEF={
+  sale:'🙏 Namaste {{partyName}}!\n\nThank you for shopping with {{businessName}}.\n\n🧾 Invoice No: {{invoiceNo}}\n💰 Total: ₹{{total}}\n💳 Paid: ₹{{paid}}\n⏳ Balance: ₹{{balance}}\n\nThank you! 🙏',
+  paymentIn:'🙏 Namaste {{partyName}}!\n\n₹{{amount}} payment has been received successfully. ✅\n\n💳 Remaining Balance: ₹{{balance}}\n\nThank you! 🙏',
+  reminder:'🙏 Namaste {{partyName}},\n\nA friendly reminder that ₹{{balance}} is pending in your account. Kindly clear the payment at your convenience. 🙏\n\nThank you,\n{{businessName}}',
+  saleReturn:'📦 Namaste {{partyName}}!\n\nYour returned goods have been recorded successfully.\n\n🧾 Return No: {{invoiceNo}}\n💰 Return Amount: ₹{{amount}}\n\nThank you! 🙏',
+  purchase:'🧾 {{businessName}}\nPurchase recorded successfully.\n\nSupplier: {{partyName}}\nBill No: {{invoiceNo}}\nAmount: ₹{{total}}',
+  purchaseReturn:'↩️ {{businessName}}\nPurchase return recorded successfully.\n\nSupplier: {{partyName}}\nAmount: ₹{{amount}}',
+  dispatchCustomer:'🚚🎉 Good news, {{partyName}}!\n\nYour goods from {{businessName}} are on the way! 📦\n\n🧾 Bill No: {{invoiceNo}}\n🚛 Transporter: {{transporterName}}\n\n📦 Coming to you:\n{{items}}\n\nPlease be ready to receive your goods. 😊🙏\n\nThank you for choosing {{businessName}}!',
+  dispatchTransporter:'🚚 *LOADING / DELIVERY DETAILS*\n\nHello {{transporterName}},\n\nCustomer: {{partyName}}\n📞 {{phone}}\n📍 {{address}}\n🧾 Bill No: {{invoiceNo}}\n\n📦 Goods to deliver:\n{{items}}\n\nPlease load and deliver the above goods safely, then confirm after delivery. 🙏\n\n- {{businessName}}'
+ };
+ function MT(){D.msgTpl=D.msgTpl||{};Object.keys(DEF).forEach(function(k){if(typeof D.msgTpl[k]!=='string'||!D.msgTpl[k].trim())D.msgTpl[k]=DEF[k]});return D.msgTpl}
+ function mt(k,o){var t=(MT()[k]||DEF[k]||'');o=o||{};return t.replace(/{{\s*([\w]+)\s*}}/g,function(_,x){return o[x]===undefined||o[x]===null?'':String(o[x])})}
+ window.MT=MT;window.mt=mt;
+ var labels={sale:'Sale / Invoice',paymentIn:'Payment Received (In)',reminder:'Payment Reminder',saleReturn:'Sale Return',purchase:'Purchase',purchaseReturn:'Purchase Return',dispatchCustomer:'Dispatch → Customer',dispatchTransporter:'Dispatch → Transporter'};
+ var _oldSettings=window.vSettings;
+ window.vSettings=function(){
+  var base=_oldSettings();
+  /* add a real Messages tab without disturbing existing settings tabs */
+  if(window.sTab==='msg'){
+   var tabs='<h2 style="font-size:20px;margin:6px 0">Settings · Message Templates</h2><div class="pills msgtabs">'+Object.keys(labels).map(function(k){return '<button class="s" onclick="msgEdit(\''+k+'\')">'+labels[k]+'</button>'}).join('')+'</div><div class="msghelp">✏️ Edit every WhatsApp message yourself. Dynamic fields are filled automatically when a transaction is created or dispatched.</div><div id="msgEditor" class="card msgeditor"></div>';
+   setTimeout(function(){msgEdit(window.msgKey||'sale')},0);return tabs;
+  }
+  /* insert Messages button next to existing settings pills */
+  return base.replace('<button class="s" onclick="sTab=\'chk\';render()">Stock check</button>','<button class="s" onclick="sTab=\'msg\';render()">💬 Messages</button><button class="s" onclick="sTab=\'chk\';render()">Stock check</button>');
+ };
+ window.msgEdit=function(k){window.msgKey=k;var e=document.getElementById('msgEditor');if(!e)return;var fields='{{partyName}}, {{businessName}}, {{invoiceNo}}, {{date}}, {{total}}, {{paid}}, {{balance}}, {{amount}}, {{items}}, {{transporterName}}, {{address}}, {{phone}}';e.innerHTML='<div class="row"><div><b>'+labels[k]+'</b><div class="mu">Template is used automatically when available.</div></div><button class="s" onclick="msgRestore(\''+k+'\')">Restore default</button></div><label class="mu" style="display:block;margin-top:12px">Message</label><textarea id="msgTplText" rows="13" style="width:100%;box-sizing:border-box;white-space:pre-wrap">'+esc(MT()[k])+'</textarea><div class="mu" style="margin:10px 0;line-height:1.5"><b>Available fields:</b><br>'+fields+'</div><div class="row" style="justify-content:flex-start;gap:8px"><button class="b" onclick="msgSave(\''+k+'\')">Save template</button><button class="s" onclick="msgPreview(\''+k+'\')">Preview</button></div>'};
+ window.msgSave=function(k){var e=document.getElementById('msgTplText');if(!e)return;MT()[k]=e.value;save();setMsg('Message template saved ✓')};
+ window.msgRestore=function(k){if(!confirm('Restore the default message for '+labels[k]+'?'))return;MT()[k]=DEF[k];save();msgEdit(k)};
+ window.msgPreview=function(k){var x={partyName:'Raju',businessName:D.shop||'Your Shop',invoiceNo:'101',date:dt(Date.now()),total:'12,500',paid:'5,000',balance:'7,500',amount:'5,000',items:'• 10 Box Tiles\n• 2 Wash Basins',transporterName:'ABC Transport',address:'Customer delivery address',phone:'9876543210'};alert(mt(k,x))};
+ /* Sale WhatsApp uses the editable Sale template. */
+ var _wa=window.wa;
+ window.wa=function(no){var b=bl(no);if(!b)return _wa(no);var p=P(b.pid)||{};var pd=+b.paid||0,due=Math.max((+b.total||0)-pd,0);openWA(p,mt('sale',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),total:(+b.total||0).toFixed(2),paid:pd.toFixed(2),balance:due.toFixed(2),amount:(+b.total||0).toFixed(2)}))};
+ /* Dispatch customer message: only the current dispatch items when available. */
+ window.waRem=function(no,now){var b=bl(no),p=P(b.pid);if(!p)return;var items=[];if(now&&lastDisp&&lastDisp.no===no)items=lastDisp.items;else b.lines.forEach(function(l){if(dq(l)>0)items.push({name:l.name,q:dq(l),unit:l.unit})});var tr='';if(lastDisp&&lastDisp.dspId){var d=DSP().find(function(x){return x.id===lastDisp.dspId}),t=d&&TRS().find(function(x){return x.id===d.tid});tr=t?t.name:''}var a=bAddr(b);openWA(p,mt('dispatchCustomer',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),items:items.map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit}).join('\n')||'Goods dispatch update',transporterName:tr||'Our delivery team',address:(a.s||a.a||''),phone:p.phone||''}))};
+ /* Transporter message uses separate editable template. */
+ window.trMsg=function(d){var t=TRS().find(function(x){return x.id===d.tid})||{},items=d.items.slice().map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit+(x.loc?'\n  📦 Godown / Block: '+x.loc:'')}).join('\n');return mt('dispatchTransporter',{partyName:d.cust||'',businessName:D.shop||'',invoiceNo:d.no,date:dt(d.date),items:items,transporterName:t.name||'',address:d.addr||'',phone:d.cph||''})};
+ /* Payment-in template helper for current and future payment buttons. */
+ window.paymentInMessage=function(p,amount,balance){return mt('paymentIn',{partyName:(p&&p.name)||'',businessName:D.shop||'',amount:(+amount||0).toFixed(2),balance:(+balance||0).toFixed(2)})};
+ window.reminderMessage=function(p,balance){return mt('reminder',{partyName:(p&&p.name)||'',businessName:D.shop||'',balance:(+balance||0).toFixed(2)})};
+ var css=document.createElement('style');css.textContent='.msgtabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.msgtabs .s{font-size:13px}.msghelp{background:#eef4fe;border:1px solid #d9e5fb;color:#355078;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0}.msgeditor{max-width:760px}.msgeditor textarea{font-family:inherit;font-size:14px;line-height:1.5;min-height:250px}@media(max-width:899px){.msgtabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.msgtabs .s{white-space:nowrap;min-height:36px}.msgeditor{padding:12px}.msgeditor textarea{font-size:15px;min-height:48vh}.msghelp{font-size:12.5px}.msgeditor .row{align-items:flex-start}.msgeditor .row .s{white-space:nowrap}}@media(min-width:900px){.msgeditor{padding:18px}.msgtabs{max-width:850px}.msgtabs .s:hover{border-color:#1a73e8}}';document.head.appendChild(css);
+ MT();save();
+})();
+</script>
+
+</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},700)};
 stmtHtml=function(p){var s=stmtData(p),cl=s.close,
  h='<h2></h2><h3>Account Statement</h3><table style="margin:0"><tr><td style="border:0;padding:0"><b style="font-size:16px">'+esc(p.name)+'</b><br>'+(p.phone?'Phone: '+esc(p.phone):'')+'</td><td class="r" style="border:0;padding:0"><span class="m">Period</span><br><b>'+perTxt('rep')+'</b><br><span class="m">Printed on '+new Date().toLocaleDateString('en-IN')+'</span></td></tr></table>'+
  '<div class="bx"><div><small>Opening balance</small><b>'+balShort(s.bf)+'</b></div><div><small>Total bills (Dr)</small><b>'+money(s.td)+'</b></div><div><small>Total received (Cr)</small><b>'+money(s.tc)+'</b></div><div class="big"><small>Closing balance</small><b>'+(Math.abs(cl)<0.01?money(0):money(Math.abs(cl)))+'</b></div></div>'+
@@ -2426,7 +2530,59 @@ printHtml=function(title,body){var p=PS(),n=p.name||D.shop,w=window.open('','_bl
  if(p.pr_bk&&p.bank)left.push('<div class="ftt bk"><b>Bank details</b><br>'+esc(p.bank).replace(/\n/g,'<br>')+'</div>');
  var ft=(left.length||!p.nosign)?'<div class="ft"><div class="ftl">'+left.join('')+'</div>'+(p.nosign?'':'<div class="sg">For '+esc(n)+'<br><br><br>'+esc(p.sigtx||'Authorised Signatory')+'</div>')+'</div>':'';
  var css='@page{size:'+(p.size==='A5'?'A5':'A4')+(land?' landscape':'')+';margin:12mm}*{box-sizing:border-box}body{font-family:Roboto,Arial,sans-serif;color:#1a1d2e;font-size:'+fs+'px;margin:0;padding:'+top+'mm 0 0}.lh{display:flex;align-items:center;justify-content:center;gap:16px;border-bottom:3px solid #1d3a8a;padding-bottom:10px;margin-bottom:14px}.lhx{text-align:center}.lgo{max-height:72px;max-width:170px;object-fit:contain}.lhn{font-size:'+(fs+13)+'px;font-weight:700;color:#1d3a8a;letter-spacing:.5px}.lht{font-style:italic;color:#555;margin:2px 0}h3{margin:6px 0 10px;font-size:'+(fs+4)+'px;letter-spacing:1px;text-transform:uppercase;color:#1d3a8a}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#e8edf9;color:#1d3a8a;text-align:left;padding:8px 6px;border-top:1px solid #b9c4e6;border-bottom:1px solid #b9c4e6;font-size:'+(fs-1)+'px}td{border-bottom:1px solid #dde2ee;padding:7px 6px;vertical-align:top}thead{display:table-header-group}tr{page-break-inside:avoid}.r{text-align:right}.m{color:#666;font-size:'+(fs-1.5)+'px}.bx{display:flex;gap:8px;margin:10px 0}.bx div{flex:1;border:1px solid #c9d2ec;border-radius:6px;padding:8px 10px}.bx small{display:block;color:#667;font-size:'+(fs-2)+'px;text-transform:uppercase}.bx b{font-size:'+(fs+3)+'px}.big{background:#1d3a8a;color:#fff;border-color:#1d3a8a!important}.big small{color:#cfd8f6}.sum{border:2px solid #1d3a8a;border-radius:6px;padding:10px 14px;margin:12px 0;font-size:'+(fs+2)+'px;text-align:center}.ft{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:28px;border-top:1px solid #ccd;padding-top:10px;page-break-inside:avoid}.ftl{max-width:62%}.ftt{color:#555;font-size:'+(fs-1)+'px;margin-bottom:6px}.ftt.bk{color:#1a1d2e}.sg{text-align:center;font-size:'+(fs-1)+'px;border-top:1px solid #333;padding-top:4px;min-width:170px;margin-left:auto}.wd{margin:6px 0;font-size:'+fs+'px}';
- w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+letterhead()+body+ft+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},700)};
+ w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+letterhead()+body+ft+'
+<script>
+/* ================= MESSAGE TEMPLATES v22 =================
+   Separate editable templates for Sale, Payment In, Reminder, Sale Return,
+   Purchase, Purchase Return and Dispatch (Customer + Transporter).
+   Settings are shared data; the editor is responsive and renders differently
+   on phone/desktop without changing any transaction logic. */
+(function(){
+ var DEF={
+  sale:'🙏 Namaste {{partyName}}!\n\nThank you for shopping with {{businessName}}.\n\n🧾 Invoice No: {{invoiceNo}}\n💰 Total: ₹{{total}}\n💳 Paid: ₹{{paid}}\n⏳ Balance: ₹{{balance}}\n\nThank you! 🙏',
+  paymentIn:'🙏 Namaste {{partyName}}!\n\n₹{{amount}} payment has been received successfully. ✅\n\n💳 Remaining Balance: ₹{{balance}}\n\nThank you! 🙏',
+  reminder:'🙏 Namaste {{partyName}},\n\nA friendly reminder that ₹{{balance}} is pending in your account. Kindly clear the payment at your convenience. 🙏\n\nThank you,\n{{businessName}}',
+  saleReturn:'📦 Namaste {{partyName}}!\n\nYour returned goods have been recorded successfully.\n\n🧾 Return No: {{invoiceNo}}\n💰 Return Amount: ₹{{amount}}\n\nThank you! 🙏',
+  purchase:'🧾 {{businessName}}\nPurchase recorded successfully.\n\nSupplier: {{partyName}}\nBill No: {{invoiceNo}}\nAmount: ₹{{total}}',
+  purchaseReturn:'↩️ {{businessName}}\nPurchase return recorded successfully.\n\nSupplier: {{partyName}}\nAmount: ₹{{amount}}',
+  dispatchCustomer:'🚚🎉 Good news, {{partyName}}!\n\nYour goods from {{businessName}} are on the way! 📦\n\n🧾 Bill No: {{invoiceNo}}\n🚛 Transporter: {{transporterName}}\n\n📦 Coming to you:\n{{items}}\n\nPlease be ready to receive your goods. 😊🙏\n\nThank you for choosing {{businessName}}!',
+  dispatchTransporter:'🚚 *LOADING / DELIVERY DETAILS*\n\nHello {{transporterName}},\n\nCustomer: {{partyName}}\n📞 {{phone}}\n📍 {{address}}\n🧾 Bill No: {{invoiceNo}}\n\n📦 Goods to deliver:\n{{items}}\n\nPlease load and deliver the above goods safely, then confirm after delivery. 🙏\n\n- {{businessName}}'
+ };
+ function MT(){D.msgTpl=D.msgTpl||{};Object.keys(DEF).forEach(function(k){if(typeof D.msgTpl[k]!=='string'||!D.msgTpl[k].trim())D.msgTpl[k]=DEF[k]});return D.msgTpl}
+ function mt(k,o){var t=(MT()[k]||DEF[k]||'');o=o||{};return t.replace(/{{\s*([\w]+)\s*}}/g,function(_,x){return o[x]===undefined||o[x]===null?'':String(o[x])})}
+ window.MT=MT;window.mt=mt;
+ var labels={sale:'Sale / Invoice',paymentIn:'Payment Received (In)',reminder:'Payment Reminder',saleReturn:'Sale Return',purchase:'Purchase',purchaseReturn:'Purchase Return',dispatchCustomer:'Dispatch → Customer',dispatchTransporter:'Dispatch → Transporter'};
+ var _oldSettings=window.vSettings;
+ window.vSettings=function(){
+  var base=_oldSettings();
+  /* add a real Messages tab without disturbing existing settings tabs */
+  if(window.sTab==='msg'){
+   var tabs='<h2 style="font-size:20px;margin:6px 0">Settings · Message Templates</h2><div class="pills msgtabs">'+Object.keys(labels).map(function(k){return '<button class="s" onclick="msgEdit(\''+k+'\')">'+labels[k]+'</button>'}).join('')+'</div><div class="msghelp">✏️ Edit every WhatsApp message yourself. Dynamic fields are filled automatically when a transaction is created or dispatched.</div><div id="msgEditor" class="card msgeditor"></div>';
+   setTimeout(function(){msgEdit(window.msgKey||'sale')},0);return tabs;
+  }
+  /* insert Messages button next to existing settings pills */
+  return base.replace('<button class="s" onclick="sTab=\'chk\';render()">Stock check</button>','<button class="s" onclick="sTab=\'msg\';render()">💬 Messages</button><button class="s" onclick="sTab=\'chk\';render()">Stock check</button>');
+ };
+ window.msgEdit=function(k){window.msgKey=k;var e=document.getElementById('msgEditor');if(!e)return;var fields='{{partyName}}, {{businessName}}, {{invoiceNo}}, {{date}}, {{total}}, {{paid}}, {{balance}}, {{amount}}, {{items}}, {{transporterName}}, {{address}}, {{phone}}';e.innerHTML='<div class="row"><div><b>'+labels[k]+'</b><div class="mu">Template is used automatically when available.</div></div><button class="s" onclick="msgRestore(\''+k+'\')">Restore default</button></div><label class="mu" style="display:block;margin-top:12px">Message</label><textarea id="msgTplText" rows="13" style="width:100%;box-sizing:border-box;white-space:pre-wrap">'+esc(MT()[k])+'</textarea><div class="mu" style="margin:10px 0;line-height:1.5"><b>Available fields:</b><br>'+fields+'</div><div class="row" style="justify-content:flex-start;gap:8px"><button class="b" onclick="msgSave(\''+k+'\')">Save template</button><button class="s" onclick="msgPreview(\''+k+'\')">Preview</button></div>'};
+ window.msgSave=function(k){var e=document.getElementById('msgTplText');if(!e)return;MT()[k]=e.value;save();setMsg('Message template saved ✓')};
+ window.msgRestore=function(k){if(!confirm('Restore the default message for '+labels[k]+'?'))return;MT()[k]=DEF[k];save();msgEdit(k)};
+ window.msgPreview=function(k){var x={partyName:'Raju',businessName:D.shop||'Your Shop',invoiceNo:'101',date:dt(Date.now()),total:'12,500',paid:'5,000',balance:'7,500',amount:'5,000',items:'• 10 Box Tiles\n• 2 Wash Basins',transporterName:'ABC Transport',address:'Customer delivery address',phone:'9876543210'};alert(mt(k,x))};
+ /* Sale WhatsApp uses the editable Sale template. */
+ var _wa=window.wa;
+ window.wa=function(no){var b=bl(no);if(!b)return _wa(no);var p=P(b.pid)||{};var pd=+b.paid||0,due=Math.max((+b.total||0)-pd,0);openWA(p,mt('sale',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),total:(+b.total||0).toFixed(2),paid:pd.toFixed(2),balance:due.toFixed(2),amount:(+b.total||0).toFixed(2)}))};
+ /* Dispatch customer message: only the current dispatch items when available. */
+ window.waRem=function(no,now){var b=bl(no),p=P(b.pid);if(!p)return;var items=[];if(now&&lastDisp&&lastDisp.no===no)items=lastDisp.items;else b.lines.forEach(function(l){if(dq(l)>0)items.push({name:l.name,q:dq(l),unit:l.unit})});var tr='';if(lastDisp&&lastDisp.dspId){var d=DSP().find(function(x){return x.id===lastDisp.dspId}),t=d&&TRS().find(function(x){return x.id===d.tid});tr=t?t.name:''}var a=bAddr(b);openWA(p,mt('dispatchCustomer',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),items:items.map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit}).join('\n')||'Goods dispatch update',transporterName:tr||'Our delivery team',address:(a.s||a.a||''),phone:p.phone||''}))};
+ /* Transporter message uses separate editable template. */
+ window.trMsg=function(d){var t=TRS().find(function(x){return x.id===d.tid})||{},items=d.items.slice().map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit+(x.loc?'\n  📦 Godown / Block: '+x.loc:'')}).join('\n');return mt('dispatchTransporter',{partyName:d.cust||'',businessName:D.shop||'',invoiceNo:d.no,date:dt(d.date),items:items,transporterName:t.name||'',address:d.addr||'',phone:d.cph||''})};
+ /* Payment-in template helper for current and future payment buttons. */
+ window.paymentInMessage=function(p,amount,balance){return mt('paymentIn',{partyName:(p&&p.name)||'',businessName:D.shop||'',amount:(+amount||0).toFixed(2),balance:(+balance||0).toFixed(2)})};
+ window.reminderMessage=function(p,balance){return mt('reminder',{partyName:(p&&p.name)||'',businessName:D.shop||'',balance:(+balance||0).toFixed(2)})};
+ var css=document.createElement('style');css.textContent='.msgtabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.msgtabs .s{font-size:13px}.msghelp{background:#eef4fe;border:1px solid #d9e5fb;color:#355078;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0}.msgeditor{max-width:760px}.msgeditor textarea{font-family:inherit;font-size:14px;line-height:1.5;min-height:250px}@media(max-width:899px){.msgtabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.msgtabs .s{white-space:nowrap;min-height:36px}.msgeditor{padding:12px}.msgeditor textarea{font-size:15px;min-height:48vh}.msghelp{font-size:12.5px}.msgeditor .row{align-items:flex-start}.msgeditor .row .s{white-space:nowrap}}@media(min-width:900px){.msgeditor{padding:18px}.msgtabs{max-width:850px}.msgtabs .s:hover{border-color:#1a73e8}}';document.head.appendChild(css);
+ MT();save();
+})();
+</script>
+
+</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},700)};
 
 /* amount in words (Indian system) */
 function inWords(n){n=Math.round((+n||0)*100)/100;var r=Math.floor(n),ps=Math.round((n-r)*100),
@@ -3503,7 +3659,59 @@ function prFull(c,type,prev){var body,css;
  else{var th=g('pr_theme','classic'),nc=prev?1:Math.max(1,Math.min(3,+g('pr_nc',1))),cl=g('pr_cl',''),parts=[];
   for(var i=0;i<nc;i++){var d=regDoc(c,th,nc>1?COPIES[i]:cl);parts.push(i<nc-1?d.replace('class="pgw','class="pgw brk'):d)}
   body=parts.join('');css=regCss(th,prev)}
- return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(c.title+' '+c.no)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+body+'</body></html>'}
+ return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(c.title+' '+c.no)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+body+'
+<script>
+/* ================= MESSAGE TEMPLATES v22 =================
+   Separate editable templates for Sale, Payment In, Reminder, Sale Return,
+   Purchase, Purchase Return and Dispatch (Customer + Transporter).
+   Settings are shared data; the editor is responsive and renders differently
+   on phone/desktop without changing any transaction logic. */
+(function(){
+ var DEF={
+  sale:'🙏 Namaste {{partyName}}!\n\nThank you for shopping with {{businessName}}.\n\n🧾 Invoice No: {{invoiceNo}}\n💰 Total: ₹{{total}}\n💳 Paid: ₹{{paid}}\n⏳ Balance: ₹{{balance}}\n\nThank you! 🙏',
+  paymentIn:'🙏 Namaste {{partyName}}!\n\n₹{{amount}} payment has been received successfully. ✅\n\n💳 Remaining Balance: ₹{{balance}}\n\nThank you! 🙏',
+  reminder:'🙏 Namaste {{partyName}},\n\nA friendly reminder that ₹{{balance}} is pending in your account. Kindly clear the payment at your convenience. 🙏\n\nThank you,\n{{businessName}}',
+  saleReturn:'📦 Namaste {{partyName}}!\n\nYour returned goods have been recorded successfully.\n\n🧾 Return No: {{invoiceNo}}\n💰 Return Amount: ₹{{amount}}\n\nThank you! 🙏',
+  purchase:'🧾 {{businessName}}\nPurchase recorded successfully.\n\nSupplier: {{partyName}}\nBill No: {{invoiceNo}}\nAmount: ₹{{total}}',
+  purchaseReturn:'↩️ {{businessName}}\nPurchase return recorded successfully.\n\nSupplier: {{partyName}}\nAmount: ₹{{amount}}',
+  dispatchCustomer:'🚚🎉 Good news, {{partyName}}!\n\nYour goods from {{businessName}} are on the way! 📦\n\n🧾 Bill No: {{invoiceNo}}\n🚛 Transporter: {{transporterName}}\n\n📦 Coming to you:\n{{items}}\n\nPlease be ready to receive your goods. 😊🙏\n\nThank you for choosing {{businessName}}!',
+  dispatchTransporter:'🚚 *LOADING / DELIVERY DETAILS*\n\nHello {{transporterName}},\n\nCustomer: {{partyName}}\n📞 {{phone}}\n📍 {{address}}\n🧾 Bill No: {{invoiceNo}}\n\n📦 Goods to deliver:\n{{items}}\n\nPlease load and deliver the above goods safely, then confirm after delivery. 🙏\n\n- {{businessName}}'
+ };
+ function MT(){D.msgTpl=D.msgTpl||{};Object.keys(DEF).forEach(function(k){if(typeof D.msgTpl[k]!=='string'||!D.msgTpl[k].trim())D.msgTpl[k]=DEF[k]});return D.msgTpl}
+ function mt(k,o){var t=(MT()[k]||DEF[k]||'');o=o||{};return t.replace(/{{\s*([\w]+)\s*}}/g,function(_,x){return o[x]===undefined||o[x]===null?'':String(o[x])})}
+ window.MT=MT;window.mt=mt;
+ var labels={sale:'Sale / Invoice',paymentIn:'Payment Received (In)',reminder:'Payment Reminder',saleReturn:'Sale Return',purchase:'Purchase',purchaseReturn:'Purchase Return',dispatchCustomer:'Dispatch → Customer',dispatchTransporter:'Dispatch → Transporter'};
+ var _oldSettings=window.vSettings;
+ window.vSettings=function(){
+  var base=_oldSettings();
+  /* add a real Messages tab without disturbing existing settings tabs */
+  if(window.sTab==='msg'){
+   var tabs='<h2 style="font-size:20px;margin:6px 0">Settings · Message Templates</h2><div class="pills msgtabs">'+Object.keys(labels).map(function(k){return '<button class="s" onclick="msgEdit(\''+k+'\')">'+labels[k]+'</button>'}).join('')+'</div><div class="msghelp">✏️ Edit every WhatsApp message yourself. Dynamic fields are filled automatically when a transaction is created or dispatched.</div><div id="msgEditor" class="card msgeditor"></div>';
+   setTimeout(function(){msgEdit(window.msgKey||'sale')},0);return tabs;
+  }
+  /* insert Messages button next to existing settings pills */
+  return base.replace('<button class="s" onclick="sTab=\'chk\';render()">Stock check</button>','<button class="s" onclick="sTab=\'msg\';render()">💬 Messages</button><button class="s" onclick="sTab=\'chk\';render()">Stock check</button>');
+ };
+ window.msgEdit=function(k){window.msgKey=k;var e=document.getElementById('msgEditor');if(!e)return;var fields='{{partyName}}, {{businessName}}, {{invoiceNo}}, {{date}}, {{total}}, {{paid}}, {{balance}}, {{amount}}, {{items}}, {{transporterName}}, {{address}}, {{phone}}';e.innerHTML='<div class="row"><div><b>'+labels[k]+'</b><div class="mu">Template is used automatically when available.</div></div><button class="s" onclick="msgRestore(\''+k+'\')">Restore default</button></div><label class="mu" style="display:block;margin-top:12px">Message</label><textarea id="msgTplText" rows="13" style="width:100%;box-sizing:border-box;white-space:pre-wrap">'+esc(MT()[k])+'</textarea><div class="mu" style="margin:10px 0;line-height:1.5"><b>Available fields:</b><br>'+fields+'</div><div class="row" style="justify-content:flex-start;gap:8px"><button class="b" onclick="msgSave(\''+k+'\')">Save template</button><button class="s" onclick="msgPreview(\''+k+'\')">Preview</button></div>'};
+ window.msgSave=function(k){var e=document.getElementById('msgTplText');if(!e)return;MT()[k]=e.value;save();setMsg('Message template saved ✓')};
+ window.msgRestore=function(k){if(!confirm('Restore the default message for '+labels[k]+'?'))return;MT()[k]=DEF[k];save();msgEdit(k)};
+ window.msgPreview=function(k){var x={partyName:'Raju',businessName:D.shop||'Your Shop',invoiceNo:'101',date:dt(Date.now()),total:'12,500',paid:'5,000',balance:'7,500',amount:'5,000',items:'• 10 Box Tiles\n• 2 Wash Basins',transporterName:'ABC Transport',address:'Customer delivery address',phone:'9876543210'};alert(mt(k,x))};
+ /* Sale WhatsApp uses the editable Sale template. */
+ var _wa=window.wa;
+ window.wa=function(no){var b=bl(no);if(!b)return _wa(no);var p=P(b.pid)||{};var pd=+b.paid||0,due=Math.max((+b.total||0)-pd,0);openWA(p,mt('sale',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),total:(+b.total||0).toFixed(2),paid:pd.toFixed(2),balance:due.toFixed(2),amount:(+b.total||0).toFixed(2)}))};
+ /* Dispatch customer message: only the current dispatch items when available. */
+ window.waRem=function(no,now){var b=bl(no),p=P(b.pid);if(!p)return;var items=[];if(now&&lastDisp&&lastDisp.no===no)items=lastDisp.items;else b.lines.forEach(function(l){if(dq(l)>0)items.push({name:l.name,q:dq(l),unit:l.unit})});var tr='';if(lastDisp&&lastDisp.dspId){var d=DSP().find(function(x){return x.id===lastDisp.dspId}),t=d&&TRS().find(function(x){return x.id===d.tid});tr=t?t.name:''}var a=bAddr(b);openWA(p,mt('dispatchCustomer',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),items:items.map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit}).join('\n')||'Goods dispatch update',transporterName:tr||'Our delivery team',address:(a.s||a.a||''),phone:p.phone||''}))};
+ /* Transporter message uses separate editable template. */
+ window.trMsg=function(d){var t=TRS().find(function(x){return x.id===d.tid})||{},items=d.items.slice().map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit+(x.loc?'\n  📦 Godown / Block: '+x.loc:'')}).join('\n');return mt('dispatchTransporter',{partyName:d.cust||'',businessName:D.shop||'',invoiceNo:d.no,date:dt(d.date),items:items,transporterName:t.name||'',address:d.addr||'',phone:d.cph||''})};
+ /* Payment-in template helper for current and future payment buttons. */
+ window.paymentInMessage=function(p,amount,balance){return mt('paymentIn',{partyName:(p&&p.name)||'',businessName:D.shop||'',amount:(+amount||0).toFixed(2),balance:(+balance||0).toFixed(2)})};
+ window.reminderMessage=function(p,balance){return mt('reminder',{partyName:(p&&p.name)||'',businessName:D.shop||'',balance:(+balance||0).toFixed(2)})};
+ var css=document.createElement('style');css.textContent='.msgtabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.msgtabs .s{font-size:13px}.msghelp{background:#eef4fe;border:1px solid #d9e5fb;color:#355078;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0}.msgeditor{max-width:760px}.msgeditor textarea{font-family:inherit;font-size:14px;line-height:1.5;min-height:250px}@media(max-width:899px){.msgtabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.msgtabs .s{white-space:nowrap;min-height:36px}.msgeditor{padding:12px}.msgeditor textarea{font-size:15px;min-height:48vh}.msghelp{font-size:12.5px}.msgeditor .row{align-items:flex-start}.msgeditor .row .s{white-space:nowrap}}@media(min-width:900px){.msgeditor{padding:18px}.msgtabs{max-width:850px}.msgtabs .s:hover{border-color:#1a73e8}}';document.head.appendChild(css);
+ MT();save();
+})();
+</script>
+
+</body></html>'}
 function prOpen(c,type){if(window.innerWidth<900&&window.prMobileOpen)return window.prMobileOpen(c,type);var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write(prFull(c,type,false));w.document.close();w.focus();setTimeout(function(){w.print()},700)}
 printBill=function(no,type){var b=bl(no);if(b)prOpen(ctxBill(b),type||g('pr_tp','reg'))};
 printDoc=function(id,type){var d=docById(id);if(d)prOpen(ctxDoc(d),type||g('pr_tp','reg'))};
@@ -4992,4 +5200,56 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   try{window.addEventListener('unhandledrejection',function(e){if(e&&e.reason&&e.reason.name==='AbortError')e.preventDefault()})}catch(e){}
 })();
 </script>
+
+<script>
+/* ================= MESSAGE TEMPLATES v22 =================
+   Separate editable templates for Sale, Payment In, Reminder, Sale Return,
+   Purchase, Purchase Return and Dispatch (Customer + Transporter).
+   Settings are shared data; the editor is responsive and renders differently
+   on phone/desktop without changing any transaction logic. */
+(function(){
+ var DEF={
+  sale:'🙏 Namaste {{partyName}}!\n\nThank you for shopping with {{businessName}}.\n\n🧾 Invoice No: {{invoiceNo}}\n💰 Total: ₹{{total}}\n💳 Paid: ₹{{paid}}\n⏳ Balance: ₹{{balance}}\n\nThank you! 🙏',
+  paymentIn:'🙏 Namaste {{partyName}}!\n\n₹{{amount}} payment has been received successfully. ✅\n\n💳 Remaining Balance: ₹{{balance}}\n\nThank you! 🙏',
+  reminder:'🙏 Namaste {{partyName}},\n\nA friendly reminder that ₹{{balance}} is pending in your account. Kindly clear the payment at your convenience. 🙏\n\nThank you,\n{{businessName}}',
+  saleReturn:'📦 Namaste {{partyName}}!\n\nYour returned goods have been recorded successfully.\n\n🧾 Return No: {{invoiceNo}}\n💰 Return Amount: ₹{{amount}}\n\nThank you! 🙏',
+  purchase:'🧾 {{businessName}}\nPurchase recorded successfully.\n\nSupplier: {{partyName}}\nBill No: {{invoiceNo}}\nAmount: ₹{{total}}',
+  purchaseReturn:'↩️ {{businessName}}\nPurchase return recorded successfully.\n\nSupplier: {{partyName}}\nAmount: ₹{{amount}}',
+  dispatchCustomer:'🚚🎉 Good news, {{partyName}}!\n\nYour goods from {{businessName}} are on the way! 📦\n\n🧾 Bill No: {{invoiceNo}}\n🚛 Transporter: {{transporterName}}\n\n📦 Coming to you:\n{{items}}\n\nPlease be ready to receive your goods. 😊🙏\n\nThank you for choosing {{businessName}}!',
+  dispatchTransporter:'🚚 *LOADING / DELIVERY DETAILS*\n\nHello {{transporterName}},\n\nCustomer: {{partyName}}\n📞 {{phone}}\n📍 {{address}}\n🧾 Bill No: {{invoiceNo}}\n\n📦 Goods to deliver:\n{{items}}\n\nPlease load and deliver the above goods safely, then confirm after delivery. 🙏\n\n- {{businessName}}'
+ };
+ function MT(){D.msgTpl=D.msgTpl||{};Object.keys(DEF).forEach(function(k){if(typeof D.msgTpl[k]!=='string'||!D.msgTpl[k].trim())D.msgTpl[k]=DEF[k]});return D.msgTpl}
+ function mt(k,o){var t=(MT()[k]||DEF[k]||'');o=o||{};return t.replace(/{{\s*([\w]+)\s*}}/g,function(_,x){return o[x]===undefined||o[x]===null?'':String(o[x])})}
+ window.MT=MT;window.mt=mt;
+ var labels={sale:'Sale / Invoice',paymentIn:'Payment Received (In)',reminder:'Payment Reminder',saleReturn:'Sale Return',purchase:'Purchase',purchaseReturn:'Purchase Return',dispatchCustomer:'Dispatch → Customer',dispatchTransporter:'Dispatch → Transporter'};
+ var _oldSettings=window.vSettings;
+ window.vSettings=function(){
+  var base=_oldSettings();
+  /* add a real Messages tab without disturbing existing settings tabs */
+  if(window.sTab==='msg'){
+   var tabs='<h2 style="font-size:20px;margin:6px 0">Settings · Message Templates</h2><div class="pills msgtabs">'+Object.keys(labels).map(function(k){return '<button class="s" onclick="msgEdit(\''+k+'\')">'+labels[k]+'</button>'}).join('')+'</div><div class="msghelp">✏️ Edit every WhatsApp message yourself. Dynamic fields are filled automatically when a transaction is created or dispatched.</div><div id="msgEditor" class="card msgeditor"></div>';
+   setTimeout(function(){msgEdit(window.msgKey||'sale')},0);return tabs;
+  }
+  /* insert Messages button next to existing settings pills */
+  return base.replace('<button class="s" onclick="sTab=\'chk\';render()">Stock check</button>','<button class="s" onclick="sTab=\'msg\';render()">💬 Messages</button><button class="s" onclick="sTab=\'chk\';render()">Stock check</button>');
+ };
+ window.msgEdit=function(k){window.msgKey=k;var e=document.getElementById('msgEditor');if(!e)return;var fields='{{partyName}}, {{businessName}}, {{invoiceNo}}, {{date}}, {{total}}, {{paid}}, {{balance}}, {{amount}}, {{items}}, {{transporterName}}, {{address}}, {{phone}}';e.innerHTML='<div class="row"><div><b>'+labels[k]+'</b><div class="mu">Template is used automatically when available.</div></div><button class="s" onclick="msgRestore(\''+k+'\')">Restore default</button></div><label class="mu" style="display:block;margin-top:12px">Message</label><textarea id="msgTplText" rows="13" style="width:100%;box-sizing:border-box;white-space:pre-wrap">'+esc(MT()[k])+'</textarea><div class="mu" style="margin:10px 0;line-height:1.5"><b>Available fields:</b><br>'+fields+'</div><div class="row" style="justify-content:flex-start;gap:8px"><button class="b" onclick="msgSave(\''+k+'\')">Save template</button><button class="s" onclick="msgPreview(\''+k+'\')">Preview</button></div>'};
+ window.msgSave=function(k){var e=document.getElementById('msgTplText');if(!e)return;MT()[k]=e.value;save();setMsg('Message template saved ✓')};
+ window.msgRestore=function(k){if(!confirm('Restore the default message for '+labels[k]+'?'))return;MT()[k]=DEF[k];save();msgEdit(k)};
+ window.msgPreview=function(k){var x={partyName:'Raju',businessName:D.shop||'Your Shop',invoiceNo:'101',date:dt(Date.now()),total:'12,500',paid:'5,000',balance:'7,500',amount:'5,000',items:'• 10 Box Tiles\n• 2 Wash Basins',transporterName:'ABC Transport',address:'Customer delivery address',phone:'9876543210'};alert(mt(k,x))};
+ /* Sale WhatsApp uses the editable Sale template. */
+ var _wa=window.wa;
+ window.wa=function(no){var b=bl(no);if(!b)return _wa(no);var p=P(b.pid)||{};var pd=+b.paid||0,due=Math.max((+b.total||0)-pd,0);openWA(p,mt('sale',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),total:(+b.total||0).toFixed(2),paid:pd.toFixed(2),balance:due.toFixed(2),amount:(+b.total||0).toFixed(2)}))};
+ /* Dispatch customer message: only the current dispatch items when available. */
+ window.waRem=function(no,now){var b=bl(no),p=P(b.pid);if(!p)return;var items=[];if(now&&lastDisp&&lastDisp.no===no)items=lastDisp.items;else b.lines.forEach(function(l){if(dq(l)>0)items.push({name:l.name,q:dq(l),unit:l.unit})});var tr='';if(lastDisp&&lastDisp.dspId){var d=DSP().find(function(x){return x.id===lastDisp.dspId}),t=d&&TRS().find(function(x){return x.id===d.tid});tr=t?t.name:''}var a=bAddr(b);openWA(p,mt('dispatchCustomer',{partyName:p.name||'',businessName:D.shop||'',invoiceNo:b.no,date:dt(b.date),items:items.map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit}).join('\n')||'Goods dispatch update',transporterName:tr||'Our delivery team',address:(a.s||a.a||''),phone:p.phone||''}))};
+ /* Transporter message uses separate editable template. */
+ window.trMsg=function(d){var t=TRS().find(function(x){return x.id===d.tid})||{},items=d.items.slice().map(function(x){return '• '+x.name+' — '+x.q+' '+x.unit+(x.loc?'\n  📦 Godown / Block: '+x.loc:'')}).join('\n');return mt('dispatchTransporter',{partyName:d.cust||'',businessName:D.shop||'',invoiceNo:d.no,date:dt(d.date),items:items,transporterName:t.name||'',address:d.addr||'',phone:d.cph||''})};
+ /* Payment-in template helper for current and future payment buttons. */
+ window.paymentInMessage=function(p,amount,balance){return mt('paymentIn',{partyName:(p&&p.name)||'',businessName:D.shop||'',amount:(+amount||0).toFixed(2),balance:(+balance||0).toFixed(2)})};
+ window.reminderMessage=function(p,balance){return mt('reminder',{partyName:(p&&p.name)||'',businessName:D.shop||'',balance:(+balance||0).toFixed(2)})};
+ var css=document.createElement('style');css.textContent='.msgtabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.msgtabs .s{font-size:13px}.msghelp{background:#eef4fe;border:1px solid #d9e5fb;color:#355078;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0}.msgeditor{max-width:760px}.msgeditor textarea{font-family:inherit;font-size:14px;line-height:1.5;min-height:250px}@media(max-width:899px){.msgtabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.msgtabs .s{white-space:nowrap;min-height:36px}.msgeditor{padding:12px}.msgeditor textarea{font-size:15px;min-height:48vh}.msghelp{font-size:12.5px}.msgeditor .row{align-items:flex-start}.msgeditor .row .s{white-space:nowrap}}@media(min-width:900px){.msgeditor{padding:18px}.msgtabs{max-width:850px}.msgtabs .s:hover{border-color:#1a73e8}}';document.head.appendChild(css);
+ MT();save();
+})();
+</script>
+
 </body></html>
