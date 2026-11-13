@@ -3981,7 +3981,7 @@ function askQ(o){return new Promise(function(ok,no){
  d.innerHTML=h;document.body.appendChild(d);
  var inp=gid('aiqi'),sts=gid('aiqs');
  if(vsay()){var sp2=o.t+'. ';opts.slice(0,5).forEach(function(x,i){sp2+=(i+1)+', '+x.l+'. '});if(o.inp&&!opts.length)sp2+=(o.inp==='number'?'Please say the number.':'Please say or type the name.');speak(sp2)}
- function done(v,bad){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened.'));else ok(v)}
+ function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened.'));else ok(v)}
  d.querySelectorAll('.aiqo').forEach(function(b){b.onclick=function(){done({o:opts[+b.getAttribute('data-i')].v})}});
  gid('aiqx').onclick=function(){done(null,1)};
  function say(m){if(sts)sts.textContent=m||''}
@@ -4145,7 +4145,7 @@ function run(q){AI.msgs.push({r:'user',t:q});AI.busy=1;aiDraw();var c=cfg(),pre=
   var hist=AI.msgs.filter(function(m){return !m.e}).slice(-8).map(function(m){return {role:m.r==='user'?'user':'assistant',parts:[{text:m.t}]}}),sys=SYS+'SHOP DATA:\n'+pack(PROV[c.p].lim);
   return call(hist,sys,false).then(function(t){return {k:'answer',t:t}})}).then(function(r){AI.msgs.push({r:'ai',t:r.k==='cmd'?cmdLine(r.conf):r.t});return r},function(e){AI.msgs.push({r:'ai',t:e.message,e:1});return {k:'err',t:e.message}}).then(function(r){AI.busy=0;aiDraw();return r})}
 function vsay(){return vp().say!==0}
-function speak(t){try{var s=window.speechSynthesis;if(!s)return;s.cancel();var u=new SpeechSynthesisUtterance(String(t).replace(/\*\*/g,'').replace(/₹/g,' rupees ').slice(0,700));u.lang=vlang();s.speak(u)}catch(e){}}
+function speak(t){try{var s=window.speechSynthesis;if(!s)return;s.cancel();var u=new SpeechSynthesisUtterance(String(t).replace(/\*\*/g,'').replace(/₹/g,' rupees ').slice(0,700));u.lang=vlang();V.spk=Date.now();u.onend=u.onerror=function(){V.spk=Date.now()};s.speak(u)}catch(e){}}
 function vlang(){return vp().l||'en-IN'}
 window.aiDraw=function(){var l=gid('aiLog');if(!l)return;l.innerHTML=AI.msgs.length?AI.msgs.map(function(m){return '<div class="aib '+(m.r==='user'?'u':'a')+(m.e?' e':'')+'">'+fmt(m.t)+'</div>'}).join('')+(AI.busy?'<div class="aib a mu">Thinking... '+esc(AI.hint||'')+'</div>':''):'<div class="mu" style="padding:4px 2px">Ask about your sales, profit, stock or customers, or say / type a command like &ldquo;Ramesh 10 bag cement sale bill&rdquo;. Tap the mic to speak.</div>';l.scrollTop=l.scrollHeight};
 window.aiAsk=function(q){var inp=gid('aiQ');q=(q||(inp&&inp.value)||'').trim();if(!q||AI.busy)return;if(!ready()){AI.setup=true;AI.msg={t:'First add your free AI key below.',c:'red'};return render()}
@@ -4236,7 +4236,11 @@ function srStart(){var r=new SR(),err='',o=V.o;V.rec=r;V.fin='';V.last='';r.lang
   if(err&&err!=='no-speech'&&err!=='aborted')return vFin('',verr(err));vFin(V.last)};
  try{r.start()}catch(e){V.st='idle';o.onErr('Could not start the microphone. Please try again.')}}
 function useMr(){return !SR||(vp().eng!=='sr'&&cfg().p==='gemini'&&ready()&&!!navigator.mediaDevices&&!!window.MediaRecorder)}
-function vStart(o){if(V.st!=='idle')return;V.o=o;V.cancel=0;V.st='listen';if(useMr())mrStart();else srStart()}
+function vStart(o){if(V.st!=='idle')return;V.o=o;V.cancel=0;V.st='listen';
+ var go=function(){if(useMr())mrStart();else srStart()},sp=false;
+ try{var ss=window.speechSynthesis;sp=!!(ss&&(ss.speaking||ss.pending||Date.now()-(V.spk||0)<1500));if(sp)ss.cancel()}catch(e){}
+ if(V.rec){try{V.rec.abort()}catch(e){}V.rec=null}
+ if(sp)setTimeout(function(){if(V.o!==o)return;if(V.cancel){V.cancel=0;V.st='idle';return}go()},800);else go()}
 function vStop(cancel){V.cancel=cancel?1:0;if(V.rec){try{V.rec.stop()}catch(e){}}else if(V.mr&&V.mr.state==='recording'){try{V.mr.stop()}catch(e){}}}
 /* microphone beside the Ask box (types what you say, then asks) */
 function pgSt(s,m){var b=gid('aimic'),t=gid('aivs2');if(b)b.classList.toggle('on',s==='listen');if(t){t.className='mu vsm'+(m?' red':'');t.textContent=m||(s==='listen'?'Listening... tap the mic when done':s==='work'?'Listening to the recording...':'Try saying: “'+VEX[0]+'” or “'+VEX[1]+'”')}}
