@@ -4842,5 +4842,53 @@ try{buildNav()}catch(e){}
   };
 })();
 
+
+
+/* ================= MULTI-ITEM VOICE v14 =================
+   One transaction can contain many spoken line items. Gemini extracts all items
+   from one sentence; while the confirmation is open, the "Speak more details"
+   mic adds further items to the same transaction instead of replacing earlier ones. */
+PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, order or challan may contain ANY number of items. If the owner says multiple items in one sentence, return EVERY item in the items array, in the spoken order. Examples: "Raju ka bill bana do 10 bori cement aur 20 box tiles" must return two items. Words such as aur, bhi, plus, phir, and, aur ek, also usually mean another line item. During an already-open transaction, treat the new speech as ADDITIONAL details/items for the same action; do not replace earlier items. Example after cement is already present: "20 box tiles bhi" returns only the new tiles line, so the app can append it. Never invent omitted quantity, rate, unit, party or item.\n';
+
+(function(){
+  var _oldMergeMulti=vmerge;
+  vmerge=function(c,n){
+    if(!n)return;
+    /* Never allow a later short item command to wipe the chosen party. */
+    var oldParty=c.p;
+    _oldMergeMulti(c,n);
+    if(!n.p&&oldParty)c.p=oldParty;
+
+    /* Merge duplicate exact lines only when the spoken addition is clearly the same item,
+       otherwise keep every line as a separate editable line. */
+    if(c&&Array.isArray(c.rows)){
+      var out=[];
+      c.rows.forEach(function(r){
+        if(!r||( !(String(r.n||'').trim()) && !(+r.q>0)))return;
+        var key=nz(r.n)+'|'+nz(r.u)+'|'+(+r.r||0);
+        var found=null;
+        for(var i=0;i<out.length;i++){
+          var k2=nz(out[i].n)+'|'+nz(out[i].u)+'|'+(+out[i].r||0);
+          if(key&&key===k2){found=out[i];break}
+        }
+        if(found)found.q=(+found.q||0)+(+r.q||0);
+        else out.push(r);
+      });
+      c.rows=out;
+    }
+  };
+
+  /* Make the follow-up voice hint explicitly teach multi-item additions. */
+  var _oldConfHtmlMulti=confHtml;
+  confHtml=function(v){
+    var h=_oldConfHtmlMulti(v);
+    if(v&&v.conf&&!(v.conf.a||'').match(/^payment/)){
+      h=h.replace('Tap the mic and say more details, for example: &ldquo;Ramesh, 10 bag cement&rdquo;',
+        'Tap the mic to add more items: &ldquo;20 box tiles bhi&rdquo; or &ldquo;aur 5 basin&rdquo;. Each new item is added to this same transaction.');
+    }
+    return h;
+  };
+})();
+
 </script>
 </body></html>
