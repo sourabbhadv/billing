@@ -5091,4 +5091,135 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   };
 })();
 </script>
+
+<!-- Promotional Campaign Manager: isolated module -->
+<style id="campaign-manager-ui">
+.camp-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
+.camp-rec{max-height:360px;overflow:auto;border:1px solid #e2e5ee;border-radius:12px;padding:8px}
+.camp-rec label{display:flex;gap:9px;align-items:center;padding:8px;border-bottom:1px solid #eef0f5}
+.camp-rec input{width:auto;margin:0}
+.camp-stat{padding:10px;border-radius:10px;background:#f6f8fc;margin:8px 0}
+.camp-media{max-width:100%;max-height:220px;border-radius:12px;display:none;margin-top:8px}
+.camp-batches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.camp-batch{border:1px solid #e0e4ee;border-radius:12px;padding:12px;background:#fff}
+@media(max-width:760px){
+ .camp-grid{display:block}
+ .camp-grid>.card{margin-bottom:10px}
+ .camp-rec{max-height:300px}
+ .camp-batches{grid-template-columns:1fr}
+ .camp-sticky{position:sticky;bottom:0;background:#fff;padding:9px 0;z-index:2}
+}
+</style>
+<script id="campaign-manager-module">
+(function(){
+ function C(){D.campaigns=D.campaigns||[];return D.campaigns}
+ function phones(){
+   return (D.parties||[]).filter(function(p){return p&&String(p.phone||'').replace(/\D/g,'').length>=8})
+ }
+ function norm(n){
+   n=String(n||'').replace(/\D/g,'');
+   if(n.length===10)return '91'+n;
+   return n
+ }
+ function escA(x){return esc(x==null?'':String(x))}
+ function campHome(){
+   var cs=C().slice().reverse();
+   return '<h2 style="font-size:20px;margin:6px 0">📢 Promotional Campaigns</h2>'+
+   '<div class="row" style="margin-bottom:12px"><button class="b" onclick="campNew()">+ New Campaign</button><button class="s" onclick="sTab=\'msg\';render()">← Message Settings</button></div>'+
+   '<div class="card"><b>Send in your own batches</b><p class="mu">Create a campaign, choose recipients and split them into batches of 10, 20 or any size. You decide when to open each batch. This tool does not auto-send or try to bypass WhatsApp rules.</p></div>'+
+   (cs.length?'<div class="camp-batches">'+cs.map(function(c){
+     return '<div class="camp-batch"><b>'+escA(c.name||'Campaign')+'</b><div class="mu">'+escA(c.created||'')+'</div><div class="camp-stat">'+(c.recipients||[]).length+' recipients · '+(c.batches||[]).length+' batches</div><button class="s" onclick="campOpen(\''+c.id+'\')">Open</button></div>'
+   }).join('')+'</div>':'<div class="card mu">No campaign yet. Create your first offer campaign.</div>')
+ }
+ window.campNew=function(){
+   var ps=phones(), rows=ps.map(function(p,i){
+     return '<label><input class="campCheck" type="checkbox" value="'+escA(p.id)+'" checked onchange="campCount()"><span><b>'+escA(p.name)+'</b><br><span class="mu">'+escA(p.phone)+'</span></span></label>'
+   }).join('');
+   $('#v').innerHTML='<h2 style="font-size:20px;margin:6px 0">New Promotional Campaign</h2>'+
+   '<div class="row"><button class="s" onclick="sTab=\'camp\';render()">← Back</button></div>'+
+   '<div class="camp-grid" style="margin-top:10px"><div class="card">'+
+   '<label class="mu">Campaign name</label><input id="camp_name" placeholder="Example: Diwali Offer">'+
+   '<label class="mu">Promotional message</label><textarea id="camp_msg" rows="9" placeholder="Write your offer message here..."></textarea>'+
+   '<label class="mu">Optional promotional image (preview/draft)</label><input id="camp_media" type="file" accept="image/*" onchange="campMedia(this)"><img id="camp_preview" class="camp-media">'+
+   '<p class="mu">Note: a normal browser link cannot automatically attach your local image to WhatsApp for every recipient. The image is stored as the campaign preview/draft; actual media sharing remains under your control.</p>'+
+   '</div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Recipients</b><button class="s" onclick="campToggleAll()">Select all</button></div>'+
+   '<div class="camp-stat"><b id="camp_count">'+ps.length+'</b> selected</div><div class="camp-rec">'+(rows||'<div class="mu">No parties with valid phone numbers found.</div>')+'</div>'+
+   '<label class="mu">Batch size</label><select id="camp_size" onchange="campCount()"><option value="10">10 recipients</option><option value="20">20 recipients</option><option value="custom">Custom</option></select>'+
+   '<input id="camp_custom" type="number" min="1" placeholder="Custom batch size" style="display:none;margin-top:7px" oninput="campCount()">'+
+   '<label class="mu">First batch schedule (optional)</label><input id="camp_schedule" type="datetime-local">'+
+   '<div class="camp-sticky"><button class="b" onclick="campCreate()">Create batches</button></div></div></div>';
+   var sel=$('#camp_size');sel.onchange=function(){var x=$('#camp_custom');x.style.display=this.value==='custom'?'block':'none';campCount()}
+   campCount();
+ }
+ window.campCount=function(){
+   var n=document.querySelectorAll('.campCheck:checked').length;
+   var size=$('#camp_size')?$('#camp_size').value:'10';
+   if(size==='custom')size=Math.max(1,parseInt($('#camp_custom').value||'0')||0);
+   else size=parseInt(size||'10');
+   var c=$('#camp_count');if(c)c.textContent=n+' selected · '+(size?Math.ceil(n/size):0)+' batches';
+ }
+ window.campToggleAll=function(){
+   var all=[].slice.call(document.querySelectorAll('.campCheck')), any=all.some(function(x){return !x.checked});
+   all.forEach(function(x){x.checked=any});campCount()
+ }
+ window.campMedia=function(inp){
+   var f=inp.files&&inp.files[0],im=$('#camp_preview');if(!f)return;
+   if(f.size>2*1024*1024){alert('Please choose an image smaller than 2 MB.');inp.value='';return}
+   var r=new FileReader();r.onload=function(){im.src=r.result;im.style.display='block';im.dataset.data=r.result};r.readAsDataURL(f)
+ }
+ window.campCreate=function(){
+   var ids=[].slice.call(document.querySelectorAll('.campCheck:checked')).map(function(x){return x.value});
+   if(!ids.length)return alert('Select at least one recipient.');
+   var name=($('#camp_name').value||'').trim()||'Promotional Campaign';
+   var msg=($('#camp_msg').value||'').trim();if(!msg)return alert('Write your promotional message first.');
+   var sz=$('#camp_size').value,bs=sz==='custom'?parseInt($('#camp_custom').value||'0'):parseInt(sz);
+   if(!bs||bs<1)return alert('Enter a valid batch size.');
+   var recipients=ids.map(function(id){return D.parties.find(function(p){return p.id===id})}).filter(Boolean).map(function(p){return {id:p.id,name:p.name,phone:p.phone}});
+   var batches=[];for(var i=0;i<recipients.length;i+=bs)batches.push({recipients:recipients.slice(i,i+bs),status:'ready'});
+   var im=$('#camp_preview'), media=im&&im.dataset.data||'';
+   var c={id:'camp_'+Date.now(),name:name,message:msg,media:media,recipients:recipients,batches:batches,created:new Date().toLocaleString(),schedule:$('#camp_schedule').value||''};
+   C().push(c);save();sTab='camp';render()
+ }
+ function getCamp(id){return C().find(function(c){return c.id===id})}
+ window.campOpen=function(id){
+   var c=getCamp(id);if(!c)return;
+   var html='<h2 style="font-size:20px;margin:6px 0">'+escA(c.name)+'</h2><button class="s" onclick="sTab=\'camp\';render()">← Campaigns</button>'+
+   '<div class="card" style="margin-top:10px"><b>Message</b><pre style="white-space:pre-wrap;font-family:inherit">'+escA(c.message)+'</pre>'+
+   (c.media?'<img src="'+c.media+'" class="camp-media" style="display:block">':'')+
+   '<div class="camp-stat">Recipients: '+c.recipients.length+' · Batches: '+c.batches.length+(c.schedule?' · First schedule: '+escA(c.schedule):'')+'</div></div>'+
+   '<div class="camp-batches">'+c.batches.map(function(b,i){
+      return '<div class="camp-batch"><b>Batch '+(i+1)+'</b><div class="mu">'+b.recipients.length+' recipients</div><div class="camp-stat">Status: '+(b.status==='done'?'✅ Completed':'▶️ Ready')+'</div><button class="b" onclick="campRun(\''+c.id+'\','+i+')">Open batch</button></div>'
+   }).join('')+'</div>';
+   $('#v').innerHTML=html;window.scrollTo(0,0)
+ }
+ window.campRun=function(id,bi){
+   var c=getCamp(id),b=c&&c.batches[bi];if(!b)return;
+   var i=0;
+   function next(){
+     if(i>=b.recipients.length){b.status='done';save();alert('Batch completed.');campOpen(id);return}
+     var p=b.recipients[i++],text=c.message
+       .split('{{partyName}}').join(p.name||'')
+       .split('{{businessName}}').join(D.shop||'');
+     var url='https://wa.me/'+norm(p.phone)+'?text='+encodeURIComponent(text);
+     var w=window.open(url,'_blank');
+     if(!w){alert('Please allow pop-ups, then try again.');return}
+     var d=document.createElement('div');d.className='modal';d.innerHTML='<div class="box"><h3>Recipient '+i+' of '+b.recipients.length+'</h3><p><b>'+escA(p.name)+'</b><br>'+escA(p.phone)+'</p><p class="mu">Send the message in WhatsApp when you are ready, then return here.</p><div class="row"><button class="b" id="cn">Next recipient</button><button class="s" id="cx">Stop batch</button></div></div>';document.body.appendChild(d);
+     d.querySelector('#cn').onclick=function(){d.remove();next()};
+     d.querySelector('#cx').onclick=function(){d.remove();b.status='ready';save()};
+   }
+   next()
+ }
+
+ var oldSettings=vSettings;
+ vSettings=function(){
+   if(sTab==='camp')return campHome();
+   var h=oldSettings();
+   var target='Settings · Messages';
+   if(h.indexOf(target)>=0 && h.indexOf('Promotional Campaigns')<0){
+     h=h.replace('</div><div class="card msg-editor">','<button class="s" style="margin-left:6px" onclick="sTab=\'camp\';render()">📢 Promotional Campaigns</button></div><div class="card msg-editor">');
+   }
+   return h;
+ }
+})();
+</script>
 </body></html>
