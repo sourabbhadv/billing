@@ -2784,7 +2784,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 12-Nov-E';
+var APPV='App version 14-Nov-F';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -5360,4 +5360,31 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
 })();
 </script>
 
+
+<script id="bill-photo-auto">
+/* Bill picture goes through the Outbox automatically (cloud sender sends it as a photo) */
+(function(){
+ var old=shareBill;
+ shareBill=async function(no){
+  var self=this,args=arguments,b,p,auto;
+  try{
+   b=bl(no);p=b&&P(b.pid);
+   auto=!!(p&&PS().autoWA&&awOn('bill')&&obOk()&&phone(p).length>=10);
+  }catch(e){auto=false}
+  if(!auto)return old.apply(self,args);
+  try{
+   var blob=await billImg(b,p);
+   var name='bill-'+no+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)+'.png';
+   var up=await SB.storage.from('promo').upload(name,blob,{contentType:'image/png'});
+   if(up.error)throw new Error(up.error.message);
+   var url=SB.storage.from('promo').getPublicUrl(up.data.path).data.publicUrl;
+   await obAdd([{phone:phone(p),party_name:p.name||'',kind:'msg',message:'Namaste '+p.name+', bill #'+no+' of '+money(b.total)+' from '+D.shop+'. Thank you!',media_url:url}]);
+   obToast('Bill picture added to Outbox. It will be sent automatically.');
+  }catch(e){
+   alert('Could not send the bill picture automatically ('+((e&&e.message)||e)+'). Opening the normal way.');
+   return old.apply(self,args);
+  }
+ };
+})();
+</script>
 </body></html>
