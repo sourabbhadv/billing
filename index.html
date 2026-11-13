@@ -3956,6 +3956,8 @@ var CMD2=/\b(sale|sold|purchase|bought|buy|sell|kharid\w*|bech\w*)\b/i;
 function isCmd(q){return CMD.test(q)||(CMD2.test(q)&&/[0-9\u0966-\u096f]/.test(q))}
 /* ---- ASK BACK: if anything is unclear, ask the owner before opening the form ---- */
 function qWords(s){return String(s||'').toLowerCase().split(/[^a-z0-9\u0900-\u097f]+/).filter(function(t){return t.length>1})}
+function qStrong(list,spoken){var s=nz(spoken),tk=qWords(spoken);if(s.length<4)return [];
+ return list.filter(function(o){return nz(o.name).indexOf(s)>=0||(tk.length&&tk.every(function(t){return qWords(o.name).some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||(1-lev(x,t)/Math.max(x.length,t.length))>=.8})}))})}
 function qCands(list,spoken,top){var s=nz(spoken);if(!s)return [];var tk=qWords(spoken);
  var res=list.map(function(o){var n=nz(o.name),w=qWords(o.name),sc=sim(o.name,spoken);
   var m=tk.filter(function(t){return w.some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||sim(x,t)>=.75})}).length;
@@ -4005,12 +4007,14 @@ async function clarify(j,force){
   var ex=sp?findP(sp):null,cs=sp?qCands(D.parties,sp):[];
   if(ex)cs=[ex].concat(cs.filter(function(p){return p!==ex}));
   var lp=sp?lrnGet('p',sp):'';if(lp){var li=-1;cs.forEach(function(p,ix){if(p.name===lp)li=ix});if(li>0)cs.unshift(cs.splice(li,1)[0])}
-  if(ex&&(cs.length===1||qWords(sp).length>=2))j.party=ex.name;
+  var st=sp?qStrong(D.parties,sp):[];
+  if(ex&&(cs.length===1||qWords(sp).length>=2||st.length<=1))j.party=ex.name;
+  else if(!ex&&st.length===1)j.party=st[0].name;
   else{
    var po=cs.slice(0,150).map(function(p){return {l:p.name,s:[p.name===lp?'You chose this last time':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
    if(sp)po.push({l:'New '+tt+': '+sp,s:'Not in my list. Create as new.',v:{n:sp,nw:1}});
    var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"':'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',sub:cs.length?'Tap the right one, or type the name.':'Type or speak the name.',opts:po,inp:'text',ph:'Type name',dl:D.parties.map(function(p){return p.name})});
-   if(r.o){j.party=r.o.n;if(sp)lrnSet('p',sp,r.o.n)}else{var f=findP(r.t);j.party=f?f.name:r.t}
+   if(r.o){j.party=r.o.n;if(sp)lrnSet('p',sp,r.o.n)}else{var f=findP(r.t),sq=f?[f]:qStrong(D.parties,r.t);j.party=sq.length===1?sq[0].name:r.t}
   }
  }
  /* 2) WHAT, HOW MANY, PRICE */
@@ -4023,12 +4027,14 @@ async function clarify(j,force){
    var e2=nm?findI(nm):null,c2=nm?qCands(D.items,nm,1):[],it=null;
    if(e2)c2=[e2].concat(c2.filter(function(p){return p!==e2}));
    var li2=nm?lrnGet('i',nm):'';if(li2){var lx=-1;c2.forEach(function(p,ix){if(p.name===li2)lx=ix});if(lx>0)c2.unshift(c2.splice(lx,1)[0])}
-   if(nm&&e2&&(c2.length===1||qWords(nm).length>=2))it=e2;
+   var sti=nm?qStrong(D.items,nm):[];
+   if(nm&&e2&&(c2.length===1||qWords(nm).length>=2||sti.length<=1))it=e2;
+   else if(nm&&!e2&&sti.length===1)it=sti[0];
    else{
     var io=c2.slice(0,60).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'You chose this last time':'',p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
     if(nm)io.push({l:'New item: '+nm,s:'Not in my stock list. Create as new item.',v:{n:nm,nw:1}});
     var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"':'I could not find "'+nm+'" in your items'):'Which item?',sub:c2.length?'Tap the right one, or type the name.':'Type or speak the item name.',opts:io,inp:'text',ph:'Type item name',dl:D.items.map(function(p){return p.name})});
-    if(r2.o){x.name=r2.o.n;if(nm)lrnSet('i',nm,r2.o.n)}else x.name=r2.t;
+    if(r2.o){x.name=r2.o.n;if(nm)lrnSet('i',nm,r2.o.n)}else{var f2=findI(r2.t),s2=f2?[f2]:qStrong(D.items,r2.t);x.name=s2.length===1?s2[0].name:r2.t}
     it=findI(x.name)||null;
    }
    if(it)x.name=it.name;
