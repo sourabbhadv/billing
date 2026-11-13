@@ -3942,7 +3942,7 @@ function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/
 var MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0};
 var CMD=/\b(bill|invoice|estimate|quotation|quote|challan|order|payment|received|receive|paid|jama|banao|bana|banaiye|banado|likho|create|make|add|entry|mile|mila|mili|diye|diya|liye|liya|bheje|bheja|udhar|credit|debit)\b|बिल|बना|बनवा|लिखो|जमा|मिले|मिला|दिए|दिये|पेमेंट|कोटेशन|ऑर्डर|तयार|करा/i;
-var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "sale_return" (customer returns goods), "purchase_return" (goods returned to supplier), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY one valid JSON object. No explanation, no markdown, no Hindi sentence outside JSON, and no code fences. Use exactly this schema: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}. Missing values must be empty string, 0, or an empty array; NEVER invent values.\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names exactly as heard (the app will ask the owner to pick from the saved list). If the quantity or rate was not clearly said, use 0. Write names in Latin letters. IMPORTANT FOR NATURAL HINDI/HINGLISH: understand everyday shop speech, not only formal commands. Examples: \"Raju ka maal vapsi aaya hai\" means action=sale_return, party=Raju; \"Raju ke 5000 rupaye aaye hain\" means action=payment_in, party=Raju, amount=5000; \"Raju ko 2000 rupaye diye\" means action=payment_out, party=Raju, amount=2000. For a return, words like maal/samaan together with wapas/vapsi/return mean a return even if the sentence also contains aaya/aayi/aaye. Never classify a return as a payment merely because it says aaya. Ask through missing fields later; do not invent item or quantity.\n';
+var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "sale_return" (customer returns goods), "purchase_return" (goods returned to supplier), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY one valid JSON object. No explanation, no markdown, no Hindi sentence outside JSON, and no code fences. Use exactly this schema: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}. Missing values must be empty string, 0, or an empty array; NEVER invent values.\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names ONLY exactly as spoken by the owner. CRITICAL: NEVER complete, expand, guess, or select a longer party/item name from the shop database. If the owner says "Raju", output party="Raju" even if saved names include "Raju Tidke" or "Raju Traders". If the owner says "cement", output item name="cement" even if saved items include several cement products. The APP, not Gemini, will match spoken words against the saved list and will ask the owner when there is more than one match. If the quantity or rate was not clearly said, use 0. Write names in Latin letters. IMPORTANT FOR NATURAL HINDI/HINGLISH: understand everyday shop speech, not only formal commands. Examples: \"Raju ka maal vapsi aaya hai\" means action=sale_return, party=Raju; \"Raju ke 5000 rupaye aaye hain\" means action=payment_in, party=Raju, amount=5000; \"Raju ko 2000 rupaye diye\" means action=payment_out, party=Raju, amount=2000. For a return, words like maal/samaan together with wapas/vapsi/return mean a return even if the sentence also contains aaya/aayi/aaye. Never classify a return as a payment merely because it says aaya. Ask through missing fields later; do not invent item or quantity.\n';
 var DVR=/[\u0900-\u097f]/,
 DC={'\u0915':'k','\u0916':'kh','\u0917':'g','\u0918':'gh','\u0919':'n','\u091a':'ch','\u091b':'chh','\u091c':'j','\u091d':'jh','\u091e':'n','\u091f':'t','\u0920':'th','\u0921':'d','\u0922':'dh','\u0923':'n','\u0924':'t','\u0925':'th','\u0926':'d','\u0927':'dh','\u0928':'n','\u092a':'p','\u092b':'f','\u092c':'b','\u092d':'bh','\u092e':'m','\u092f':'y','\u0930':'r','\u0932':'l','\u0933':'l','\u0935':'v','\u0936':'sh','\u0937':'sh','\u0938':'s','\u0939':'h','\u095b':'z','\u095c':'r','\u095d':'rh','\u095e':'f'},
 DMt={'\u093e':'a','\u093f':'i','\u0940':'i','\u0941':'u','\u0942':'u','\u0947':'e','\u0948':'ai','\u094b':'o','\u094c':'au','\u0949':'o','\u0943':'ri','\u0945':'e','\u0946':'e','\u094a':'o'},
@@ -4280,7 +4280,7 @@ function localAnswer(q){var s=normAlias(String(q||'').toLowerCase()),fq=faqAnswe
  return null}
 function viaOwn(q,force){var j=null;try{j=ownParse(q,force)}catch(e){}return j?clarify(j,force).then(function(j2){return mkConf(j2,force)}):null}
 function brainCall(parts,sys,json,opt){opt=opt||{};var b=brainGet();if(!b||!b.k)return Promise.reject(E('Gemini Brain is not configured yet. Open Setup once, select Google Gemini and save your Gemini key. Then you can switch back to Own AI.','brain',1));var c={p:'gemini',k:b.k,m:b.m||PROV.gemini.m},seen={},list=[],i=0,first=null;[c.m,PROV.gemini.m].concat(PROV.gemini.fb).forEach(function(m){if(m&&!seen[m]){seen[m]=1;list.push(m)}});function next(){if(i>=list.length)return Promise.reject(first||E('Gemini could not understand the request.','other'));var m=list[i++];return once(c,m,parts,sys,json,opt.t||22000).then(function(t){MEM.good=m;MEM.gp='gemini';return t},function(e){if(e.fatal||e.kind==='net')throw e;if(!first)first=e;return next()})}return next()}
-function parseCmd(q,force){AI.ownUsed=0;var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');var sys=PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn;
+function parseCmd(q,force){AI.ownUsed=0;var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');var sys=PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'Do NOT use, infer, autocomplete, or choose from saved party/item names. Return ONLY the words actually spoken by the owner for party and item names. The local app will perform matching and ask for confirmation when ambiguous.\n';
  if(cfg().p==='own'){if(!brainReady())return Promise.resolve().then(function(){return viaOwn(q,force)});return brainCall([{role:'user',parts:[{text:q}]}],sys,true,{t:22000}).then(function(t){var j=jparse(t);if(j)return j;return brainCall([{role:'user',parts:[{text:'Convert the following shop command into ONLY the required JSON object, with no explanation: '+q}]}],sys+' STRICT: Your entire response must be one parseable JSON object.',true,{t:22000}).then(jparse)}).then(function(j){if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
  return call([{role:'user',parts:[{text:q}]}],sys,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
 function cmdLine(c){var t=TT[c.a];if(vlang()!=='en-IN')return (HT[c.a]||t[0])+(c.p?' '+c.p+' के लिए':'')+' खोल रहा हूँ। कृपया जाँचकर कन्फर्म करें।';return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'+(AI.ownUsed?' AI was not available, so the own helper listened.':'')}
@@ -4806,6 +4806,40 @@ try{buildNav()}catch(e){}
   };
   /* expose for testing/debugging without changing UI */
   window.__offlineHindiIntent=hardIntent;
+})();
+
+
+/* ================= SMART MATCHER v13: NEVER GUESS SAVED PARTY OR ITEM =================
+   Gemini understands the words; the local app alone matches them to records.
+   Exact/unique match -> automatic. Multiple/uncertain -> owner MUST choose. */
+(function(){
+  var _clarifyStrict=clarify, _baseResolveName=resolveName;
+  function exactWords(s){return String(s||'').toLowerCase().trim().replace(/\s+/g,' ')}
+  /* Guard against AI returning an expanded saved name when only a shorter spoken name was supplied.
+     The parser prompt already forbids expansion; this layer keeps matching conservative. */
+  function strictResolve(list,spoken){
+    spoken=String(spoken||'').trim();
+    if(!spoken)return {k:'none',hit:[]};
+    var n=nz(spoken), words=qWords(spoken);
+    var exact=list.filter(function(o){return nz(o.name)===n});
+    if(exact.length===1)return {k:'exact',hit:exact};
+    /* For one short spoken word, every record starting with that word is a candidate.
+       Never silently choose one of them. */
+    var tokenHits=list.filter(function(o){
+      var w=qWords(o.name);
+      if(words.length===1)return w.some(function(x){return x===words[0] || x.indexOf(words[0])===0 || psim(x,words[0])>=.82});
+      return words.every(function(t){return w.some(function(x){return x===t || x.indexOf(t)===0 || psim(x,t)>=.80})});
+    });
+    if(tokenHits.length===1)return {k:'one',hit:tokenHits};
+    if(tokenHits.length>1)return {k:'many',hit:tokenHits};
+    return _baseResolveName(list,spoken);
+  }
+  clarify=async function(j,force){
+    /* Re-run the normal clarification after making its name resolver conservative. */
+    var oldResolve=resolveName;
+    resolveName=function(list,spoken){return strictResolve(list,spoken)};
+    try{return await _clarifyStrict(j,force)}finally{resolveName=oldResolve}
+  };
 })();
 
 </script>
