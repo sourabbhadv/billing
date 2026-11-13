@@ -1488,31 +1488,30 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
 /* ---------- SUGGESTION LIST THAT WORKS ON PHONES (replaces the phone-unfriendly datalist) ---------- */
 (function(){
  var box=document.createElement('div');box.id='sug';
- box.style.cssText='display:none;position:fixed;z-index:40;background:#fff;color:#1f2437;border:1px solid #cfd5e3;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.25);max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+ box.style.cssText='display:none;position:fixed;z-index:300;background:#fff;color:#1f2437;border:1px solid #cfd5e3;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.25);max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
  document.body.appendChild(box);var cur=null,sIdx=-1;
- var sst=document.createElement('style');sst.textContent='#sug{scrollbar-width:auto;scrollbar-color:#8a93b0 #e9ecf4;overscroll-behavior:contain}#sug::-webkit-scrollbar{width:12px}#sug::-webkit-scrollbar-track{background:#e9ecf4}#sug::-webkit-scrollbar-thumb{background:#8a93b0;border-radius:6px;border:2px solid #e9ecf4}#sug .sugft{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;background:#eef1f8;border-top:1px solid #cfd5e3;padding:6px 10px;font-size:13px;color:#555d7a}#sug .sugft span{flex:1}#sug .sugft b{background:#1a73e8;color:#fff;border-radius:6px;padding:6px 16px;font-size:14px;cursor:pointer;user-select:none}';document.head.appendChild(sst);
+ var sst=document.createElement('style');sst.textContent='#sug{scrollbar-width:auto;scrollbar-color:#8a93b0 #e9ecf4;overscroll-behavior:contain}#sug::-webkit-scrollbar{width:12px}#sug::-webkit-scrollbar-track{background:#e9ecf4}#sug::-webkit-scrollbar-thumb{background:#8a93b0;border-radius:6px;border:2px solid #e9ecf4}#sug .sugh{position:sticky;top:0;background:#f4f6ff;color:#5a6180;font-size:12px;padding:6px 12px;border-bottom:1px solid #e1e5f2}#sug .sugft{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;background:#eef1f8;border-top:1px solid #cfd5e3;padding:6px 10px;font-size:13px;color:#555d7a}#sug .sugft span{flex:1}#sug .sugft b{background:#1a73e8;color:#fff;border-radius:6px;padding:6px 16px;font-size:14px;cursor:pointer;user-select:none}';document.head.appendChild(sst);
  function hide(){box.style.display='none';cur=null;sIdx=-1}
  function pos(){if(!cur)return;var r=cur.getBoundingClientRect(),vh=(window.visualViewport?visualViewport.height:innerHeight);box.style.left=Math.max(4,r.left)+'px';box.style.width=Math.min(Math.max(r.width,240),innerWidth-8)+'px';
   var h=box.offsetHeight;if(r.bottom+h+6>vh&&r.top>h+6)box.style.top=(r.top-h-4)+'px';else box.style.top=(r.bottom+3)+'px'}
  function show(inp){
   var l=document.getElementById(inp.dataset.dl);if(!l){hide();return}
-  var q=inp.value.trim().toLowerCase(),M=[];
+  var q=inp.value.trim().toLowerCase(),ws=q.split(/\s+/).filter(Boolean),wp=null,M=[],sph=window.sugPh||function(x){return x};
   [].forEach.call(l.options,function(o){var v=String(o.value),lb=o.label||o.getAttribute('label')||'',a=v.toLowerCase(),t=(a+' '+lb.toLowerCase()),k;
-   if(!q)k=3;else if(a.indexOf(q)===0)k=0;else if((' '+a).indexOf(' '+q)>=0)k=1;else if(t.indexOf(q)>=0)k=2;else return;M.push({v:v,l:lb,k:k})});
-  M.sort(function(x,y){return x.k-y.k||(x.v<y.v?-1:1)});M=M.slice(0,300);
+   if(!q)k=3;else if(a.indexOf(q)===0)k=0;else if((' '+a).indexOf(' '+q)>=0)k=1;else if(t.indexOf(q)>=0)k=2;
+   else if(ws.length>1&&ws.every(function(w){return t.indexOf(w)>=0}))k=2.5;
+   else{if(!wp)wp=ws.map(function(w){return sph(w)});var pt=sph(t);if(wp.length&&wp.every(function(w){return w&&pt.indexOf(w)>=0}))k=3.5;else return}
+   M.push({v:v,l:lb,k:k})});
+  M.sort(function(x,y){return x.k-y.k||(x.v<y.v?-1:x.v>y.v?1:0)});
   if(!M.length||(M.length===1&&M[0].v.toLowerCase()===q)){hide();return}
-  cur=inp;box.innerHTML='';
-  M.forEach(function(m){var d=document.createElement('div');d.style.cssText='padding:12px 14px;border-bottom:1px solid #eef0f5;font-size:16px;cursor:pointer';
-   d.dataset.v=m.v;d.textContent=(m.l&&m.l!==m.v&&m.l.indexOf(m.v)===0)?m.l:m.v;
-   var px=0,py=0;
-   d.addEventListener('pointerdown',function(e){e.preventDefault();px=e.clientX;py=e.clientY});
-   d.addEventListener('pointerup',function(e){if(Math.abs(e.clientX-px)>8||Math.abs(e.clientY-py)>8)return;inp.value=m.v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));hide()});
-   box.appendChild(d)});
-  var ft=document.createElement('div');ft.className='sugft';
-  ft.innerHTML='<span>'+M.length+' item'+(M.length>1?'s':'')+' · scroll</span><b data-d="-1">▲</b><b data-d="1">▼</b>';
-  [].forEach.call(ft.querySelectorAll('b'),function(bt){bt.addEventListener('pointerdown',function(e){e.preventDefault();box.scrollTop+=(+bt.dataset.d)*Math.max(120,box.clientHeight*.7)})});
-  box.appendChild(ft);
+  cur=inp;
+  box.innerHTML='<div class="sugh">'+(q?M.length+' found · '+M.length+' मिले':'All '+M.length+' · type to search · टाइप करके खोजें')+'</div>'+M.map(function(m){var tx=(m.l&&m.l!==m.v&&m.l.indexOf(m.v)===0)?m.l:m.v;return '<div data-v="'+esc(m.v)+'" style="padding:12px 14px;border-bottom:1px solid #eef0f5;font-size:16px;cursor:pointer">'+esc(tx)+'</div>'}).join('')+'<div class="sugft"><span>'+M.length+' item'+(M.length>1?'s':'')+' · scroll</span><b data-d="-1">▲</b><b data-d="1">▼</b></div>';
+  var ft=box.lastChild;
   box.style.display='block';sIdx=-1;if(box.scrollHeight<=box.clientHeight+2)ft.style.display='none';pos()}
+ var spx=0,spy=0;
+ box.addEventListener('pointerdown',function(e){var t=e.target,bt=t.closest&&t.closest('b[data-d]');if(bt){e.preventDefault();box.scrollTop+=(+bt.dataset.d)*Math.max(120,box.clientHeight*.7);return}if(t.closest&&t.closest('div[data-v]')){e.preventDefault();spx=e.clientX;spy=e.clientY}});
+ box.addEventListener('pointerup',function(e){var d=e.target.closest&&e.target.closest('div[data-v]');if(!d||!cur)return;if(Math.abs(e.clientX-spx)>8||Math.abs(e.clientY-spy)>8)return;var inp=cur;inp.value=d.dataset.v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));hide();
+  if(inp.id==='bi'){var q2=document.getElementById('bq');if(q2){q2.focus();try{q2.select()}catch(x){}}}});
  document.addEventListener('input',function(e){var t=e.target;if(t&&t.dataset&&t.dataset.dl)show(t)});
  document.addEventListener('focusin',function(e){var t=e.target;if(t&&t.dataset&&t.dataset.dl)show(t)});
  document.addEventListener('focusout',function(e){setTimeout(function(){if(cur&&document.activeElement!==cur)hide()},120)});
@@ -1524,7 +1523,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
    e.preventDefault();e.stopPropagation();sHl(sIdx<0?(e.key==='ArrowDown'?0:box.querySelectorAll('div[data-v]').length-1):sIdx+(e.key==='ArrowDown'?1:-1));return}
   if(e.key==='Enter'&&open&&sIdx>=0){e.preventDefault();e.stopPropagation();var v=box.querySelectorAll('div[data-v]')[sIdx].dataset.v;t.value=v;t.dispatchEvent(new Event('input',{bubbles:true}));t.dispatchEvent(new Event('change',{bubbles:true}));hide()}
  },true);
- window.sugUp=function(){hide();[].forEach.call(document.querySelectorAll('input[list]'),function(i){i.dataset.dl=i.getAttribute('list');i.removeAttribute('list');i.setAttribute('autocomplete','off')})};
+ window.sugHide=hide;window.sugUp=function(){hide();[].forEach.call(document.querySelectorAll('input[list]'),function(i){i.dataset.dl=i.getAttribute('list');i.removeAttribute('list');i.setAttribute('autocomplete','off')})};
 })();
 var _r9=render;render=function(){_r9();try{sugUp()}catch(e){}};
 
@@ -3884,7 +3883,7 @@ try{buildNav()}catch(e){}
 /* ================= ASK AI: free AI services (Google Gemini or Groq), your own free key, stored only on this device ================= */
 (function(){
 var DYs=864e5,AI={msgs:[],busy:0,scan:null,setup:false};window.AI=AI;
-var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80},fb:['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-lite-latest','gemini-2.0-flash']},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15},fb:['openai/gpt-oss-20b','llama-3.3-70b-versatile']},own:{n:'Own helper (no AI, works even when AI is down)',m:'',u:'no key needed',lim:{p:40,i:60,b:15},fb:[]}};
+var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80},fb:['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-lite-latest','gemini-2.0-flash']},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15},fb:['openai/gpt-oss-20b','llama-3.3-70b-versatile']},own:{n:'Own AI (offline, no key, no internet needed)',m:'',u:'no key needed',lim:{p:40,i:60,b:15},fb:[]}};
 var MEM={};
 function cfg(){var c=null;try{var s=localStorage.getItem('ash_ai');if(s)c=JSON.parse(s)}catch(e){}c=c||MEM.c||{};return c.p?c:{p:'own',auto:1}}
 function setCfg(o){MEM.c=o;try{localStorage.setItem('ash_ai',JSON.stringify(o));return !!localStorage.getItem('ash_ai')}catch(e){return false}}
@@ -3986,18 +3985,28 @@ function qCands(list,spoken,top){var s=nz(spoken);if(!s)return [];var tk=qWords(
   var rt=null,rc=1e9;tk.forEach(function(t){var c=res.filter(function(x){return hit(x.o,t)}).length;if(c>0&&c<rc){rc=c;rt=t}});
   if(rt)res=res.filter(function(x){return hit(x.o,rt)||x.s>=.85})}
  return res.sort(function(a,b){return b.s-a.s||String(a.o.name).localeCompare(String(b.o.name))}).map(function(x){return x.o})}
+/* ---- OWN BRAIN: how sure am I about a name? exact / one / many (list them all) / fuzzy (sounds like, ask) / none ---- */
+function tokHit(words,t){var pt=ph(t);return words.some(function(x){return x===t||(t.length>=3&&x.indexOf(t)===0)||(t.length>=3&&ph(x)===pt)})}
+function resolveName(list,spoken){var tk=qWords(spoken),sp=nz(spoken),ex=list.find(function(o){return nz(o.name)===sp});
+ var strict=tk.length?list.filter(function(o){var w=qWords(o.name);return tk.every(function(t){return tokHit(w,t)})}):[];
+ if(ex&&(tk.length>=2||strict.length<=1))return {k:'exact',hit:[ex]};
+ if(strict.length===1)return {k:'one',hit:strict};
+ if(strict.length>1){var f0=tk[0];strict.sort(function(a,b){var x=qWords(a.name)[0]===f0?0:1,y=qWords(b.name)[0]===f0?0:1;return x-y||String(a.name).localeCompare(String(b.name))});return {k:'many',hit:strict}}
+ var fz=qCands(list,spoken,1);return {k:fz.length?'fuzzy':'none',hit:fz}}
+function lastSale(pn,itn){var p=findP(pn),f=null;if(!p||!itn)return null;var k=String(itn).trim().toLowerCase();
+ D.bills.filter(function(b){return !b.x&&b.pid===p.id}).sort(function(a,b){return b.date-a.date}).some(function(b){var l=b.lines.find(function(z){return String(z.name).trim().toLowerCase()===k});if(l){f=l;return true}});return f}
 var stq=document.createElement('style');stq.textContent='#aiq{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}.aiqb{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-sizing:border-box}@media(min-width:700px){#aiq{align-items:center}.aiqb{border-radius:16px}}.aiqt{font-size:17px;font-weight:700;color:#1f2437;margin-bottom:2px}.aiqh{font-size:15.5px;color:#3d4468;margin-bottom:6px}.aiqo{display:block;width:100%;text-align:left;background:#f4f6ff;border:1.5px solid #c9cde0;border-radius:10px;padding:10px 12px;margin:6px 0;font-size:15px;color:#1f2437}.aiqo small{display:block;color:#7b8194;font-size:12.5px;margin-top:2px}.aiqi{display:flex;gap:8px;align-items:center;margin-top:8px}.aiqi input{flex:1;min-width:0;font-size:16px;padding:10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0}';stq.textContent+='.aiql{max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:6px;border-top:1px solid #e6e9f0}.aiqi{margin-bottom:2px}';document.head.appendChild(stq);
 var HIN={customer:'ग्राहक',supplier:'सप्लायर',party:'पार्टी'},HT={sale:'बिक्री बिल',purchase:'खरीद बिल',estimate:'एस्टिमेट',sale_order:'सेल ऑर्डर',challan:'डिलीवरी चालान',payment_in:'पेमेंट (मिला)',payment_out:'पेमेंट (दिया)'};
 function hiOf(tt){return HIN[tt]||'पार्टी'}
 /* shows a question card. Resolves {o:value} if an option was tapped, {t:text} if text typed, {n:number} if a number typed */
 function askQ(o){return new Promise(function(ok,no){
  var d=gid('aiq');if(d)d.remove();d=document.createElement('div');d.id='aiq';
- var opts=o.opts||[],txt=o.inp==='text',many=opts.length>8,saved=opts.filter(function(x){return !(x.v&&x.v.nw)}).length,sure='',
+ var opts=o.opts||[],txt=o.inp==='text',many=opts.length>8,saved=opts.filter(function(x){return !(x.v&&x.v.nw)}).length,hasM=opts.some(function(x){return x.m}),nM=opts.filter(function(x){return x.m}).length,showAll=false,sure='',
   h='<div class="aiqb"><div class="aiqt">'+esc(o.t)+'</div>'+(o.hi?'<div class="aiqh">'+esc(o.hi)+'</div>':'')+(o.sub?'<div class="mu vsm">'+esc(o.sub)+(o.shi?'<br>'+esc(o.shi):'')+'</div>':''),oh='',ih='';
  opts.forEach(function(x,i){oh+='<button type="button" class="aiqo" data-i="'+i+'"><b>'+esc(x.l)+'</b>'+(x.s?'<small>'+esc(x.s)+'</small>':'')+'</button>'});
- if(o.inp)ih='<div class="aiqi"><input id="aiqi" '+(o.inp==='number'?'type="number" inputmode="decimal" step="any"':'type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"')+(o.dl&&!opts.length?' list="aiqdl"':'')+' placeholder="'+esc(o.ph||'')+'"><button type="button" class="aimic" id="aiqm" aria-label="Speak">'+MIC+'</button><button type="button" class="b" id="aiqok">OK</button></div>'+(o.dl&&!opts.length?'<datalist id="aiqdl">'+o.dl.map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>':'')+'<div class="mu vsm red" id="aiqs"></div>';
+ if(o.inp)ih='<div class="aiqi"><input id="aiqi" '+(o.inp==='number'?'type="number" inputmode="decimal" step="any"':'type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"')+(o.dl&&!opts.length?' list="aiqdl"':'')+' placeholder="'+esc(o.ph||'')+'"><button type="button" class="aimic" id="aiqm" aria-label="Speak">'+MIC+'</button><button type="button" class="b" id="aiqok">OK</button></div>'+(o.dl&&!opts.length?'<datalist id="aiqdl">'+o.dl.map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>':'')+'<div class="mu vsm red" id="aiqs"></div>'+(o.inp==='number'?'<div class="mu vsm">🎤 Tap the mic and say it, e.g. "350" or "teen sau pachas" · माइक दबाकर बोलिए</div>':'');
  /* typing questions: search box first, saved names in a scrolling list under it. Number questions: choices first, then the box. */
- if(txt)h+=ih+(opts.length?'<div class="mu vsm" id="aiqc"></div><div class="aiql">'+oh+'</div>':'');else h+=oh+ih;
+ if(txt)h+=ih+(opts.length?'<div class="mu vsm" id="aiqc"></div>'+(hasM&&saved>nM?'<button type="button" class="s" id="aiqa" style="width:100%;margin:6px 0">Show all saved ('+saved+') · सभी सेव दिखाएँ</button>':'')+'<div class="aiql">'+oh+'</div>':'');else h+=oh+ih;
  h+='<button type="button" class="s" id="aiqx" style="width:100%;margin-top:10px">Cancel · रद्द करें</button></div>';
  d.innerHTML=h;document.body.appendChild(d);
  var inp=gid('aiqi'),sts=gid('aiqs'),cnt=gid('aiqc');
@@ -4009,8 +4018,8 @@ function askQ(o){return new Promise(function(ok,no){
  function shown(){return Array.prototype.filter.call(d.querySelectorAll('.aiqo'),function(b){return b.style.display!=='none'}).map(function(b){return opts[+b.getAttribute('data-i')]}).filter(function(x){return !(x.v&&x.v.nw)})}
  /* live search: normal letters AND sound-alike letters, so "ultra tech vt" finds "ULTRATECH ADHESIVE VT 20KG" */
  function filt(){if(!txt||!inp)return;var ws=(inp.value||'').trim().toLowerCase().split(/\s+/).filter(Boolean),wp=ws.map(ph),n=0;
-  d.querySelectorAll('.aiqo').forEach(function(b){var x=opts[+b.getAttribute('data-i')],l=String(x.l).toLowerCase(),lp=ph(l),on=!ws.length||(x.v&&x.v.nw)||ws.every(function(w,i){return l.indexOf(w)>=0||lp.indexOf(wp[i])>=0});b.style.display=on?'':'none';if(on&&!(x.v&&x.v.nw))n++});
-  if(cnt)cnt.textContent=ws.length?(n?n+' found. Tap the right one. · '+n+' मिले। सही वाले पर टैप करें।':'Not in your saved list. · सेव लिस्ट में नहीं मिला।'):saved+' saved. Type to search, or scroll and tap. · '+saved+' सेव हैं। टाइप करके खोजें, या स्क्रॉल करके चुनें।'}
+  d.querySelectorAll('.aiqo').forEach(function(b){var x=opts[+b.getAttribute('data-i')],l=String(x.l).toLowerCase(),lp=ph(l),on=(x.v&&x.v.nw)||(!ws.length?(!hasM||showAll||!!x.m):ws.every(function(w,i){return l.indexOf(w)>=0||lp.indexOf(wp[i])>=0}));b.style.display=on?'':'none';if(on&&!(x.v&&x.v.nw))n++});
+  if(cnt)cnt.textContent=ws.length?(n?n+' found. Tap the right one. · '+n+' मिले। सही वाले पर टैप करें।':'Not in your saved list. · सेव लिस्ट में नहीं मिला।'):(hasM&&!showAll?nM+' matching. Tap the right one, or type to search all '+saved+'. · '+nM+' मिले। सही वाले पर टैप करें, या सभी '+saved+' में खोजें।':saved+' saved. Type to search, or scroll and tap. · '+saved+' सेव हैं। टाइप करके खोजें, या स्क्रॉल करके चुनें।')}
  function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer. · कृपया लिखें या बोलें।');
   if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0. · 0 से बड़ी संख्या बताइए।');return done({n:n})}
   if(opts.length){var m=shown(),ex=m.filter(function(x){return nz(x.l)===nz(v)});
@@ -4019,6 +4028,7 @@ function askQ(o){return new Promise(function(ok,no){
    if(m.length>1&&sure!==nz(v)){sure=nz(v);return say('Tap the right one in the list below. To add "'+v+'" as new, press OK again. · नीचे सूची से चुनें। नया जोड़ने के लिए फिर OK दबाएँ।')}
    if(!m.length&&sure!==nz(v)){sure=nz(v);return say('"'+v+'" is not in your saved list. Press OK again to add it as new. · सेव लिस्ट में नहीं है। नया जोड़ने के लिए फिर OK दबाएँ।')}}
   done({t:v})}
+ var sa=gid('aiqa');if(sa)sa.onclick=function(){showAll=true;sa.style.display='none';filt()};
  if(txt&&inp){inp.addEventListener('input',function(){sure='';filt()});filt()}
  if(inp){gid('aiqok').onclick=submit;inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();submit()}};if(!isM())inp.focus();
   var mb=gid('aiqm');mb.onclick=function(){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')vForce();V.tgt='q';say('');
@@ -4028,6 +4038,7 @@ function askQ(o){return new Promise(function(ok,no){
       if(nn>0){inp.value=nn;return submit()}return say('I heard "'+t+'". Please type the number. · मैंने सुना "'+t+'"। कृपया संख्या लिखें।')}
      if(opts.length&&opts.length<=8&&/^\s*(option|number|no\.?|नंबर)?\s*\d{1,2}\s*$/i.test(t)){var dg=+t.replace(/[^0-9]/g,'');if(dg>=1&&dg<=opts.length)return done({o:opts[dg-1].v})}
      var bi=-1,bs=0;opts.forEach(function(x,i){if(x.v&&x.v.nw)return;var s2=sim(x.l,t);if(s2>bs){bs=s2;bi=i}});if(bi>=0&&bs>=.85)return done({o:opts[bi].v});
+     var tw=t.toLowerCase().split(/\s+/).filter(function(z){return z.length>1}),tm=opts.filter(function(x){if(x.v&&x.v.nw)return false;var l=String(x.l).toLowerCase();return tw.length&&tw.every(function(w){return l.indexOf(w)>=0})});if(tm.length===1)return done({o:tm[0].v});
      inp.value=t;filt();say('I heard "'+t+'". Tap the right one in the list, or press OK. · मैंने सुना "'+t+'"। सूची से चुनें, या OK दबाएँ।',1)}})}}
 })}
 async function clarify(j,force){
@@ -4038,17 +4049,16 @@ async function clarify(j,force){
  /* 1) WHO */
  var sp=String(j.party||'').trim();
  if(sp||!force){
-  var ex=sp?findP(sp):null,cs=sp?qCands(D.parties,sp):[];
-  if(ex)cs=[ex].concat(cs.filter(function(p){return p!==ex}));
+  var rs=sp?resolveName(D.parties,sp):{k:'none',hit:[]},cs=rs.hit.slice();
   var lp=sp?lrnGet('p',sp):'';if(lp){var li=-1;cs.forEach(function(p,ix){if(p.name===lp)li=ix});if(li>0)cs.unshift(cs.splice(li,1)[0])}
-  var st=sp?qStrong(D.parties,sp):[];
-  if(ex&&(cs.length===1||qWords(sp).length>=2||st.length<=1))j.party=ex.name;
-  else if(!ex&&st.length===1)j.party=st[0].name;
+  if(rs.k==='exact'||rs.k==='one')j.party=rs.hit[0].name;
   else{
-   var mapP=function(p){return {l:p.name,s:[p.name===lp?'Last time you chose this · पिछली बार यही चुना था':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}},po=cs.slice(0,150).map(mapP);
+   var mapP=function(p){return {l:p.name,s:[p.name===lp?'Last time you chose this · पिछली बार यही चुना था':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}},po=cs.map(function(p){var o=mapP(p);o.m=1;return o});
    if(sp)po.push({l:'New '+tt+' · नया '+hP+': '+sp,s:'Not in my list. Create as new. · लिस्ट में नहीं है, नया बनाएँ।',v:{n:sp,nw:1}});
-   var seenP={};cs.slice(0,150).forEach(function(p){seenP[p.id]=1});D.parties.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seenP[p.id]&&po.length<400)po.push(mapP(p))});
-   var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"'+(cs.length>1?' ('+cs.length+' found)':''):'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',hi:sp?(cs.length?'कौन सा '+hP+'? आपने बोला "'+sp+'"'+(cs.length>1?' ('+cs.length+' नाम मिले)':''):'"'+sp+'" आपकी लिस्ट में नहीं मिला'):hP+' कौन है?',sub:cs.length?'Tap the right one, or type / speak the name.':'Type or speak the name.',shi:cs.length?'सही नाम पर टैप करें, या नाम लिखें / बोलें।':'नाम लिखें या बोलें।',opts:po,inp:'text',ph:'Type name · नाम लिखें',dl:D.parties.map(function(p){return p.name})});
+   var seenP={};cs.forEach(function(p){seenP[p.id]=1});D.parties.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seenP[p.id])po.push(mapP(p))});
+   var tP=!sp?'Who is the '+tt+'?':rs.k==='many'?'Which '+tt+'? You said "'+sp+'" ('+cs.length+' found)':rs.k==='fuzzy'?'Not sure about "'+sp+'". Did you mean one of these?':'I could not find "'+sp+'" in your list',
+    hPt=!sp?hP+' कौन है?':rs.k==='many'?'कौन सा '+hP+'? आपने बोला "'+sp+'" ('+cs.length+' नाम मिले)':rs.k==='fuzzy'?'"'+sp+'" पक्का नहीं समझा। इनमें से कोई है?':'"'+sp+'" आपकी लिस्ट में नहीं मिला';
+   var r=await askQ({t:tP,hi:hPt,sub:cs.length?'Tap the right one, or type / speak the name.':'Type or speak the name, or pick from the full list.',shi:cs.length?'सही नाम पर टैप करें, या नाम लिखें / बोलें।':'नाम लिखें / बोलें, या पूरी लिस्ट से चुनें।',opts:po,inp:'text',ph:'Type name · नाम लिखें',dl:D.parties.map(function(p){return p.name})});
    if(r.o){j.party=r.o.n;if(sp)lrnSet('p',sp,r.o.n)}else{var f=findP(r.t),sq=f?[f]:qStrong(D.parties,r.t);j.party=sq.length===1?sq[0].name:r.t}
   }
  }
@@ -4059,26 +4069,26 @@ async function clarify(j,force){
   for(var i=0;i<rows.length;i++){
    var x=rows[i]=rows[i]||{},nm=String(x.name||'').trim();
    if(force&&!nm&&!(+x.qty>0))continue;
-   var e2=nm?findI(nm):null,c2=nm?qCands(D.items,nm,1):[],it=null;
-   if(e2)c2=[e2].concat(c2.filter(function(p){return p!==e2}));
+   var rs2=nm?resolveName(D.items,nm):{k:'none',hit:[]},c2=rs2.hit.slice(),it=null;
    var li2=nm?lrnGet('i',nm):'';if(li2){var lx=-1;c2.forEach(function(p,ix){if(p.name===li2)lx=ix});if(lx>0)c2.unshift(c2.splice(lx,1)[0])}
-   var sti=nm?qStrong(D.items,nm):[];
-   if(nm&&e2&&(c2.length===1||qWords(nm).length>=2||sti.length<=1))it=e2;
-   else if(nm&&!e2&&sti.length===1)it=sti[0];
+   if(rs2.k==='exact'||rs2.k==='one')it=rs2.hit[0];
    else{
-    var mapI=function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'Last time you chose this · पिछली बार यही चुना था':'',p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}},io=c2.slice(0,60).map(mapI);
+    var mapI=function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'Last time you chose this · पिछली बार यही चुना था':'',p.unit,rt?'Rs '+rt:'','Stock '+(Math.round((+p.qty||0)*10)/10)].filter(Boolean).join('  |  '),v:{n:p.name}}},io=c2.map(function(p){var o=mapI(p);o.m=1;return o});
     if(nm)io.push({l:'New item · नया आइटम: '+nm,s:'Not in my stock list. Create as new item. · स्टॉक में नहीं है, नया बनाएँ।',v:{n:nm,nw:1}});
-    var seenI={};c2.slice(0,60).forEach(function(p){seenI[p.id]=1});D.items.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seenI[p.id]&&io.length<400)io.push(mapI(p))});
-    var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"'+(c2.length>1?' ('+c2.length+' found)':''):'I could not find "'+nm+'" in your items'):'Which item?',hi:nm?(c2.length?'कौन सा आइटम? आपने बोला "'+nm+'"'+(c2.length>1?' ('+c2.length+' मिले)':''):'"'+nm+'" आपके आइटम में नहीं मिला'):'कौन सा आइटम?',sub:c2.length?'Tap the right one, or type / speak the name.':'Type or speak the item name.',shi:c2.length?'सही आइटम पर टैप करें, या नाम लिखें / बोलें।':'आइटम का नाम लिखें या बोलें।',opts:io,inp:'text',ph:'Type item name · आइटम का नाम',dl:D.items.map(function(p){return p.name})});
+    var seenI={};c2.forEach(function(p){seenI[p.id]=1});D.items.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seenI[p.id])io.push(mapI(p))});
+    var tI=!nm?'Which item?':rs2.k==='many'?'Which item? You said "'+nm+'" ('+c2.length+' found)':rs2.k==='fuzzy'?'Not sure about "'+nm+'". Did you mean one of these?':'I could not find "'+nm+'" in your items',
+     hI=!nm?'कौन सा आइटम?':rs2.k==='many'?'कौन सा आइटम? आपने बोला "'+nm+'" ('+c2.length+' मिले)':rs2.k==='fuzzy'?'"'+nm+'" पक्का नहीं समझा। इनमें से कोई है?':'"'+nm+'" आपके आइटम में नहीं मिला';
+    var r2=await askQ({t:tI,hi:hI,sub:c2.length?'Tap the right one, or type / speak the name.':'Type or speak the item name, or pick from the full list.',shi:c2.length?'सही आइटम पर टैप करें, या नाम लिखें / बोलें।':'आइटम का नाम लिखें / बोलें, या पूरी लिस्ट से चुनें।',opts:io,inp:'text',ph:'Type item name · आइटम का नाम',dl:D.items.map(function(p){return p.name})});
     if(r2.o){x.name=r2.o.n;if(nm)lrnSet('i',nm,r2.o.n)}else{var f2=findI(r2.t),s2=f2?[f2]:qStrong(D.items,r2.t);x.name=s2.length===1?s2[0].name:r2.t}
     it=findI(x.name)||null;
    }
    if(it)x.name=it.name;
    if(!it&&!x.unit&&x.uh)x.unit=String(x.uh).replace(/^(bag|box|ton|meter|roll|packet|bundle|carton)s$/,'$1').replace(/^(pc|pcs|nos|nang|pieces?)$/,'pcs');
    var un=String(x.unit||'').trim()||(it&&it.unit)||'';
-   if(!(+x.qty>0)){var rq=await askQ({t:'How many'+(un?' '+un:'')+' of '+x.name+'?',hi:x.name+' कितना'+(un?' ('+un+')':'')+' चाहिए?',sub:'You did not tell the quantity.',shi:'आपने मात्रा नहीं बताई।',inp:'number',ph:'Quantity · मात्रा'});x.qty=rq.n}
+   var ls=(pur||!j.party)?null:lastSale(j.party,x.name);
+   if(!(+x.qty>0)){var rq=await askQ({t:'How many'+(un?' '+un:'')+' of '+x.name+'?',hi:x.name+' कितना'+(un?' ('+un+')':'')+' चाहिए?',sub:'You did not tell the quantity. Type it or tap the mic and say it.',shi:'आपने मात्रा नहीं बताई। लिखें या माइक दबाकर बोलें।',opts:ls&&+ls.qty>0?[{l:'Same as last time: '+ls.qty+(un?' '+un:''),s:'Last bill of '+j.party+' · पिछला बिल',v:+ls.qty}]:[],inp:'number',ph:'Quantity · मात्रा'});x.qty=rq.o!==undefined?rq.o:rq.n}
    if(!(+x.rate>0)){var sv=it?(pur?(+it.buy||+it.rate||0):(+it.rate||0)):0;
-    var rr=await askQ({t:'What is the price of '+x.name+'?',hi:x.name+' का रेट कितना है?',sub:sv>0?'You did not tell the price. Saved price is Rs '+sv+(un?' per '+un:'')+'.':'You did not tell the price.',shi:sv>0?'आपने रेट नहीं बताया। सेव किया हुआ रेट Rs '+sv+(un?' प्रति '+un:'')+' है।':'आपने रेट नहीं बताया।',opts:sv>0?[{l:'Use saved price: Rs '+sv+' · सेव रेट Rs '+sv,s:un?'per '+un+' · प्रति '+un:'',v:sv}]:[],inp:'number',ph:'Price per '+(un||'unit')+' · रेट'});
+    var rr=await askQ({t:'What is the price of '+x.name+'?',hi:x.name+' का रेट कितना है?',sub:sv>0?'You did not tell the price. Saved price is Rs '+sv+(un?' per '+un:'')+'.':'You did not tell the price.',shi:sv>0?'आपने रेट नहीं बताया। सेव किया हुआ रेट Rs '+sv+(un?' प्रति '+un:'')+' है।':'आपने रेट नहीं बताया।',opts:(ls&&+ls.rate>0?[{l:'Last rate for '+j.party+': Rs '+ls.rate+' · पिछला रेट Rs '+ls.rate,s:un?'per '+un+' · प्रति '+un:'',v:+ls.rate}]:[]).concat(sv>0&&!(ls&&+ls.rate===sv)?[{l:'Use saved price: Rs '+sv+' · सेव रेट Rs '+sv,s:un?'per '+un+' · प्रति '+un:'',v:sv}]:[]),inp:'number',ph:'Price per '+(un||'unit')+' · रेट'});
     x.rate=rr.o!==undefined?rr.o:rr.n}
   }
  }else if(!(+j.amount>0)&&!(+j.paid>0)){
@@ -4100,9 +4110,10 @@ var W_EST=wset('estimate estimates quotation quotations quote kotation कोट
  W_RATE=wset('rate bhav bhaav price kimat kimmat भाव किंमत कीमत दर रेट'),
  W_QTY=wset('quantity qty qnty quantiy matra \u092e\u093e\u0924\u094d\u0930\u093e \u0915\u094d\u0935\u093e\u0902\u091f\u093f\u091f\u0940 \u0928\u0917'),
  W_RSUF=wset('me mein में मध्ये each per'),
- W_UNIT=wset('dozen dozens darjan dozan doz दर्जन kilo kilos sheet sheets set sets pair pairs bag bags bori boris बोरी गोणी piece pieces pcs pc nos nang नग box boxes peti पेटी ft feet kg kgs ton tons meter meters mtr sqft bundle bundles roll rolls packet packets carton cartons bucket buckets litre litres ltr बैग बॅग बाल्टी बॉक्स किलो टन मीटर फुट फीट पीस बंडल रोल पैकेट कार्टन'),
+ W_UNIT=wset('dozen dozens darjan dozan doz दर्जन kilo kilos sheet sheets set sets pair pairs bag bags bori boris बोरी गोणी dabba dibba dabbe dabbi kattha katta tukda tukde piece pieces pcs pc nos nang नग box boxes peti पेटी ft feet kg kgs ton tons meter meters mtr sqft bundle bundles roll rolls packet packets carton cartons bucket buckets litre litres ltr बैग बॅग बाल्टी बॉक्स किलो टन मीटर फुट फीट पीस बंडल रोल पैकेट कार्टन'),
  W_SEP=wset('and aur और आणि ani plus + &'),
- W_FILL=wset('leke lekar le lele liya lia took taken take gaya gaye gayi gya gye ले लेके लेकर लिया गया गए गये गई hai hain tha thi wala wale vala hua kiya with ko ka ki ke se ne of for to from the a an in out please make create add new entry de do dena dedo kar karo kardo bana banao banado banaiye banvao likho likh lagao rupees rupaye rupaya rs inr rupee रुपये रुपए रुपया रु के को का की से ने साठी ला चे चा ची बनाओ बनाइए बना बनवा करा liye लिए'),
+ W_FILL=wset('leke lekar le lele liya lia took taken take gaya gaye gayi gya gye ले लेके लेकर लिया गया गए गये गई hai hain tha thi wala wale vala hua kiya with ko ka ki ke se ne of for to from the a an in out please make create add new entry de do dena dedo kar karo kardo bana banao banado banaiye banvao likho likh lagao rupees rupaye rupaya rs inr rupee रुपये रुपए रुपया रु के को का की से ने साठी ला चे चा ची बनाओ बनाइए बना बनवा करा liye लिए naam nam hisab hisaab hisabse ji sahab saab prati pratyek chahiye chahie bhejo bhej dijiye dijie kijiye karna abhi jaldi plz'),
+ W_MAKE=wset('banao bana banado banaiye banvao banwao bnao banao banaye create make new naya nayi nayaa generate likho likh kardo karo kar add'),
  NW={dedh:1.5,'डेढ़':1.5,'डेढ':1.5,dhai:2.5,'ढाई':2.5,adha:.5,aadha:.5,'आधा':.5,'अर्धा':.5,ikkis:21,bais:22,teis:23,chaubis:24,pachis:25,pachchis:25,pachees:25,'पच्चीस':25,chhabbis:26,sattais:27,atthais:28,untis:29,paintis:35,paintalis:45,pachpan:55,paisath:65,pachhattar:75,pachasi:85,panchanve:95,ek:1,one:1,एक:1,do:2,two:2,दो:2,दोन:2,teen:3,three:3,तीन:3,char:4,chaar:4,four:4,चार:4,paanch:5,panch:5,five:5,पांच:5,पाँच:5,पाच:5,chhe:6,chha:6,six:6,छह:6,सहा:6,saat:7,seven:7,सात:7,aath:8,eight:8,आठ:8,nau:9,nine:9,नौ:9,नऊ:9,das:10,ten:10,दस:10,दहा:10,gyarah:11,barah:12,terah:13,chaudah:14,pandrah:15,solah:16,satrah:17,atharah:18,unnis:19,bees:20,vees:20,twenty:20,बीस:20,वीस:20,tees:30,thirty:30,तीस:30,chalis:40,forty:40,चालीस:40,pachas:50,fifty:50,पचास:50,पन्नास:50,saath:60,sixty:60,साठ:60,sattar:70,seventy:70,सत्तर:70,assi:80,eighty:80,अस्सी:80,nabbe:90,ninety:90,नब्बे:90},
  NM={sau:100,hundred:100,सौ:100,शंभर:100,hazaar:1000,hazar:1000,thousand:1000,हजार:1000,'हज़ार':1000,lakh:100000,lac:100000,लाख:100000},
  AMB={do:1,ek:1,one:1,दो:1,एक:1};
@@ -4158,7 +4169,7 @@ function ownParse(q,force){q=normAlias(String(q||'').toLowerCase());var T=owTok(
   if(bi>=0){party=runs[bi];for(i=party.a;i<=party.b;i++)T[i].x=1}}
  var pname=party?wd(party).join(' '):'';
  if(pay){var am=0;for(i=0;i<T.length;i++)if(T[i].n!==undefined&&!T[i].x){am=T[i].n;break}
-  if(!pname&&!am)return null;return {action:a,party:pname,items:[],paid:0,amount:am,note:''}}
+  var mk=T.some(function(x){return x.w&&W_MAKE[x.w]});if(!pname&&!am&&!mk)return null;return {action:a,party:pname,items:[],paid:0,amount:am,note:'',mk:mk?1:0}}
  var items=[],cur={name:[],qty:0,unit:'',rate:0};
  function fl(){if(cur.name.length||cur.qty)items.push({name:cur.name.join(' '),qty:cur.qty,unit:'',uh:cur.unit,rate:cur.rate});cur={name:[],qty:0,unit:'',rate:0}}
  var L=T.filter(function(x){return !x.x});
@@ -4177,8 +4188,8 @@ function ownParse(q,force){q=normAlias(String(q||'').toLowerCase());var T=owTok(
   if(owSp(c.w))continue;
   cur.name.push(c.w)}
  fl();
- if(!pname&&!items.length)return null;
- return {action:a,party:pname,items:items,paid:paid,amount:0,note:''}}
+ var mk2=T.some(function(x){return x.w&&W_MAKE[x.w]});if(!pname&&!items.length&&!mk2)return null;
+ return {action:a,party:pname,items:items,paid:paid,amount:0,note:'',mk:mk2?1:0}}
 /* remembers which name you picked for what you said (only used to show that name first) */
 function lrnGet(kind,sp){try{var m=JSON.parse(localStorage.getItem('ash_lrn')||'{}'),o=m[kind+':'+nz(sp)]||{},b='',c=0;Object.keys(o).forEach(function(n){if(o[n]>c){c=o[n];b=n}});return b}catch(e){return ''}}
 function lrnSet(kind,sp,name){if(!nz(sp)||!name||nz(sp)===nz(name))return;try{var m=JSON.parse(localStorage.getItem('ash_lrn')||'{}'),k=kind+':'+nz(sp);m[k]=m[k]||{};m[k][name]=(m[k][name]||0)+1;localStorage.setItem('ash_lrn',JSON.stringify(m))}catch(e){}}
@@ -4194,7 +4205,7 @@ var R_OWE=/\b(owe|owes|owed|outstanding|pending|receivable|due|baki|baaki|baqi|b
  R_QW=/\?|\b(who|what|which|how|show|list|tell|kitna|kitni|kitne|kya|kaun|kon|kis|kiska|kiski|kiske|batao|bata|bataiye|dikhao|dikha|dekho|total)\b|\u0915\u093f\u0924\u0928\u093e|\u0915\u093f\u0924\u0928\u0940|\u0915\u093f\u0924\u0928\u0947|\u0915\u094d\u092f\u093e|\u0915\u094c\u0928|\u0915\u093f\u0938|\u092c\u0924\u093e\u0913|\u092c\u0924\u093e\u0907\u090f|\u0926\u093f\u0916\u093e\u0913|\u0915\u093f\u0924\u0940|\u0915\u094b\u0923|\u0938\u093e\u0902\u0917\u093e|\u0926\u093e\u0916\u0935\u093e/i;
 function qn(n){return Math.round((+n||0)*10)/10}
 function mentioned(list,q){var tk=qWords(q),res=[],bs=0;list.forEach(function(o){var w=qWords(o.name).filter(function(x){return x.length>2}),c=0;w.forEach(function(x){if(tk.some(function(t){return t===x||(t.length>=4&&x.length>=4&&sim(t,x)>=.8)}))c++});if(!c)return;var sc=c/w.length+c;if(sc>bs){bs=sc;res=[o]}else if(sc===bs)res.push(o)});return res}
-function strongCmd(q){var j=null;try{j=ownParse(q)}catch(e){}if(!j)return false;if(j.action==='payment_in'||j.action==='payment_out')return j.amount>0;return (j.items||[]).some(function(x){return x.qty>0})}
+function strongCmd(q){var j=null;try{j=ownParse(q)}catch(e){}if(!j)return false;if(j.mk&&!HOWQ.test(q))return true;if(j.action==='payment_in'||j.action==='payment_out')return j.amount>0;return (j.items||[]).some(function(x){return x.qty>0})}
 
 /* ================= SHOP WORD PACK (offline): item words people use, how-to help, extra answers ================= */
 var GR=[['cement','siment','simant','sement','cimant','सीमेंट','सिमेंट','सिमेन्ट'],['tile','tiles','tail','tails','टाइल','टाइल्स','टाईल','farshi','pharshi','फरशी','फर्शी'],['marble','marbal','मार्बल','sangmarmar','संगमरमर'],['granite','granait','ग्रेनाइट','ग्रेनाईट'],['sand','ret','रेत','valu','वाळू','balu','बालू'],['gravel','bajri','बजरी','gitti','गिट्टी','khadi','खडी','aggregate'],['brick','bricks','eent','inta','ईंट','ईट','वीट'],['steel','saria','sariya','सरिया','tmt','loha','लोहा'],['paint','paints','पेंट','पेन्ट'],['putty','puty','पुट्टी'],['adhesive','glue','gum','एडहेसिव'],['pipe','pipes','paip','पाइप'],['tap','taps','nal','नल','faucet','toti','तोटी'],['basin','washbasin','बेसिन','sink'],['commode','toilet','wc','कमोड','टॉयलेट'],['wire','wires','taar','तार','cable','वायर'],['switch','swich','स्विच'],['bulb','balb','बल्ब'],['sheet','sheets','chadar','चादर'],['plywood','ply','प्लाईवुड'],['glass','kaanch','kanch','कांच','काच'],['lock','tala','ताला','kulup','कुलूप'],['hinge','kabja','कब्जा'],['screw','pech','पेच'],['nail','keel','कील'],['bucket','balti','बाल्टी','बकेट'],['rope','rassi','रस्सी','dori','डोरी'],['spacer','spacers'],['grout','grouts'],['primer','प्राइमर'],['waterproof','waterproofing','वाटरप्रूफ'],['white','safed','सफेद','sapheda'],['wall','deewar','diwar','दीवार','bhint','भिंत'],['bathroom','bath','बाथरूम'],['tank','tanki','टंकी']],
@@ -4295,7 +4306,7 @@ var VEX=['Ramesh ko 10 bag cement ka bill banao','Suresh se 5000 rupaye mile','W
 window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='',mg=AI.msg,cp=c.auto?'gemini':(c.p||'gemini');
  var ex=['How much did my top customer buy this year?','Which items earned me the most profit this year?','Who owes me the most money?','Compare this month sales with last month'];
  var msgH=mg&&mg.t?'<div class="'+(mg.c||'mu')+'" style="margin-top:8px;line-height:1.4">'+esc(mg.t)+'</div>':'';
- h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>'+(c.p==='own'?(c.auto?'Voice is ready (no key needed)':'Own helper is ready'):'AI is ready')+'</b><br><span class="mu">'+(c.p==='own'?'Makes bills and payments, and answers balance, stock and sales questions from your own data. Add a free AI key for answers in your own words.':esc(PROV[c.p].n.split(' (')[0])+' &middot; '+esc(c.m||PROV[c.p].m)+' &middot; key '+esc(mask(c.k)))+'</span></span><button class="s" onclick="AI.setup=true;AI.msg=null;render()">Setup</button></div>':
+ h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>'+(c.p==='own'?(c.auto?'Own AI is ready · works offline':'Own AI is ready · works offline'):'AI is ready')+'</b><br><span class="mu">'+(c.p==='own'?'Makes bills and payments, and answers balance, stock and sales questions from your own data. Add a free AI key for answers in your own words.':esc(PROV[c.p].n.split(' (')[0])+' &middot; '+esc(c.m||PROV[c.p].m)+' &middot; key '+esc(mask(c.k)))+'</span></span><button class="s" onclick="AI.setup=true;AI.msg=null;render()">Setup</button></div>':
   '<b>Setup (one time, free)</b><div class="mu" style="margin:4px 0 8px">Get a free key (no card needed) and paste it here. The key stays only on this phone/computer. It is not saved in your shop data and not uploaded anywhere else.</div>'
   +'<label class="mu">AI service</label><select id="aip" onchange="aiProv(this.value)">'+Object.keys(PROV).map(function(k){return '<option value="'+k+'"'+((cp)===k?' selected':'')+'>'+esc(PROV[k].n)+'</option>'}).join('')+'</select>'
   +'<div class="mu" style="margin:2px 0 6px">Free key from: <b id="aiu">'+PROV[cp].u+'</b></div>'
@@ -4401,7 +4412,7 @@ function capHtml(v){var h='';
  return h}
 function pinfo(n){var p=findP(n);if(p)return 'Existing party. Balance '+money(bal(p));return (n||'').trim()?'New party, will be created when you save the bill':''}
 function ctot(c){var s=0;c.rows.forEach(function(r){s+=(+r.q||0)*(+r.r||0)});return s}
-function rowHtml(r,k){return '<div class="vr"><input class="vn'+(r.k?'':' nw')+'" value="'+esc(r.n)+'" placeholder="Item name" oninput="vcRow('+k+',\'n\',this.value)"><input class="vq" type="number" inputmode="decimal" step="any" placeholder="Qty" value="'+(r.q||'')+'" oninput="vcRow('+k+',\'q\',this.value)"><input class="vu" value="'+esc(r.u)+'" placeholder="Unit" oninput="vcRow('+k+',\'u\',this.value)"><input class="vrt" type="number" inputmode="decimal" step="any" placeholder="Rate" value="'+(r.r||'')+'" oninput="vcRow('+k+',\'r\',this.value)"><span class="va" id="vca'+k+'">'+money((+r.q||0)*(+r.r||0))+'</span><button type="button" class="x" onclick="vcDel('+k+')" aria-label="Remove">✕</button></div>'}
+function rowHtml(r,k){return '<div class="vr"><input class="vn'+(r.k?'':' nw')+'" data-dl="ilx" autocomplete="off" value="'+esc(r.n)+'" placeholder="Item name" oninput="vcRow('+k+',\'n\',this.value)"><input class="vq" type="number" inputmode="decimal" step="any" placeholder="Qty" value="'+(r.q||'')+'" oninput="vcRow('+k+',\'q\',this.value)"><input class="vu" value="'+esc(r.u)+'" placeholder="Unit" oninput="vcRow('+k+',\'u\',this.value)"><input class="vrt" type="number" inputmode="decimal" step="any" placeholder="Rate" value="'+(r.r||'')+'" oninput="vcRow('+k+',\'r\',this.value)"><span class="va" id="vca'+k+'">'+money((+r.q||0)*(+r.r||0))+'</span><button type="button" class="x" onclick="vcDel('+k+')" aria-label="Remove">✕</button></div>'}
 function confHtml(v){var c=v.conf,t=TT[c.a],pay=c.a==='payment_in'||c.a==='payment_out',h='';
  h+='<div class="mu" style="margin-bottom:6px">I heard: &ldquo;'+esc(v.q)+'&rdquo;. Check it and fix anything wrong, then continue to the form.<br>मैंने यह सुना। जाँचें, गलती हो तो ठीक करें, फिर आगे बढ़ें।</div>';
  h+='<label class="mu">'+t[1]+'</label><input id="vcp" list="vcpl" autocomplete="off" value="'+esc(c.p)+'" oninput="vcSetP(this.value)"><datalist id="vcpl">'+D.parties.map(function(p){return '<option value="'+esc(p.name)+'">'}).join('')+'</datalist><div id="vcpb" class="mu vsm">'+esc(pinfo(c.p))+'</div>';
@@ -4416,7 +4427,7 @@ window.vcMore=function(){var v=AI.vc;if(!v||!v.conf)return;if(V.st==='listen'&&V
  vStart({onPartial:function(t){st('Heard: '+t)},onState:function(x){var b=gid('vcm');if(b)b.classList.toggle('on',x==='listen');if(x==='listen')st('Listening... tap the mic when done');else if(x==='work')st('Listening to the recording...')},onErr:function(m){var b=gid('vcm');if(b)b.classList.remove('on');st(m,1)},
   onEnd:function(t){st('Understanding: '+t);parseCmd(t,v.conf.a).then(function(n){if(AI.vc!==v||!v.conf)return;vmerge(v.conf,n);vcDraw()},function(e){st(e.message,1)})}})};
 window.vcSetP=function(x){AI.vc.conf.p=x;var b=gid('vcpb');if(b)b.textContent=pinfo(x)};
-window.vcRow=function(k,f,x){var r=AI.vc.conf.rows[k];if(!r)return;if(f==='n'){r.n=x;r.k=!!findI(x);var e=document.querySelectorAll('#vcr .vn')[k];if(e)e.classList.toggle('nw',!r.k)}else if(f==='u')r.u=x;else r[f]=+x||0;var a=gid('vca'+k);if(a)a.textContent=money((+r.q||0)*(+r.r||0));var t=gid('vcT');if(t)t.textContent=money(ctot(AI.vc.conf))};
+window.vcRow=function(k,f,x){var r=AI.vc.conf.rows[k];if(!r)return;if(f==='n'){r.n=x;r.k=!!findI(x);var e=document.querySelectorAll('#vcr .vn')[k];if(e)e.classList.toggle('nw',!r.k);var it0=findI(x);if(it0){var rw=document.querySelectorAll('#vcr .vr')[k];if(!(+r.r>0)){r.r=AI.vc.conf.a==='purchase'?(+it0.buy||+it0.rate||0):(+it0.rate||0);var ri=rw&&rw.querySelector('.vrt');if(ri)ri.value=r.r||''}if((!r.u||r.u==='pcs')&&it0.unit){r.u=it0.unit;var ui=rw&&rw.querySelector('.vu');if(ui)ui.value=r.u}}}else if(f==='u')r.u=x;else r[f]=+x||0;var a=gid('vca'+k);if(a)a.textContent=money((+r.q||0)*(+r.r||0));var t=gid('vcT');if(t)t.textContent=money(ctot(AI.vc.conf))};
 window.vcDel=function(k){AI.vc.conf.rows.splice(k,1);vcDraw()};
 window.vcAdd=function(){AI.vc.conf.rows.push({n:'',q:0,u:'pcs',r:0,k:1});vcDraw()};
 window.vcBack=function(){var v=AI.vc;v.txt=v.q;v.q='';v.conf=null;v.err='';vcDraw()};
@@ -4427,10 +4438,12 @@ window.vcGo=function(){var v=AI.vc;if(!v||!v.conf)return;var c=v.conf,nm=(c.p||'
  vcClose();
  if(c.a==='sale'){newSale();draft.name=nm;draft.phone=(p&&p.phone)||'';draft.lines=lines;if(c.paid>0)draft.paid=c.paid;render()}
  else{newDoc(DOCT[c.a]);ddraft.name=nm;ddraft.phone=(p&&p.phone)||'';ddraft.lines=lines.map(function(l){delete l.nowq;l.loc='';return l});if(c.paid>0)ddraft.paid=c.paid;render()}};
+window.sugPh=ph;
 function vcErr(){var e=gid('vce');if(e)e.textContent=AI.vc.err}
 function vcDraw(){var v=AI.vc,o=gid('aivc');if(!v){if(o)o.remove();return}
  if(!o){o=document.createElement('div');o.id='aivc';o.onclick=function(e){if(e.target===o)vcClose()};document.body.appendChild(o)}
  o.innerHTML='<div class="aibox aivbox"><div class="aih"><b>'+(v.conf?TT[v.conf.a][0]:'Voice assistant · वॉइस असिस्टेंट')+(!v.conf&&!isM()?' <small class="aikbd">Alt+V</small>':'')+'</b><span onclick="vcClose()">&times;</span></div>'+(v.conf?confHtml(v):capHtml(v))+'</div>';
+ try{if(v.conf){sgList('ilx',D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join(''),D.items.length+'|'+D.items.reduce(function(n,i){return n+String(i.name).length},0));sugUp()}}catch(e){}
  if(!v.conf){var t=gid('vct');if(t&&!isM())t.focus()}}
 /* floating mic (mobile) and Voice button in the top bar (desktop) */
 function fabSync(){var f=gid('aifab');if(!f){f=document.createElement('button');f.id='aifab';f.className='aifab';f.setAttribute('aria-label','Voice');f.innerHTML=MIC;f.onclick=function(){vcOpen(true)};document.body.appendChild(f)}
