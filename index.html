@@ -3884,7 +3884,7 @@ try{buildNav()}catch(e){}
 /* ================= ASK AI: free AI services (Google Gemini or Groq), your own free key, stored only on this device ================= */
 (function(){
 var DYs=864e5,AI={msgs:[],busy:0,scan:null,setup:false};window.AI=AI;
-var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80},fb:['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-lite-latest','gemini-2.0-flash']},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15},fb:['openai/gpt-oss-20b','llama-3.3-70b-versatile']}};
+var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80},fb:['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-lite-latest','gemini-2.0-flash']},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15},fb:['openai/gpt-oss-20b','llama-3.3-70b-versatile']},own:{n:'Own helper (no AI, works even when AI is down)',m:'',u:'no key needed',lim:{p:40,i:60,b:15},fb:[]}};
 var MEM={};
 function cfg(){try{var s=localStorage.getItem('ash_ai');if(s)return JSON.parse(s)}catch(e){}return MEM.c||{}}
 function setCfg(o){MEM.c=o;try{localStorage.setItem('ash_ai',JSON.stringify(o));return !!localStorage.getItem('ash_ai')}catch(e){return false}}
@@ -3893,7 +3893,7 @@ function setVp(o){MEM.vp=o;try{localStorage.setItem('ash_vp',JSON.stringify(o))}
 function cleanKey(s){return String(s||'').replace(/^\s*(key|api[_ -]?key)\s*[:=]\s*/i,'').replace(/[^\x21-\x7E]/g,'').replace(/^["'`]+|["'`]+$/g,'')}
 function mask(k){k=String(k||'');return k.length>9?k.slice(0,4)+'...'+k.slice(-4):'****'}
 function gid(i){return document.getElementById(i)}
-function ready(){var c=cfg();return !!(c.k&&c.p&&PROV[c.p])}
+function ready(){var c=cfg();return c.p==='own'||!!(c.k&&c.p&&PROV[c.p])}
 function kOf(b){var s=0;b.lines.forEach(function(l){s+=+l.amt||0});var k=s>0?(+b.total||0)/s:1;return k>0&&k<1.5?k:1}
 function ik(l){return (l.iid&&I(l.iid))||findI(l.name)}
 function r0(n){return Math.round(+n||0)}
@@ -3930,7 +3930,7 @@ function once(c,m,parts,sys,json,ms){var ctl=new AbortController(),to=setTimeout
   if(c.p==='gemini'){var cd=j.candidates&&j.candidates[0];var tx=cd&&cd.content&&cd.content.parts?cd.content.parts.map(function(x){return x.text||''}).join(''):'';if(!tx)throw E('The AI gave no answer. Try asking in a different way.','other');return tx}
   var g=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(!g)throw E('The AI gave no answer. Try again.','other');return g})}).catch(function(e){clearTimeout(to);if(e&&e.kind)throw e;var ab=e&&e.name==='AbortError';throw E(ab?'The AI took too long. Try again.':'No internet or the AI service is not reachable.',ab?'timeout':'net')})}
 /* tries your chosen model first, then other free models automatically when one is busy */
-function call(parts,sys,json,opt){opt=opt||{};var c=cfg();if(!ready())return Promise.reject(E('Add your free AI key first (Setup).','auth',1));
+function call(parts,sys,json,opt){opt=opt||{};var c=cfg();if(c.p==='own')return Promise.reject(E('Own helper cannot answer questions or read photos. It only makes bills and payments. To ask questions, choose Google Gemini or Groq in Setup.','own',1));if(!ready())return Promise.reject(E('Add your free AI key first (Setup).','auth',1));
  var seen={},list=[],i=0,first=null,tmo=0;[MEM.gp===c.p?MEM.good:'',c.m||PROV[c.p].m].concat(PROV[c.p].fb).forEach(function(m){if(m&&!seen[m]){seen[m]=1;list.push(m)}});
  function next(){if(i>=list.length){AI.hint='';return Promise.reject(first)}var m=list[i++];AI.hint=i>1?'That model is busy, trying another...':'';if(i>1)aiDraw();
   return once(c,m,parts,sys,json,opt.t||22000).then(function(t){AI.hint='';MEM.good=m;MEM.gp=c.p;AI.used=m;return t},function(e){if(e.fatal||e.kind==='net'){AI.hint='';throw e}if(e.kind==='timeout'&&++tmo>=2){AI.hint='';throw e}if(!first||first.kind==='nomodel'||first.kind==='other')first=e;return next()})}
@@ -3962,6 +3962,7 @@ function qCands(list,spoken,top){var s=nz(spoken);if(!s)return [];var tk=qWords(
   if(s.length>=3&&n.indexOf(s)>=0)sc=Math.max(sc,.85);
   if(tk.length&&m===tk.length)sc=Math.max(sc,.8);
   else if(m>0)sc=Math.max(sc,.6+.2*m/tk.length);
+  if(tk.length&&w[0]&&(w[0].indexOf(tk[0])===0||sim(w[0],tk[0])>=.75))sc+=.02;
   return {o:o,s:sc,m:m}}).filter(function(x){return x.s>=.6});
  if(top&&res.length>1&&tk.length>1){function hit(o,t){return qWords(o.name).some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||sim(x,t)>=.75})}
   var rt=null,rc=1e9;tk.forEach(function(t){var c=res.filter(function(x){return hit(x.o,t)}).length;if(c>0&&c<rc){rc=c;rt=t}});
@@ -3983,6 +3984,7 @@ function askQ(o){return new Promise(function(ok,no){
  gid('aiqx').onclick=function(){done(null,1)};
  function say(m){if(sts)sts.textContent=m||''}
  function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer.');if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0.');return done({n:n})}done({t:v})}
+ if(inp&&o.inp==='text')inp.addEventListener('input',function(){var ws=inp.value.trim().toLowerCase().split(/\s+/).filter(Boolean);d.querySelectorAll('.aiqo').forEach(function(b){var x=opts[+b.getAttribute('data-i')],l=String(x.l).toLowerCase();b.style.display=(!ws.length||(x.v&&x.v.nw)||ws.every(function(w){return l.indexOf(w)>=0}))?'':'none'})});
  if(inp){gid('aiqok').onclick=submit;inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();submit()}};if(!isM())inp.focus();
   var mb=gid('aiqm');mb.onclick=function(){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')return;V.tgt='q';say('');
    vStart({onPartial:function(t){inp.value=t},onState:function(s){mb.classList.toggle('on',s==='listen')},onErr:function(m){mb.classList.remove('on');say(m)},
@@ -4002,12 +4004,13 @@ async function clarify(j,force){
  if(sp||!force){
   var ex=sp?findP(sp):null,cs=sp?qCands(D.parties,sp):[];
   if(ex)cs=[ex].concat(cs.filter(function(p){return p!==ex}));
+  var lp=sp?lrnGet('p',sp):'';if(lp){var li=-1;cs.forEach(function(p,ix){if(p.name===lp)li=ix});if(li>0)cs.unshift(cs.splice(li,1)[0])}
   if(ex&&(cs.length===1||qWords(sp).length>=2))j.party=ex.name;
   else{
-   var po=cs.slice(0,40).map(function(p){return {l:p.name,s:[p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
-   if(sp)po.push({l:'New '+tt+': '+sp,s:'Not in my list. Create as new.',v:{n:sp}});
+   var po=cs.slice(0,150).map(function(p){return {l:p.name,s:[p.name===lp?'You chose this last time':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
+   if(sp)po.push({l:'New '+tt+': '+sp,s:'Not in my list. Create as new.',v:{n:sp,nw:1}});
    var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"':'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',sub:cs.length?'Tap the right one, or type the name.':'Type or speak the name.',opts:po,inp:'text',ph:'Type name',dl:D.parties.map(function(p){return p.name})});
-   if(r.o)j.party=r.o.n;else{var f=findP(r.t);j.party=f?f.name:r.t}
+   if(r.o){j.party=r.o.n;if(sp)lrnSet('p',sp,r.o.n)}else{var f=findP(r.t);j.party=f?f.name:r.t}
   }
  }
  /* 2) WHAT, HOW MANY, PRICE */
@@ -4019,15 +4022,17 @@ async function clarify(j,force){
    if(force&&!nm&&!(+x.qty>0))continue;
    var e2=nm?findI(nm):null,c2=nm?qCands(D.items,nm,1):[],it=null;
    if(e2)c2=[e2].concat(c2.filter(function(p){return p!==e2}));
+   var li2=nm?lrnGet('i',nm):'';if(li2){var lx=-1;c2.forEach(function(p,ix){if(p.name===li2)lx=ix});if(lx>0)c2.unshift(c2.splice(lx,1)[0])}
    if(nm&&e2&&(c2.length===1||qWords(nm).length>=2))it=e2;
    else{
-    var io=c2.slice(0,25).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
+    var io=c2.slice(0,60).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'You chose this last time':'',p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
     if(nm)io.push({l:'New item: '+nm,s:'Not in my stock list. Create as new item.',v:{n:nm,nw:1}});
     var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"':'I could not find "'+nm+'" in your items'):'Which item?',sub:c2.length?'Tap the right one, or type the name.':'Type or speak the item name.',opts:io,inp:'text',ph:'Type item name',dl:D.items.map(function(p){return p.name})});
-    if(r2.o)x.name=r2.o.n;else x.name=r2.t;
+    if(r2.o){x.name=r2.o.n;if(nm)lrnSet('i',nm,r2.o.n)}else x.name=r2.t;
     it=findI(x.name)||null;
    }
    if(it)x.name=it.name;
+   if(!it&&!x.unit&&x.uh)x.unit=String(x.uh).replace(/^(bag|box|ton|meter|roll|packet|bundle|carton)s$/,'$1').replace(/^(pc|pcs|nos|nang|pieces?)$/,'pcs');
    var un=String(x.unit||'').trim()||(it&&it.unit)||'';
    if(!(+x.qty>0)){var rq=await askQ({t:'How many'+(un?' '+un:'')+' of '+x.name+'?',sub:'You did not tell the quantity.',inp:'number',ph:'Quantity'});x.qty=rq.n}
    if(!(+x.rate>0)){var sv=it?(pur?(+it.buy||+it.rate||0):(+it.rate||0)):0;
@@ -4038,13 +4043,99 @@ async function clarify(j,force){
   var ra=await askQ({t:'How much money?',sub:'You did not tell the amount.',inp:'number',ph:'Amount in Rs'});j.amount=ra.n
  }
  return j}
-function parseCmd(q,force){var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');
- return call([{role:'user',parts:[{text:q}]}],PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
-function cmdLine(c){var t=TT[c.a];return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'}
+/* ================= OWN HELPER: reads simple spoken commands without any AI ================= */
+function wset(s){var o={};s.split(' ').forEach(function(w){if(w)o[w]=1});return o}
+var W_EST=wset('estimate estimates quotation quotations quote kotation कोटेशन एस्टिमेट'),
+ W_SO=wset('order orders ऑर्डर आर्डर'),
+ W_CH=wset('challan chalan chalaan चालान'),
+ W_PUR=wset('purchase purchases kharid kharidi kharedi bought buy खरीद खरीदी खरेदी'),
+ W_SALE=wset('bill bills bil invoice sale sold sell becha bech bikri बिल इनवॉइस सेल बेचा बिक्री विक्री'),
+ W_IN=wset('received receive recieved mile mila mili milay jama jamaa aaye aaya मिले मिला मिली जमा आए आया मिळाले मिळाला'),
+ W_OUT=wset('paid pay diye diya dia bheje bheja दिए दिये दिया भेजे भेजा दिले दिला'),
+ W_PAY=wset('payment payments पेमेंट'),
+ W_RATE=wset('rate bhav bhaav price kimat kimmat भाव किंमत कीमत दर रेट'),
+ W_RSUF=wset('me mein में मध्ये each per'),
+ W_UNIT=wset('bag bags bori boris बोरी गोणी piece pieces pcs pc nos nang नग box boxes peti पेटी ft feet kg kgs ton tons meter meters mtr sqft bundle bundles roll rolls packet packets carton cartons'),
+ W_SEP=wset('and aur और आणि ani plus + &'),
+ W_FILL=wset('ko ka ki ke se ne of for to from the a an in out please make create add new entry de do dena dedo kar karo kardo bana banao banado banaiye banvao likho likh lagao rupees rupaye rupaya rs inr rupee रुपये रुपए रुपया रु के को का की से ने साठी ला चे चा ची बनाओ बनाइए बना बनवा करा liye लिए'),
+ NW={ek:1,one:1,एक:1,do:2,two:2,दो:2,दोन:2,teen:3,three:3,तीन:3,char:4,chaar:4,four:4,चार:4,paanch:5,panch:5,five:5,पांच:5,पाँच:5,पाच:5,chhe:6,chha:6,six:6,छह:6,सहा:6,saat:7,seven:7,सात:7,aath:8,eight:8,आठ:8,nau:9,nine:9,नौ:9,नऊ:9,das:10,ten:10,दस:10,दहा:10,gyarah:11,barah:12,terah:13,chaudah:14,pandrah:15,solah:16,satrah:17,atharah:18,unnis:19,bees:20,vees:20,twenty:20,बीस:20,वीस:20,tees:30,thirty:30,तीस:30,chalis:40,forty:40,चालीस:40,pachas:50,fifty:50,पचास:50,पन्नास:50,saath:60,sixty:60,साठ:60,sattar:70,seventy:70,सत्तर:70,assi:80,eighty:80,अस्सी:80,nabbe:90,ninety:90,नब्बे:90},
+ NM={sau:100,hundred:100,सौ:100,शंभर:100,hazaar:1000,hazar:1000,thousand:1000,हजार:1000,'हज़ार':1000,lakh:100000,lac:100000,लाख:100000},
+ AMB={do:1,ek:1,one:1,दो:1,एक:1};
+function owSp(w){return !!(W_EST[w]||W_SO[w]||W_CH[w]||W_PUR[w]||W_SALE[w]||W_IN[w]||W_OUT[w]||W_PAY[w]||W_RATE[w]||W_RSUF[w]||W_UNIT[w]||W_SEP[w]||W_FILL[w]||w==='@'||w==='at')}
+function owTok(q){var t=String(q||'').toLowerCase().replace(/[\u0966-\u096f]/g,function(c){return String(c.charCodeAt(0)-0x966)}).replace(/₹/g,' rs ').replace(/(\d),(?=\d)/g,'$1').replace(/[,;]+/g,' and ').replace(/@/g,' @ ').replace(/(\d)([a-z\u0900-\u097f])/g,'$1 $2').replace(/([a-z\u0900-\u097f])(\d)/g,'$1 $2');
+ var raw=t.match(/\d+(?:\.\d+)?|[a-z]+|[\u0900-\u097f]+|@|\+|&/g)||[],i=0,out=[];
+ while(i<raw.length){var w=raw[i],nx=raw[i+1];
+  if(/^\d/.test(w)){var v=parseFloat(w),j=i+1;if(NM[nx]){v*=NM[nx];j++}else if(nx==='k'){v*=1000;j++}out.push({n:v});i=j;continue}
+  if(NW[w]!==undefined&&(!AMB[w]||NM[nx]||W_UNIT[nx])){var cur=0,tot=0,j2=i,ok=1;
+   while(j2<raw.length&&ok){var x=raw[j2],xn=raw[j2+1];
+    if(NW[x]!==undefined&&(!AMB[x]||NM[xn]||W_UNIT[xn])){cur+=NW[x];j2++}
+    else if(NM[x]){if(NM[x]===100)cur=(cur||1)*100;else{tot+=(cur||1)*NM[x];cur=0}j2++}
+    else ok=0}
+   out.push({n:tot+cur});i=j2;continue}
+  out.push({w:w});i++}
+ return out}
+function owAct(T,force){if(force)return force;
+ function has(S){return T.some(function(x){return x.w&&S[x.w]})}
+ function hw(w){return T.some(function(x){return x.w===w})}
+ if(has(W_EST))return 'estimate';if(has(W_CH))return 'challan';if(has(W_SO))return 'sale_order';if(has(W_PUR))return 'purchase';if(has(W_SALE))return 'sale';
+ if(has(W_PAY)||has(W_IN)||has(W_OUT)){
+  if(hw('out')&&!has(W_IN))return 'payment_out';
+  if(has(W_OUT)&&!has(W_IN)&&!hw('ne')&&!hw('ने'))return 'payment_out';
+  return 'payment_in'}
+ for(var i=0;i<T.length-1;i++)if(T[i].n!==undefined&&T[i+1].w&&W_UNIT[T[i+1].w])return 'sale';
+ return null}
+function pScore(ws){var s=ws.join(' '),b=0;D.parties.forEach(function(p){var v=sim(p.name,s);if(v>b)b=v});return b}
+function iScore(ws){var s=ws.join(' '),b=0;D.items.forEach(function(p){var v=sim(p.name,s);if(v>b)b=v});return b}
+var OWNHELP='I could not understand. Please say it like: "Raju Tidke, 10 bag UltraTech, rate 380, sale bill" or "Suresh 5000 rupees received".';
+function ownParse(q,force){var T=owTok(q);if(!T.length)return null;
+ var a=owAct(T,force);if(!a)return null;
+ var pay=a==='payment_in'||a==='payment_out',paid=0,i,k;
+ function free(k){var c=T[k];if(!c||c.n===undefined||c.x)return false;var pv=T[k-1],nx2=T[k+1];if(pv&&pv.w&&(W_RATE[pv.w]||pv.w==='@'||pv.w==='at'))return false;if(nx2&&nx2.w&&(W_UNIT[nx2.w]||W_RSUF[nx2.w]))return false;return true}
+ if(!pay){for(i=0;i<T.length;i++){var t=T[i];if(t.w&&(W_IN[t.w]||W_OUT[t.w])){k=i-1;while(k>=0&&T[k].w&&W_FILL[T[k].w])k--;
+   if(k>=0&&free(k)){paid=T[k].n;T[k].x=1}else{k=i+1;while(k<T.length&&T[k].w&&W_FILL[T[k].w])k++;if(k<T.length&&free(k)){paid=T[k].n;T[k].x=1}}t.x=1}}}
+ /* runs of plain words = names */
+ var runs=[],r=null;for(i=0;i<T.length;i++){var u=T[i];if(!u.x&&u.w&&!owSp(u.w)){if(!r){r={a:i,b:i};runs.push(r)}r.b=i}else r=null}
+ function wd(rn){var o=[];for(var z=rn.a;z<=rn.b;z++)o.push(T[z].w);return o}
+ if(runs.length===1&&!pay&&runs[0].b>runs[0].a){var r1=runs[0],bs=0,sp=-1,pre=0;
+  for(k=r1.a+1;k<=r1.b;k++){var pf=wd({a:r1.a,b:k-1}),sf=wd({a:k,b:r1.b}),s1=pScore(sf),s2=pScore(pf);if(s1>=.9&&s1>bs){bs=s1;sp=k;pre=0}if(s2>=.9&&s2>bs){bs=s2;sp=k;pre=1}}
+  if(sp>0)runs=[{a:r1.a,b:sp-1},{a:sp,b:r1.b}]}
+ var party=null,firstNum=-1;for(i=0;i<T.length;i++)if(T[i].n!==undefined&&!T[i].x){firstNum=i;break}
+ if(runs.length){var bd=-9,bi=-1;runs.forEach(function(rn,ix){var w=wd(rn),ps=pScore(w),is=iScore(w);if(ps>=.6&&ps-is>bd){bd=ps-is;bi=ix}});
+  if(bi<0){if(pay)bi=0;else if(runs.length>=2){var f0=iScore(wd(runs[0])),fl2=iScore(wd(runs[runs.length-1]));bi=f0<=fl2?0:runs.length-1}
+   else{var w1=wd(runs[0]);if(iScore(w1)<.6&&runs[0].a<(firstNum<0?99:firstNum))bi=0}}
+  if(bi>=0){party=runs[bi];for(i=party.a;i<=party.b;i++)T[i].x=1}}
+ var pname=party?wd(party).join(' '):'';
+ if(pay){var am=0;for(i=0;i<T.length;i++)if(T[i].n!==undefined&&!T[i].x){am=T[i].n;break}
+  if(!pname&&!am)return null;return {action:a,party:pname,items:[],paid:0,amount:am,note:''}}
+ var items=[],cur={name:[],qty:0,unit:'',rate:0};
+ function fl(){if(cur.name.length||cur.qty)items.push({name:cur.name.join(' '),qty:cur.qty,unit:'',uh:cur.unit,rate:cur.rate});cur={name:[],qty:0,unit:'',rate:0}}
+ var L=T.filter(function(x){return !x.x});
+ for(i=0;i<L.length;i++){var c=L[i],nx=L[i+1];
+  if(c.w==='@'||c.w==='at'||(c.w&&W_RATE[c.w])){if(nx&&nx.n!==undefined){cur.rate=nx.n;i++}continue}
+  if(c.n!==undefined){
+   if(nx&&nx.w&&W_RSUF[nx.w]){cur.rate=c.n;i++;continue}
+   if(nx&&nx.w&&W_UNIT[nx.w]){if(cur.qty>0)fl();cur.qty=c.n;cur.unit=nx.w;i++;continue}
+   if(cur.qty===0){cur.qty=c.n;continue}
+   if(nx&&nx.w&&!owSp(nx.w)&&cur.name.length){fl();cur.qty=c.n;continue}
+   if(!cur.rate)cur.rate=c.n;continue}
+  if(W_UNIT[c.w]){if(!cur.unit)cur.unit=c.w;continue}
+  if(W_SEP[c.w]){fl();continue}
+  if(owSp(c.w))continue;
+  cur.name.push(c.w)}
+ fl();
+ if(!pname&&!items.length)return null;
+ return {action:a,party:pname,items:items,paid:paid,amount:0,note:''}}
+/* remembers which name you picked for what you said (only used to show that name first) */
+function lrnGet(kind,sp){try{var m=JSON.parse(localStorage.getItem('ash_lrn')||'{}'),o=m[kind+':'+nz(sp)]||{},b='',c=0;Object.keys(o).forEach(function(n){if(o[n]>c){c=o[n];b=n}});return b}catch(e){return ''}}
+function lrnSet(kind,sp,name){if(!nz(sp)||!name||nz(sp)===nz(name))return;try{var m=JSON.parse(localStorage.getItem('ash_lrn')||'{}'),k=kind+':'+nz(sp);m[k]=m[k]||{};m[k][name]=(m[k][name]||0)+1;localStorage.setItem('ash_lrn',JSON.stringify(m))}catch(e){}}
+function viaOwn(q,force){var j=null;try{j=ownParse(q,force)}catch(e){}return j?clarify(j,force).then(function(j2){return mkConf(j2,force)}):null}
+function parseCmd(q,force){AI.ownUsed=0;if(cfg().p==='own')return Promise.resolve().then(function(){return viaOwn(q,force)});var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');
+ return call([{role:'user',parts:[{text:q}]}],PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
+function cmdLine(c){var t=TT[c.a];return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'+(AI.ownUsed?' AI was not available, so the own helper listened.':'')}
 /* ---- ask: a command opens the confirm sheet, a question gets an answer ---- */
 SYS+='If the user asks you to create or enter a bill, estimate or payment, never say you cannot. Tell them to speak or type it like "Ramesh 10 bag cement sale bill" or "Suresh 5000 rupees received" and the app will open the form for them.\n\n';
-function run(q){AI.msgs.push({r:'user',t:q});AI.busy=1;aiDraw();var c=cfg(),pre=isCmd(q)?parseCmd(q).then(function(x){return x},function(e){return {fail:e}}):Promise.resolve(null);
- return pre.then(function(conf){if(conf&&conf.fail)throw conf.fail;if(conf)return {k:'cmd',conf:conf};
+function run(q){AI.msgs.push({r:'user',t:q});AI.busy=1;aiDraw();var c=cfg(),pre=(isCmd(q)||c.p==='own')?parseCmd(q).then(function(x){return x},function(e){return {fail:e}}):Promise.resolve(null);
+ return pre.then(function(conf){if(conf&&conf.fail)throw conf.fail;if(conf)return {k:'cmd',conf:conf};if(c.p==='own')return {k:'answer',t:OWNHELP};
   var hist=AI.msgs.filter(function(m){return !m.e}).slice(-8).map(function(m){return {role:m.r==='user'?'user':'assistant',parts:[{text:m.t}]}}),sys=SYS+'SHOP DATA:\n'+pack(PROV[c.p].lim);
   return call(hist,sys,false).then(function(t){return {k:'answer',t:t}})}).then(function(r){AI.msgs.push({r:'ai',t:r.k==='cmd'?cmdLine(r.conf):r.t});return r},function(e){AI.msgs.push({r:'ai',t:e.message,e:1});return {k:'err',t:e.message}}).then(function(r){AI.busy=0;aiDraw();return r})}
 function vsay(){return vp().say!==0}
@@ -4054,12 +4145,14 @@ window.aiDraw=function(){var l=gid('aiLog');if(!l)return;l.innerHTML=AI.msgs.len
 window.aiAsk=function(q){var inp=gid('aiQ');q=(q||(inp&&inp.value)||'').trim();if(!q||AI.busy)return;if(!ready()){AI.setup=true;AI.msg={t:'First add your free AI key below.',c:'red'};return render()}
  AI.msg=null;if(inp)inp.value='';run(q).then(function(r){if(r.k==='cmd'){vcConfirm(r.conf,q);if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'&&vsay())speak(r.t)})};
 window.aiSave=function(test){var p=gid('aip').value,k=cleanKey(gid('aik').value),m=gid('aim').value.trim(),o=cfg();
- if(!k&&!o.k){AI.msg={t:'Paste your free key first.',c:'red'};return render()}
- var nk=k||o.k,stored=setCfg({p:p,k:nk,m:m||PROV[p].m}),warn=(stored?'':' Your browser blocks saving, so the key is kept only until this page is closed.')+((p==='gemini'&&!/^(AIza|AQ\.)/.test(nk))?' Note: Gemini keys usually start with "AIza" or "AQ.". Check that you copied the whole key.':'');MEM.good='';
+ if(p==='own'){var pk=o.p==='own'?o.pp:o.p;setCfg({p:'own',k:o.k||'',m:o.m||'',pp:pk||''});MEM.good='';AI.setup=false;AI.msg={t:'Own helper is ON. No AI key is needed. It makes bills and payments only.',c:'grn'};return render()}
+ var okey=(o.p==='own'&&o.pp&&o.pp!==p)?'':o.k;
+ if(!k&&!okey){AI.msg={t:'Paste your free key first.',c:'red'};return render()}
+ var nk=k||okey,stored=setCfg({p:p,k:nk,m:m||PROV[p].m}),warn=(stored?'':' Your browser blocks saving, so the key is kept only until this page is closed.')+((p==='gemini'&&!/^(AIza|AQ\.)/.test(nk))?' Note: Gemini keys usually start with "AIza" or "AQ.". Check that you copied the whole key.':'');MEM.good='';
  if(!test){AI.setup=false;AI.msg={t:'Key saved.'+warn,c:'grn'};return render()}
  AI.msg={t:'Key saved. Testing the connection...',c:'mu'};render();
  call([{role:'user',parts:[{text:'Reply with the single word OK'}]}],'',false,{t:20000}).then(function(){AI.setup=false;AI.msg={t:'Connected. AI is ready ('+(AI.used||'')+').'+warn,c:'grn'};render()},function(e){var soft=/busy|limit|timeout/.test(e.kind);if(soft)AI.setup=false;AI.msg={t:(soft?'Key saved. '+e.message+' This is not a problem with your key. Ask again shortly, other free models are tried automatically.':e.message)+warn,c:soft?'amb':'red'};render()})};
-window.aiProv=function(v){var m=gid('aim');if(m)m.value=PROV[v].m;var u=gid('aiu');if(u)u.textContent=PROV[v].u};
+window.aiProv=function(v){var m=gid('aim');if(m)m.value=PROV[v].m;var kw=gid('aikw');if(kw)kw.style.display=v==='own'?'none':'';var u=gid('aiu');if(u)u.textContent=PROV[v].u};
 window.aiForget=function(){if(!confirm('Remove the AI key from this device?'))return;setCfg({});AI.setup=true;AI.msg=null;render()};
 window.aiShowKey=function(on){var e=gid('aik');if(e)e.type=on?'text':'password'};
 function engUI(){if(!(SR&&cfg().p==='gemini'&&ready()))return '';var e=vp().eng==='sr'?'sr':'gm';return '<span class="mu" style="margin-left:8px">Listen with</span><button type="button" class="aichip eng'+(e==='gm'?' on':'')+'" data-e="gm" onclick="vcEng(\'gm\')">Gemini</button><button type="button" class="aichip eng'+(e==='sr'?' on':'')+'" data-e="sr" onclick="vcEng(\'sr\')">Browser</button>'}
@@ -4071,14 +4164,14 @@ var VEX=['Ramesh ko 10 bag cement ka bill banao','Suresh se 5000 rupaye mile','W
 window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='',mg=AI.msg;
  var ex=['How much did my top customer buy this year?','Which items earned me the most profit this year?','Who owes me the most money?','Compare this month sales with last month'];
  var msgH=mg&&mg.t?'<div class="'+(mg.c||'mu')+'" style="margin-top:8px;line-height:1.4">'+esc(mg.t)+'</div>':'';
- h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>AI is ready</b><br><span class="mu">'+esc(PROV[c.p].n.split(' (')[0])+' &middot; '+esc(c.m||PROV[c.p].m)+' &middot; key '+esc(mask(c.k))+'</span></span><button class="s" onclick="AI.setup=true;AI.msg=null;render()">Setup</button></div>':
+ h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>'+(c.p==='own'?'Own helper is ready':'AI is ready')+'</b><br><span class="mu">'+(c.p==='own'?'Makes bills and payments only. No AI key needed.':esc(PROV[c.p].n.split(' (')[0])+' &middot; '+esc(c.m||PROV[c.p].m)+' &middot; key '+esc(mask(c.k)))+'</span></span><button class="s" onclick="AI.setup=true;AI.msg=null;render()">Setup</button></div>':
   '<b>Setup (one time, free)</b><div class="mu" style="margin:4px 0 8px">Get a free key (no card needed) and paste it here. The key stays only on this phone/computer. It is not saved in your shop data and not uploaded anywhere else.</div>'
   +'<label class="mu">AI service</label><select id="aip" onchange="aiProv(this.value)">'+Object.keys(PROV).map(function(k){return '<option value="'+k+'"'+((c.p||'gemini')===k?' selected':'')+'>'+esc(PROV[k].n)+'</option>'}).join('')+'</select>'
   +'<div class="mu" style="margin:2px 0 6px">Free key from: <b id="aiu">'+PROV[c.p||'gemini'].u+'</b></div>'
-  +'<label class="mu">Key</label><input id="aik" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(c.k?'Saved on this device ('+esc(mask(c.k))+'). Paste to replace':'Paste key here')+'"><label class="mu" style="display:flex;gap:6px;align-items:center;margin:0 0 6px"><input type="checkbox" style="width:auto;margin:0" onchange="aiShowKey(this.checked)"> Show key</label>'
-  +'<label class="mu">Model name</label><input id="aim" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(c.m||PROV[c.p||'gemini'].m)+'">'
+  +'<div id="aikw"'+(c.p==='own'?' style="display:none"':'')+'><label class="mu">Key</label><input id="aik" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(c.k?'Saved on this device ('+esc(mask(c.k))+'). Paste to replace':'Paste key here')+'"><label class="mu" style="display:flex;gap:6px;align-items:center;margin:0 0 6px"><input type="checkbox" style="width:auto;margin:0" onchange="aiShowKey(this.checked)"> Show key</label>'
+  +'<label class="mu">Model name</label><input id="aim" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(c.m||PROV[c.p||'gemini'].m)+'"></div>'
   +'<div class="mu" style="margin:4px 0 8px">If this model is busy, other free models are tried automatically. Your question and a summary of your shop data (item names, customer names, amounts, no phone numbers) are sent to the service you choose. Free services may use this data to improve their products, so read their terms. Voice: your browser turns speech into text (Chrome or Safari may send the sound to their own speech service). If that is not available, a short recording is sent to Gemini instead.</div>'
-  +'<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="b" onclick="aiSave(0)">Save key</button><button class="s" id="aitb" onclick="aiSave(1)">Save and test</button>'+(c.k?'<button class="s" onclick="AI.setup=false;AI.msg=null;render()">Cancel</button><button class="s" onclick="aiForget()">Remove key</button>':'')+'</div>')+msgH+'</div>';
+  +'<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="b" onclick="aiSave(0)">Save</button><button class="s" id="aitb" onclick="aiSave(1)">Save and test</button>'+(c.k?'<button class="s" onclick="AI.setup=false;AI.msg=null;render()">Cancel</button><button class="s" onclick="aiForget()">Remove key</button>':'')+'</div>')+msgH+'</div>';
  var on=V.st==='listen'&&V.tgt==='page';
  h+='<div class="'+cl+'"><b>Ask your shop</b><div id="aiLog" class="ailog"></div><div class="aiex">'+ex.map(function(q){return '<button onclick="aiAsk(this.textContent)">'+esc(q)+'</button>'}).join('')+'</div>'
   +'<div class="aiin"><textarea id="aiQ" rows="2" placeholder="'+(m?'Type or tap the mic and speak':'Type your question or command, or press the mic (Alt+V opens Voice anywhere)')+'" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();aiAsk()}"></textarea><button class="aimic'+(on?' on':'')+'" id="aimic" onclick="aiMic()" aria-label="Speak">'+MIC+'</button><button class="b" onclick="aiAsk()">Ask</button></div>'
