@@ -3950,7 +3950,7 @@ function call(parts,sys,json,opt){opt=opt||{};var c=cfg();if(c.p==='own')return 
  return next()}
 function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')}
 var MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0};
+var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0,chain:false};
 var CMD=/\b(bill|invoice|estimate|quotation|quote|challan|order|payment|received|receive|paid|jama|banao|bana|banaiye|banado|likho|create|make|add|entry|mile|mila|mili|diye|diya|liye|liya|bheje|bheja|udhar|credit|debit)\b|बिल|बना|बनवा|लिखो|जमा|मिले|मिला|दिए|दिये|पेमेंट|कोटेशन|ऑर्डर|तयार|करा/i;
 var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "sale_return" (customer returns goods), "purchase_return" (goods returned to supplier), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY one valid JSON object. No explanation, no markdown, no Hindi sentence outside JSON, and no code fences. Use exactly this schema: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}. Missing values must be empty string, 0, or an empty array; NEVER invent values.\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names ONLY exactly as spoken by the owner. CRITICAL: NEVER complete, expand, guess, or select a longer party/item name from the shop database. If the owner says "Raju", output party="Raju" even if saved names include "Raju Tidke" or "Raju Traders". If the owner says "cement", output item name="cement" even if saved items include several cement products. The APP, not Gemini, will match spoken words against the saved list and will ask the owner when there is more than one match. If the quantity or rate was not clearly said, use 0. Write names in Latin letters. IMPORTANT FOR NATURAL HINDI/HINGLISH: understand everyday shop speech, not only formal commands. Examples: \"Raju ka maal vapsi aaya hai\" means action=sale_return, party=Raju; \"Raju ke 5000 rupaye aaye hain\" means action=payment_in, party=Raju, amount=5000; \"Raju ko 2000 rupaye diye\" means action=payment_out, party=Raju, amount=2000. For a return, words like maal/samaan together with wapas/vapsi/return mean a return even if the sentence also contains aaya/aayi/aaye. Never classify a return as a payment merely because it says aaya. Ask through missing fields later; do not invent item or quantity.\n';
 var DVR=/[\u0900-\u097f]/,
@@ -4032,7 +4032,7 @@ function askQ(o){return new Promise(function(ok,no){
  d.innerHTML=h;document.body.appendChild(d);
  var inp=gid('aiqi'),sts=gid('aiqs'),cnt=gid('aiqc');
  if(vsay()){var hn=o.hi&&vlang()!=='en-IN',sp2=(hn?o.hi:o.t)+'. ';if(!many)opts.slice(0,5).forEach(function(x,i){var pr=String(x.l).split(' · ');sp2+=(i+1)+', '+(hn&&pr[1]?pr[1]:pr[0])+'. '});if(o.inp&&(!opts.length||many))sp2+=hn?(o.inp==='number'?'कृपया संख्या बोलिए।':'नाम बोलिए, लिखिए या सूची से चुनिए।'):(o.inp==='number'?'Please say the number.':'Say or type the name, or pick from the list.');speak(sp2)}
- function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened. · ठीक है, रद्द किया। कुछ नहीं खुला।'));else ok(v)}
+ function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad){V.chain=false;no(new Error('Okay, cancelled. Nothing was opened. · ठीक है, रद्द किया। कुछ नहीं खुला।'))}else ok(v)}
  d.querySelectorAll('.aiqo').forEach(function(b){b.onclick=function(){done({o:opts[+b.getAttribute('data-i')].v})}});
  gid('aiqx').onclick=function(){done(null,1)};
  function say(m,info){if(sts){sts.textContent=m||'';sts.className='mu vsm'+(info?'':' red')}}
@@ -4060,7 +4060,18 @@ function askQ(o){return new Promise(function(ok,no){
      if(opts.length&&opts.length<=8&&/^\s*(option|number|no\.?|नंबर)?\s*\d{1,2}\s*$/i.test(t)){var dg=+t.replace(/[^0-9]/g,'');if(dg>=1&&dg<=opts.length)return done({o:opts[dg-1].v})}
      var bi=-1,bs=0;opts.forEach(function(x,i){if(x.v&&x.v.nw)return;var s2=sim(x.l,t);if(s2>bs){bs=s2;bi=i}});if(bi>=0&&bs>=.85)return done({o:opts[bi].v});
      var tw=t.toLowerCase().split(/\s+/).filter(function(z){return z.length>1}),tm=opts.filter(function(x){if(x.v&&x.v.nw)return false;var l=String(x.l).toLowerCase();return tw.length&&tw.every(function(w){return l.indexOf(w)>=0})});if(tm.length===1)return done({o:tm[0].v});
-     inp.value=t;filt();say('I heard "'+t+'". Tap the right one in the list, or press OK. · मैंने सुना "'+t+'"। सूची से चुनें, या OK दबाएँ।',1)}})}}
+     inp.value=t;filt();say('I heard "'+t+'". Tap the right one in the list, or press OK. · मैंने सुना "'+t+'"। सूची से चुनें, या OK दबाएँ।',1)}})}
+  /* Hands-free transaction mode: after every spoken question, start listening again automatically. */
+  if(V.chain){
+   var autoTry=0;
+   (function autoListen(){
+     if(!V.chain||!document.body.contains(d)||V.st!=='idle')return;
+     var speaking=false;try{speaking=!!(window.speechSynthesis&&(speechSynthesis.speaking||speechSynthesis.pending))}catch(e){}
+     if(speaking&&autoTry++<32)return setTimeout(autoListen,250);
+     try{mb.click()}catch(e){}
+   })();
+  }
+ }})}
 })}
 async function clarify(j,force){
  var a=force||String(j&&j.action||'').toLowerCase().replace(/[^a-z_]/g,'');
@@ -4423,10 +4434,10 @@ window.vcSetup=function(){vcClose();AI.setup=true;nav('ai')};
 function vcConfirm(conf,q){if(!AI.vc)AI.vc={txt:'',q:'',ans:'',st:'idle',msg:'',conf:null,err:''};AI.vc.conf=conf;AI.vc.q=q;AI.vc.err='';vcDraw();fabSync()}
 function vcStatus(){var v=AI.vc;if(!v)return;var b=gid('aivmic'),s=gid('aivs');if(b)b.classList.toggle('on',v.st==='listen');if(s){s.className='aivs'+(v.msg?' red':'');s.textContent=v.msg||(v.st==='listen'?'Listening... सुन रहा हूँ. Tap the mic when done · बोलकर माइक दबाइए':v.st==='work'?(V.st==='work'?'Listening to the recording... · रिकॉर्डिंग सुन रहा हूँ':'Understanding... · समझ रहा हूँ'):'Tap the mic and speak · माइक दबाकर बोलिए')}}
 window.vcMic=function(){var v=AI.vc;if(!v||v.conf||v.st==='work')return;if(V.st==='listen'&&V.tgt==='dlg')return vStop();if(V.st!=='idle')return;v.msg='';V.tgt='dlg';
- vStart({onPartial:function(t){v.txt=t;var e=gid('vct');if(e)e.value=t},onState:function(s){if(AI.vc===v&&!v.conf){v.st=s;vcStatus()}},onErr:function(m){if(AI.vc===v){v.st='idle';v.msg=m;vcStatus()}},onEnd:function(t){if(AI.vc===v){v.txt=t;vcSend()}}})};
+ vStart({onPartial:function(t){v.txt=t;var e=gid('vct');if(e)e.value=t},onState:function(s){if(AI.vc===v&&!v.conf){v.st=s;vcStatus()}},onErr:function(m){if(AI.vc===v){v.st='idle';v.msg=m;vcStatus()}},onEnd:function(t){if(AI.vc===v){v.txt=t;V.chain=true;vcSend()}}})};
 window.vcSend=function(){var v=AI.vc;if(!v||v.st==='work'||v.conf)return;var e=gid('vct'),q=((e&&e.value)||v.txt||'').trim();if(!q)return;
  if(!ready())return vcSetup();v.q=q;v.txt='';v.ans='';v.msg='';v.st='work';vcDraw();
- run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd'){v.conf=r.conf;if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'){v.ans=r.t;if(vsay())speak(r.t)}else v.msg=r.t;vcDraw()})};
+ run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd'){V.chain=false;v.conf=r.conf;if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'){V.chain=false;v.ans=r.t;if(vsay())speak(r.t)}else {V.chain=false;v.msg=r.t}vcDraw()})};
 function capHtml(v){var h='';
  if(!ready())return '<div class="red" style="margin:8px 0">Add your free AI key first, then you can talk to the app.</div><div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSetup()">Open Setup</button></div>';
  h+='<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'</div>';
