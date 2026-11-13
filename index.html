@@ -3956,11 +3956,17 @@ var CMD2=/\b(sale|sold|purchase|bought|buy|sell|kharid\w*|bech\w*)\b/i;
 function isCmd(q){return CMD.test(q)||(CMD2.test(q)&&/[0-9\u0966-\u096f]/.test(q))}
 /* ---- ASK BACK: if anything is unclear, ask the owner before opening the form ---- */
 function qWords(s){return String(s||'').toLowerCase().split(/[^a-z0-9\u0900-\u097f]+/).filter(function(t){return t.length>1})}
-function qCands(list,spoken){var s=nz(spoken);if(!s)return [];var tk=qWords(spoken);
- return list.map(function(o){var n=nz(o.name),w=qWords(o.name),sc=sim(o.name,spoken);
+function qCands(list,spoken,top){var s=nz(spoken);if(!s)return [];var tk=qWords(spoken);
+ var res=list.map(function(o){var n=nz(o.name),w=qWords(o.name),sc=sim(o.name,spoken);
+  var m=tk.filter(function(t){return w.some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||sim(x,t)>=.75})}).length;
   if(s.length>=3&&n.indexOf(s)>=0)sc=Math.max(sc,.85);
-  if(tk.length&&tk.every(function(t){return w.some(function(x){return x.indexOf(t)===0||sim(x,t)>=.75})}))sc=Math.max(sc,.8);
-  return {o:o,s:sc}}).filter(function(x){return x.s>=.6}).sort(function(a,b){return b.s-a.s}).map(function(x){return x.o})}
+  if(tk.length&&m===tk.length)sc=Math.max(sc,.8);
+  else if(m>0)sc=Math.max(sc,.6+.2*m/tk.length);
+  return {o:o,s:sc,m:m}}).filter(function(x){return x.s>=.6});
+ if(top&&res.length>1&&tk.length>1){function hit(o,t){return qWords(o.name).some(function(x){return x.indexOf(t)===0||(t.length>=4&&x.indexOf(t)>=0)||sim(x,t)>=.75})}
+  var rt=null,rc=1e9;tk.forEach(function(t){var c=res.filter(function(x){return hit(x.o,t)}).length;if(c>0&&c<rc){rc=c;rt=t}});
+  if(rt)res=res.filter(function(x){return hit(x.o,rt)||x.s>=.85})}
+ return res.sort(function(a,b){return b.s-a.s||String(a.o.name).localeCompare(String(b.o.name))}).map(function(x){return x.o})}
 var stq=document.createElement('style');stq.textContent='#aiq{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}.aiqb{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-sizing:border-box}@media(min-width:700px){#aiq{align-items:center}.aiqb{border-radius:16px}}.aiqt{font-size:17px;font-weight:700;color:#1f2437;margin-bottom:4px}.aiqo{display:block;width:100%;text-align:left;background:#f4f6ff;border:1.5px solid #c9cde0;border-radius:10px;padding:10px 12px;margin:6px 0;font-size:15px;color:#1f2437}.aiqo small{display:block;color:#7b8194;font-size:12.5px;margin-top:2px}.aiqi{display:flex;gap:8px;align-items:center;margin-top:8px}.aiqi input{flex:1;min-width:0;font-size:16px;padding:10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0}';document.head.appendChild(stq);
 /* shows a question card. Resolves {o:value} if an option was tapped, {t:text} if text typed, {n:number} if a number typed */
 function askQ(o){return new Promise(function(ok,no){
@@ -3971,13 +3977,14 @@ function askQ(o){return new Promise(function(ok,no){
  h+='<button type="button" class="s" id="aiqx" style="width:100%;margin-top:10px">Cancel</button></div>';
  d.innerHTML=h;document.body.appendChild(d);
  var inp=gid('aiqi'),sts=gid('aiqs');
- function done(v,bad){if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened.'));else ok(v)}
+ if(vsay()){var sp2=o.t+'. ';opts.slice(0,5).forEach(function(x,i){sp2+=(i+1)+', '+x.l+'. '});if(o.inp&&!opts.length)sp2+=(o.inp==='number'?'Please say the number.':'Please say or type the name.');speak(sp2)}
+ function done(v,bad){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened.'));else ok(v)}
  d.querySelectorAll('.aiqo').forEach(function(b){b.onclick=function(){done({o:opts[+b.getAttribute('data-i')].v})}});
  gid('aiqx').onclick=function(){done(null,1)};
  function say(m){if(sts)sts.textContent=m||''}
  function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer.');if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0.');return done({n:n})}done({t:v})}
  if(inp){gid('aiqok').onclick=submit;inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();submit()}};if(!isM())inp.focus();
-  var mb=gid('aiqm');mb.onclick=function(){if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')return;V.tgt='q';say('');
+  var mb=gid('aiqm');mb.onclick=function(){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')return;V.tgt='q';say('');
    vStart({onPartial:function(t){inp.value=t},onState:function(s){mb.classList.toggle('on',s==='listen')},onErr:function(m){mb.classList.remove('on');say(m)},
     onEnd:function(t){mb.classList.remove('on');t=String(t||'').trim();
      if(o.inp==='number'){var m=t.replace(/,/g,'').match(/\d+(\.\d+)?/);inp.value=m?m[0]:t;if(m)return submit();return say('I heard "'+t+'". Please type the number.')}
@@ -3995,9 +4002,9 @@ async function clarify(j,force){
  if(sp||!force){
   var ex=sp?findP(sp):null,cs=sp?qCands(D.parties,sp):[];
   if(ex)cs=[ex].concat(cs.filter(function(p){return p!==ex}));
-  if(ex&&cs.length===1)j.party=ex.name;
+  if(ex&&(cs.length===1||qWords(sp).length>=2))j.party=ex.name;
   else{
-   var po=cs.slice(0,10).map(function(p){return {l:p.name,s:[p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
+   var po=cs.slice(0,40).map(function(p){return {l:p.name,s:[p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
    if(sp)po.push({l:'New '+tt+': '+sp,s:'Not in my list. Create as new.',v:{n:sp}});
    var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"':'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',sub:cs.length?'Tap the right one, or type the name.':'Type or speak the name.',opts:po,inp:'text',ph:'Type name',dl:D.parties.map(function(p){return p.name})});
    if(r.o)j.party=r.o.n;else{var f=findP(r.t);j.party=f?f.name:r.t}
@@ -4010,11 +4017,11 @@ async function clarify(j,force){
   for(var i=0;i<rows.length;i++){
    var x=rows[i]=rows[i]||{},nm=String(x.name||'').trim();
    if(force&&!nm&&!(+x.qty>0))continue;
-   var e2=nm?findI(nm):null,c2=nm?qCands(D.items,nm):[],it=null;
+   var e2=nm?findI(nm):null,c2=nm?qCands(D.items,nm,1):[],it=null;
    if(e2)c2=[e2].concat(c2.filter(function(p){return p!==e2}));
-   if(nm&&e2&&c2.length===1)it=e2;
+   if(nm&&e2&&(c2.length===1||qWords(nm).length>=2))it=e2;
    else{
-    var io=c2.slice(0,12).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
+    var io=c2.slice(0,25).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
     if(nm)io.push({l:'New item: '+nm,s:'Not in my stock list. Create as new item.',v:{n:nm,nw:1}});
     var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"':'I could not find "'+nm+'" in your items'):'Which item?',sub:c2.length?'Tap the right one, or type the name.':'Type or speak the item name.',opts:io,inp:'text',ph:'Type item name',dl:D.items.map(function(p){return p.name})});
     if(r2.o)x.name=r2.o.n;else x.name=r2.t;
@@ -4040,11 +4047,12 @@ function run(q){AI.msgs.push({r:'user',t:q});AI.busy=1;aiDraw();var c=cfg(),pre=
  return pre.then(function(conf){if(conf&&conf.fail)throw conf.fail;if(conf)return {k:'cmd',conf:conf};
   var hist=AI.msgs.filter(function(m){return !m.e}).slice(-8).map(function(m){return {role:m.r==='user'?'user':'assistant',parts:[{text:m.t}]}}),sys=SYS+'SHOP DATA:\n'+pack(PROV[c.p].lim);
   return call(hist,sys,false).then(function(t){return {k:'answer',t:t}})}).then(function(r){AI.msgs.push({r:'ai',t:r.k==='cmd'?cmdLine(r.conf):r.t});return r},function(e){AI.msgs.push({r:'ai',t:e.message,e:1});return {k:'err',t:e.message}}).then(function(r){AI.busy=0;aiDraw();return r})}
+function vsay(){return vp().say!==0}
 function speak(t){try{var s=window.speechSynthesis;if(!s)return;s.cancel();var u=new SpeechSynthesisUtterance(String(t).replace(/\*\*/g,'').replace(/₹/g,' rupees ').slice(0,700));u.lang=vlang();s.speak(u)}catch(e){}}
 function vlang(){return vp().l||'en-IN'}
 window.aiDraw=function(){var l=gid('aiLog');if(!l)return;l.innerHTML=AI.msgs.length?AI.msgs.map(function(m){return '<div class="aib '+(m.r==='user'?'u':'a')+(m.e?' e':'')+'">'+fmt(m.t)+'</div>'}).join('')+(AI.busy?'<div class="aib a mu">Thinking... '+esc(AI.hint||'')+'</div>':''):'<div class="mu" style="padding:4px 2px">Ask about your sales, profit, stock or customers, or say / type a command like &ldquo;Ramesh 10 bag cement sale bill&rdquo;. Tap the mic to speak.</div>';l.scrollTop=l.scrollHeight};
 window.aiAsk=function(q){var inp=gid('aiQ');q=(q||(inp&&inp.value)||'').trim();if(!q||AI.busy)return;if(!ready()){AI.setup=true;AI.msg={t:'First add your free AI key below.',c:'red'};return render()}
- AI.msg=null;if(inp)inp.value='';run(q).then(function(r){if(r.k==='cmd')vcConfirm(r.conf,q);else if(r.k==='answer'&&vp().say)speak(r.t)})};
+ AI.msg=null;if(inp)inp.value='';run(q).then(function(r){if(r.k==='cmd'){vcConfirm(r.conf,q);if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'&&vsay())speak(r.t)})};
 window.aiSave=function(test){var p=gid('aip').value,k=cleanKey(gid('aik').value),m=gid('aim').value.trim(),o=cfg();
  if(!k&&!o.k){AI.msg={t:'Paste your free key first.',c:'red'};return render()}
  var nk=k||o.k,stored=setCfg({p:p,k:nk,m:m||PROV[p].m}),warn=(stored?'':' Your browser blocks saving, so the key is kept only until this page is closed.')+((p==='gemini'&&!/^(AIza|AQ\.)/.test(nk))?' Note: Gemini keys usually start with "AIza" or "AQ.". Check that you copied the whole key.':'');MEM.good='';
@@ -4074,7 +4082,7 @@ window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.se
  var on=V.st==='listen'&&V.tgt==='page';
  h+='<div class="'+cl+'"><b>Ask your shop</b><div id="aiLog" class="ailog"></div><div class="aiex">'+ex.map(function(q){return '<button onclick="aiAsk(this.textContent)">'+esc(q)+'</button>'}).join('')+'</div>'
   +'<div class="aiin"><textarea id="aiQ" rows="2" placeholder="'+(m?'Type or tap the mic and speak':'Type your question or command, or press the mic (Alt+V opens Voice anywhere)')+'" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();aiAsk()}"></textarea><button class="aimic'+(on?' on':'')+'" id="aimic" onclick="aiMic()" aria-label="Speak">'+MIC+'</button><button class="b" onclick="aiAsk()">Ask</button></div>'
-  +'<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'<label class="mu aisay"><input type="checkbox" style="width:auto;margin:0"'+(vp().say?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label></div><div class="mu vsm" id="aivs2">'+(on?'Listening... tap the mic when done':'Try saying: &ldquo;'+VEX[0]+'&rdquo; or &ldquo;'+VEX[1]+'&rdquo;')+'</div></div>';
+  +'<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'<label class="mu aisay"><input type="checkbox" style="width:auto;margin:0"'+(vsay()?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label></div><div class="mu vsm" id="aivs2">'+(on?'Listening... tap the mic when done':'Try saying: &ldquo;'+VEX[0]+'&rdquo; or &ldquo;'+VEX[1]+'&rdquo;')+'</div></div>';
  h+='<div class="'+cl+'"><b>Scan a purchase bill</b><div class="mu" style="margin:4px 0 8px">Take a photo of a supplier bill. The AI reads the items, you check them, and a Purchase Bill opens ready to save. '+(c.p==='groq'?'<span class="red">This needs Google Gemini. Groq here is text only.</span>':'')+'</div><input type="file" id="aiF" accept="image/*" style="display:none" onchange="aiScan(this)"><button class="b" style="width:100%" onclick="aiFile()">Take / choose bill photo</button></div>';
  setTimeout(aiDraw,0);return h};
 window.aiFile=function(){if(!ready()){AI.setup=true;render();return alert('First add your free AI key in Setup.')}if(cfg().p!=='gemini')return alert('Reading photos needs Google Gemini. Change the AI service in Setup.');var f=document.getElementById('aiF');if(f){f.value='';f.click()}};
@@ -4145,7 +4153,7 @@ window.vcMic=function(){var v=AI.vc;if(!v||v.conf||v.st==='work')return;if(V.st=
  vStart({onPartial:function(t){v.txt=t;var e=gid('vct');if(e)e.value=t},onState:function(s){if(AI.vc===v&&!v.conf){v.st=s;vcStatus()}},onErr:function(m){if(AI.vc===v){v.st='idle';v.msg=m;vcStatus()}},onEnd:function(t){if(AI.vc===v){v.txt=t;vcSend()}}})};
 window.vcSend=function(){var v=AI.vc;if(!v||v.st==='work'||v.conf)return;var e=gid('vct'),q=((e&&e.value)||v.txt||'').trim();if(!q)return;
  if(!ready())return vcSetup();v.q=q;v.txt='';v.ans='';v.msg='';v.st='work';vcDraw();
- run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd')v.conf=r.conf;else if(r.k==='answer'){v.ans=r.t;if(vp().say)speak(r.t)}else v.msg=r.t;vcDraw()})};
+ run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd'){v.conf=r.conf;if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'){v.ans=r.t;if(vsay())speak(r.t)}else v.msg=r.t;vcDraw()})};
 function capHtml(v){var h='';
  if(!ready())return '<div class="red" style="margin:8px 0">Add your free AI key first, then you can talk to the app.</div><div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSetup()">Open Setup</button></div>';
  h+='<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'</div>';
@@ -4154,7 +4162,7 @@ function capHtml(v){var h='';
  h+='<div class="aivm"><button type="button" class="aimic big'+(v.st==='listen'?' on':'')+'" id="aivmic" onclick="vcMic()" aria-label="Speak">'+MIC+'</button><div class="aivs'+(v.msg?' red':'')+'" id="aivs">'+esc(v.msg||(v.st==='work'?'Understanding...':'Tap the mic and speak'))+'</div></div>';
  h+='<textarea id="vct" rows="3" placeholder="...or type here. Example: '+esc(VEX[0])+'" oninput="AI.vc.txt=this.value" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();vcSend()}">'+esc(v.txt)+'</textarea>';
  h+='<div class="aiex">'+VEX.map(function(x){return '<button onclick="var t=gid(\'vct\');t.value=this.textContent;AI.vc.txt=t.value">'+esc(x)+'</button>'}).join('')+'</div>';
- h+='<label class="mu aisay" style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto;margin:0"'+(vp().say?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label>';
+ h+='<label class="mu aisay" style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto;margin:0"'+(vsay()?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label>';
  h+='<div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSend()">Send</button></div>';
  return h}
 function pinfo(n){var p=findP(n);if(p)return 'Existing party. Balance '+money(bal(p));return (n||'').trim()?'New party, will be created when you save the bill':''}
