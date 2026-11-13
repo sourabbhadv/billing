@@ -3886,7 +3886,7 @@ try{buildNav()}catch(e){}
 var DYs=864e5,AI={msgs:[],busy:0,scan:null,setup:false};window.AI=AI;
 var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80},fb:['gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-lite-latest','gemini-2.0-flash']},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15},fb:['openai/gpt-oss-20b','llama-3.3-70b-versatile']},own:{n:'Own helper (no AI, works even when AI is down)',m:'',u:'no key needed',lim:{p:40,i:60,b:15},fb:[]}};
 var MEM={};
-function cfg(){try{var s=localStorage.getItem('ash_ai');if(s)return JSON.parse(s)}catch(e){}return MEM.c||{}}
+function cfg(){var c=null;try{var s=localStorage.getItem('ash_ai');if(s)c=JSON.parse(s)}catch(e){}c=c||MEM.c||{};return c.p?c:{p:'own',auto:1}}
 function setCfg(o){MEM.c=o;try{localStorage.setItem('ash_ai',JSON.stringify(o));return !!localStorage.getItem('ash_ai')}catch(e){return false}}
 function vp(){try{var s=localStorage.getItem('ash_vp');if(s)return JSON.parse(s)}catch(e){}return MEM.vp||{}}
 function setVp(o){MEM.vp=o;try{localStorage.setItem('ash_vp',JSON.stringify(o))}catch(e){}}
@@ -4042,8 +4042,8 @@ async function clarify(j,force){
    var un=String(x.unit||'').trim()||(it&&it.unit)||'';
    if(!(+x.qty>0)){var rq=await askQ({t:'How many'+(un?' '+un:'')+' of '+x.name+'?',sub:'You did not tell the quantity.',inp:'number',ph:'Quantity'});x.qty=rq.n}
    if(!(+x.rate>0)){var sv=it?(pur?(+it.buy||+it.rate||0):(+it.rate||0)):0;
-    var rr=await askQ({t:'What is the price of '+x.name+'?',sub:sv>0?'You did not tell the price. Saved price is Rs '+sv+(un?' per '+un:'')+'.':'You did not tell the price.',opts:sv>0?[{l:'Use saved price: Rs '+sv,s:un?'per '+un:'',v:sv}]:[],inp:'number',ph:'Price per '+(un||'unit')});
-    x.rate=rr.o!==undefined?rr.o:rr.n}
+    if(sv>0){x.rate=sv}else{var rr=await askQ({t:'What is the price of '+x.name+'?',sub:sv>0?'You did not tell the price. Saved price is Rs '+sv+(un?' per '+un:'')+'.':'You did not tell the price.',opts:sv>0?[{l:'Use saved price: Rs '+sv,s:un?'per '+un:'',v:sv}]:[],inp:'number',ph:'Price per '+(un||'unit')});
+    x.rate=rr.o!==undefined?rr.o:rr.n}}
   }
  }else if(!(+j.amount>0)&&!(+j.paid>0)){
   var ra=await askQ({t:'How much money?',sub:'You did not tell the amount.',inp:'number',ph:'Amount in Rs'});j.amount=ra.n
@@ -4068,10 +4068,10 @@ var W_EST=wset('estimate estimates quotation quotations quote kotation कोट
  NM={sau:100,hundred:100,सौ:100,शंभर:100,hazaar:1000,hazar:1000,thousand:1000,हजार:1000,'हज़ार':1000,lakh:100000,lac:100000,लाख:100000},
  AMB={do:1,ek:1,one:1,दो:1,एक:1};
 function owSp(w){return !!(W_EST[w]||W_SO[w]||W_CH[w]||W_PUR[w]||W_SALE[w]||W_IN[w]||W_OUT[w]||W_PAY[w]||W_RATE[w]||W_RSUF[w]||W_UNIT[w]||W_SEP[w]||W_FILL[w]||w==='@'||w==='at')}
-function owTok(q){var t=String(q||'').toLowerCase().replace(/[\u0966-\u096f]/g,function(c){return String(c.charCodeAt(0)-0x966)}).replace(/₹/g,' rs ').replace(/(\d),(?=\d)/g,'$1').replace(/[,;]+/g,' and ').replace(/@/g,' @ ').replace(/(\d)([a-z\u0900-\u097f])/g,'$1 $2').replace(/([a-z\u0900-\u097f])(\d)/g,'$1 $2');
- var raw=t.match(/\d+(?:\.\d+)?|[a-z]+|[\u0900-\u097f]+|@|\+|&/g)||[],i=0,out=[];
+function owTok(q){var DM=[],t=String(q||'').toLowerCase().replace(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/g,function(m,a,b){DM.push(a+'x'+b);return ' dimzz'+String.fromCharCode(96+DM.length)+'zz '}).replace(/[\u0966-\u096f]/g,function(c){return String(c.charCodeAt(0)-0x966)}).replace(/₹/g,' rs ').replace(/(\d),(?=\d)/g,'$1').replace(/[,;]+/g,' and ').replace(/@/g,' @ ').replace(/(\d)([a-z\u0900-\u097f])/g,'$1 $2').replace(/([a-z\u0900-\u097f])(\d)/g,'$1 $2');
+ var raw=(t.match(/\d+(?:\.\d+)?|[a-z]+|[\u0900-\u097f]+|@|\+|&/g)||[]).map(function(w){return w.indexOf('dimzz')===0?(DM[w.charCodeAt(5)-97]||w):w}),i=0,out=[];
  while(i<raw.length){var w=raw[i],nx=raw[i+1];
-  if(/^\d/.test(w)){var v=parseFloat(w),j=i+1;if(NM[nx]){v*=NM[nx];j++}else if(nx==='k'){v*=1000;j++}out.push({n:v});i=j;continue}
+  if(/^\d+(?:\.\d+)?$/.test(w)){var v=parseFloat(w),j=i+1;if(NM[nx]){v*=NM[nx];j++}else if(nx==='k'){v*=1000;j++}out.push({n:v});i=j;continue}
   if(NW[w]!==undefined&&(!AMB[w]||NM[nx]||W_UNIT[nx])){var cur=0,tot=0,j2=i,ok=1;
    while(j2<raw.length&&ok){var x=raw[j2],xn=raw[j2+1];
     if(NW[x]!==undefined&&(!AMB[x]||NM[xn]||W_UNIT[xn])){cur+=NW[x];j2++}
@@ -4092,7 +4092,7 @@ function owAct(T,force){if(force)return force;
  return null}
 function pScore(ws){var s=ws.join(' '),b=0;D.parties.forEach(function(p){var v=sim(p.name,s);if(v>b)b=v});return b}
 function iScore(ws){var s=ws.join(' '),b=0;D.items.forEach(function(p){var v=sim(p.name,s);if(v>b)b=v});return b}
-var OWNHELP='I could not understand. Please say it like: "Raju Tidke, 10 bag UltraTech, rate 380, sale bill" or "Suresh 5000 rupees received".';
+var OWNHELP='Sorry, I did not understand. You can say:\n• "Ramesh 10 bag cement sale bill"\n• "Suresh 5000 rupees received"\n• "Ramesh ka balance"\n• "cement ka stock"\n• "aaj ki sale" or "who owes me the most?"';
 function ownParse(q,force){var T=owTok(q);if(!T.length)return null;
  var a=owAct(T,force);if(!a)return null;
  var pay=a==='payment_in'||a==='payment_out',paid=0,i,k;
@@ -4134,16 +4134,65 @@ function ownParse(q,force){var T=owTok(q);if(!T.length)return null;
 /* remembers which name you picked for what you said (only used to show that name first) */
 function lrnGet(kind,sp){try{var m=JSON.parse(localStorage.getItem('ash_lrn')||'{}'),o=m[kind+':'+nz(sp)]||{},b='',c=0;Object.keys(o).forEach(function(n){if(o[n]>c){c=o[n];b=n}});return b}catch(e){return ''}}
 function lrnSet(kind,sp,name){if(!nz(sp)||!name||nz(sp)===nz(name))return;try{var m=JSON.parse(localStorage.getItem('ash_lrn')||'{}'),k=kind+':'+nz(sp);m[k]=m[k]||{};m[k][name]=(m[k][name]||0)+1;localStorage.setItem('ash_lrn',JSON.stringify(m))}catch(e){}}
+
+/* ---- LOCAL ANSWERS: balances, stock, sales, profit straight from your own data (no AI, works offline) ---- */
+var R_OWE=/\b(owe|owes|owed|outstanding|pending|receivable|due|baki|baaki|baqi|balance|hisab|hisaab|udhar|udhaar|lena)\b|\u092c\u093e\u0915\u0940|\u092c\u093e\u0915\u093f|\u0909\u0927\u093e\u0930|\u092f\u0947\u0923\u0947|\u092c\u0948\u0932\u0947\u0902\u0938|\u0939\u093f\u0938\u093e\u092c|\u0932\u0947\u0928\u093e|\u092a\u0947\u0902\u0921\u093f\u0902\u0917/i,
+ R_STOCK=/\b(stock|stok|maal|available|quantity|left|remaining|bacha|bachha|bachi|bachaa)\b|\u0938\u094d\u091f\u0949\u0915|\u092e\u093e\u0932|\u0936\u093f\u0932\u094d\u0932\u0915|\u092c\u091a\u093e|\u092c\u091a\u0940|\u0909\u092a\u0932\u092c\u094d\u0927/i,
+ R_LOW=/\b(low|short|kam|finished|reorder)\b|\u0915\u092e/i,
+ R_SALE=/\b(sale|sales|sold|sell|bikri|becha|bechi|revenue|turnover|business)\b|\u092c\u093f\u0915\u094d\u0930\u0940|\u0935\u093f\u0915\u094d\u0930\u0940|\u092c\u0947\u091a\u093e|\u0927\u0902\u0926\u093e/i,
+ R_PROF=/\b(profit|nafa|naafa|munafa|labh)\b|\u092e\u0941\u0928\u093e\u092b\u093e|\u0928\u092b\u093e|\u092b\u093e\u092f\u0926\u093e|\u0932\u093e\u092d/i,
+ R_TOP=/\b(top|best|most|highest|biggest|sabse|zyada|jyada)\b|\u0938\u092c\u0938\u0947|\u091c\u094d\u092f\u093e\u0926\u093e|\u091c\u093e\u0938\u094d\u0924/i,
+ R_CUST=/\b(customer|customers|party|parties|grahak|client)\b|\u0917\u094d\u0930\u093e\u0939\u0915|\u092a\u093e\u0930\u094d\u091f\u0940/i,
+ R_QW=/\?|\b(who|what|which|how|show|list|tell|kitna|kitni|kitne|kya|kaun|kon|kis|kiska|kiski|kiske|batao|bata|bataiye|dikhao|dikha|dekho|total)\b|\u0915\u093f\u0924\u0928\u093e|\u0915\u093f\u0924\u0928\u0940|\u0915\u093f\u0924\u0928\u0947|\u0915\u094d\u092f\u093e|\u0915\u094c\u0928|\u0915\u093f\u0938|\u092c\u0924\u093e\u0913|\u092c\u0924\u093e\u0907\u090f|\u0926\u093f\u0916\u093e\u0913|\u0915\u093f\u0924\u0940|\u0915\u094b\u0923|\u0938\u093e\u0902\u0917\u093e|\u0926\u093e\u0916\u0935\u093e/i;
+function qn(n){return Math.round((+n||0)*10)/10}
+function mentioned(list,q){var tk=qWords(q),res=[],bs=0;list.forEach(function(o){var w=qWords(o.name).filter(function(x){return x.length>2}),c=0;w.forEach(function(x){if(tk.some(function(t){return t===x||(t.length>=4&&x.length>=4&&sim(t,x)>=.8)}))c++});if(!c)return;var sc=c/w.length+c;if(sc>bs){bs=sc;res=[o]}else if(sc===bs)res.push(o)});return res}
+function strongCmd(q){var j=null;try{j=ownParse(q)}catch(e){}if(!j)return false;if(j.action==='payment_in'||j.action==='payment_out')return j.amount>0;return (j.items||[]).some(function(x){return x.qty>0})}
+function localAnswer(q){var s=String(q||'').toLowerCase(),its=mentioned(D.items,s),pts=mentioned(D.parties,s),now=new Date(),live=D.bills.filter(function(b){return !b.x}),END=9e15,
+ d0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(),m0=new Date(now.getFullYear(),now.getMonth(),1).getTime(),pm0=new Date(now.getFullYear(),now.getMonth()-1,1).getTime(),w0=d0-6*864e5,y0=now.getTime()-365*864e5;
+ function sum(a,b){var t=0,n=0;live.forEach(function(x){if(x.date>=a&&x.date<b){t+=+x.total||0;n++}});return {t:t,n:n}}
+ function line(label,r){return label+': '+money(r.t)+' ('+r.n+' bill'+(r.n===1?'':'s')+')'}
+ function partyLine(p){var b=bal(p),lb=live.filter(function(x){return x.pid===p.id}).sort(function(x,y){return y.date-x.date})[0];return p.name+': '+(b>=1?'owes you '+money(b):b<=-1?'you owe them '+money(-b)+' (advance)':'nothing pending')+(lb?'. Last bill #'+lb.no+' on '+dt(lb.date)+' for '+money(lb.total):'')+'.'}
+ if(/khatam|\u0916\u0924\u094d\u092e|\u0938\u0902\u092a\u0932|reorder|running out|out of stock/.test(s)||(R_LOW.test(s)&&R_STOCK.test(s)&&!its.length)){
+  var lo=D.items.filter(function(i){return +i.low>0?+i.qty<=+i.low:+i.qty<=0}).sort(function(a,b){return a.qty-b.qty});
+  if(!lo.length)return 'Good news: no item is below its low-stock level.';
+  return lo.length+' item'+(lo.length>1?'s are':' is')+' low on stock:\n'+lo.slice(0,8).map(function(i){return i.name+': '+qn(i.qty)+' '+(i.unit||'')}).join('\n')+(lo.length>8?'\n...and '+(lo.length-8)+' more.':'')}
+ if(R_PROF.test(s)){var per={},tot=0;live.forEach(function(b){if(b.date<y0)return;var k=kOf(b);b.lines.forEach(function(l){var i=ik(l);if(!i||i.pass)return;var pf=(+l.amt||0)*k-(+l.qty||0)*itemBuy(l);tot+=pf;per[i.name]=(per[i.name]||0)+pf})});
+  var tp=Object.keys(per).sort(function(a,b){return per[b]-per[a]}).slice(0,3);
+  if(!tp.length)return 'There are no sales in the last 12 months to work out profit.';
+  return 'Profit in the last 12 months: about '+money(tot)+' (uses your purchase prices).\nMost profit from: '+tp.map(function(n){return n+' '+money(per[n])}).join(', ')+'.'}
+ if(R_OWE.test(s)){
+  if(pts.length&&pts.length<=3)return pts.map(partyLine).join('\n');
+  var ow=D.parties.map(function(p){return {p:p,b:bal(p)}}).filter(function(x){return x.b>=1}).sort(function(a,b){return b.b-a.b}),tt=0;
+  if(!ow.length)return 'Nobody owes you anything right now.';
+  ow.forEach(function(x){tt+=x.b});
+  return (R_TOP.test(s)?ow[0].p.name+' owes you the most: '+money(ow[0].b)+'.\n':'')+'Total to receive: '+money(tt)+' from '+ow.length+' '+(ow.length>1?'parties':'party')+'.\n'+ow.slice(0,5).map(function(x,n){return (n+1)+'. '+x.p.name+': '+money(x.b)}).join('\n')}
+ if(R_STOCK.test(s)||(its.length&&R_QW.test(s)&&!pts.length&&!R_SALE.test(s))){
+  if(!its.length)return 'Which item? Say it like: "cement ka stock kitna hai".';
+  return its.slice(0,4).map(function(i){return i.name+': '+qn(i.qty)+' '+(i.unit||'')+' in stock'+(+i.low>0&&+i.qty<=+i.low?' (low, alert level '+qn(i.low)+')':'')+'. Sale price '+money(i.rate)+'.'}).join('\n')}
+ if(R_TOP.test(s)&&R_CUST.test(s)){var pc={};live.forEach(function(b){if(b.date>=y0)pc[b.pid]=(pc[b.pid]||0)+(+b.total||0)});var ids=Object.keys(pc).sort(function(a,b){return pc[b]-pc[a]});
+  if(!ids.length)return 'There are no sales in the last 12 months.';
+  return 'Top customers in the last 12 months:\n'+ids.slice(0,5).map(function(id,n){var p=P(id);return (n+1)+'. '+(p?p.name:'Walk-in')+': '+money(pc[id])}).join('\n')}
+ if(R_SALE.test(s)){
+  if(/last month|pichhle mahine|pichle mahine|\u0917\u0947\u0932\u094d\u092f\u093e|\u092a\u093f\u091b\u0932\u0947|compare|\bvs\b|versus/.test(s)){var a=sum(m0,END),b2=sum(pm0,m0);return line('This month',a)+'\n'+line('Last month',b2)+(b2.t>0?'\n'+(a.t>=b2.t?'Up ':'Down ')+Math.abs(Math.round((a.t-b2.t)/b2.t*100))+'% compared with last month.':'')}
+  if(/\b(week|hafta|hafte)\b|\u0939\u092b\u094d\u0924|\u0906\u0920\u0935\u0921/.test(s))return line('Last 7 days',sum(w0,END));
+  if(/\b(year|saal|sal)\b|\u0938\u093e\u0932|\u0935\u0930\u094d\u0937/.test(s))return line('Last 12 months',sum(y0,END));
+  var tod=/\b(today|aaj|aj)\b|\u0906\u091c/.test(s),mon=/\b(month|mahina|mahine)\b|\u092e\u0939\u0940\u0928|\u092e\u0939\u093f\u0928/.test(s);
+  if(tod&&!mon)return line('Today',sum(d0,END));if(mon&&!tod)return line('This month',sum(m0,END));
+  return line('Today',sum(d0,END))+'\n'+line('This month',sum(m0,END))}
+ if(pts.length&&pts.length<=3&&R_QW.test(s))return pts.map(partyLine).join('\n');
+ return null}
 function viaOwn(q,force){var j=null;try{j=ownParse(q,force)}catch(e){}return j?clarify(j,force).then(function(j2){return mkConf(j2,force)}):null}
 function parseCmd(q,force){AI.ownUsed=0;if(cfg().p==='own')return Promise.resolve().then(function(){return viaOwn(q,force)});var pn=D.parties.slice(0,300).map(function(p){return p.name}).join('; '),itn=D.items.slice(0,400).map(function(i){return i.name}).join('; ');
  return call([{role:'user',parts:[{text:q}]}],PSYS+(force?'The user is already filling a "'+force+'" form. Treat this as extra details for it (party, items, amounts) and use that action.\n':'')+'KNOWN PARTIES: '+pn+'\nKNOWN ITEMS: '+itn,true,{t:22000}).then(function(t){var j=jparse(t);if(!j)return null;return clarify(j,force).then(function(j2){return mkConf(j2,force)})},function(e){var j=null;try{j=ownParse(q,force)}catch(x){}if(!j)throw e;AI.ownUsed=1;return clarify(j,force).then(function(j2){return mkConf(j2,force)})})}
 function cmdLine(c){var t=TT[c.a];return 'Opening '+t[0].toLowerCase()+(c.p?' for '+c.p:'')+'. Please check it and confirm.'+(AI.ownUsed?' AI was not available, so the own helper listened.':'')}
 /* ---- ask: a command opens the confirm sheet, a question gets an answer ---- */
 SYS+='If the user asks you to create or enter a bill, estimate or payment, never say you cannot. Tell them to speak or type it like "Ramesh 10 bag cement sale bill" or "Suresh 5000 rupees received" and the app will open the form for them.\n\n';
-function run(q){AI.msgs.push({r:'user',t:q});AI.busy=1;aiDraw();var c=cfg(),pre=(isCmd(q)||c.p==='own')?parseCmd(q).then(function(x){return x},function(e){return {fail:e}}):Promise.resolve(null);
+function run(q){AI.msgs.push({r:'user',t:q});var c=cfg();
+ if(c.p==='own'&&!strongCmd(q)){var la0=null;try{la0=localAnswer(q)}catch(e){}if(la0){AI.msgs.push({r:'ai',t:la0});aiDraw();return Promise.resolve({k:'answer',t:la0})}}
+ AI.busy=1;aiDraw();var pre=(isCmd(q)||c.p==='own')?parseCmd(q).then(function(x){return x},function(e){return {fail:e}}):Promise.resolve(null);
  return pre.then(function(conf){if(conf&&conf.fail)throw conf.fail;if(conf)return {k:'cmd',conf:conf};if(c.p==='own')return {k:'answer',t:OWNHELP};
   var hist=AI.msgs.filter(function(m){return !m.e}).slice(-8).map(function(m){return {role:m.r==='user'?'user':'assistant',parts:[{text:m.t}]}}),sys=SYS+'SHOP DATA:\n'+pack(PROV[c.p].lim);
-  return call(hist,sys,false).then(function(t){return {k:'answer',t:t}})}).then(function(r){AI.msgs.push({r:'ai',t:r.k==='cmd'?cmdLine(r.conf):r.t});return r},function(e){AI.msgs.push({r:'ai',t:e.message,e:1});return {k:'err',t:e.message}}).then(function(r){AI.busy=0;aiDraw();return r})}
+  return call(hist,sys,false).then(function(t){return {k:'answer',t:t}})}).then(function(r){AI.msgs.push({r:'ai',t:r.k==='cmd'?cmdLine(r.conf):r.t});return r},function(e){var la=null;if(c.p!=='own'){try{la=localAnswer(q)}catch(x){}}if(la){la+='\n\n(The AI could not be reached, so this answer comes from your saved shop data.)';AI.msgs.push({r:'ai',t:la});return {k:'answer',t:la}}AI.msgs.push({r:'ai',t:e.message,e:1});return {k:'err',t:e.message}}).then(function(r){AI.busy=0;aiDraw();return r})}
 function vsay(){return vp().say!==0}
 function speak(t){try{var s=window.speechSynthesis;if(!s)return;s.cancel();var u=new SpeechSynthesisUtterance(String(t).replace(/\*\*/g,'').replace(/₹/g,' rupees ').slice(0,700));u.lang=vlang();V.spk=Date.now();u.onend=u.onerror=function(){V.spk=Date.now()};s.speak(u)}catch(e){}}
 function vlang(){return vp().l||'en-IN'}
@@ -4167,15 +4216,15 @@ function chips(){var l=vlang();return VL.map(function(x){return '<button type="b
 window.vcLang=function(l){var o=vp();o.l=l;setVp(o);Array.prototype.forEach.call(document.querySelectorAll('.aichip[data-l]'),function(b){b.classList.toggle('on',b.getAttribute('data-l')===l)})};
 window.vcSay=function(on){var o=vp();o.say=on?1:0;setVp(o);if(!on){try{speechSynthesis.cancel()}catch(e){}}};
 var VEX=['Ramesh ko 10 bag cement ka bill banao','Suresh se 5000 rupaye mile','Who owes me the most money?'];
-window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='',mg=AI.msg;
+window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='',mg=AI.msg,cp=c.auto?'gemini':(cp);
  var ex=['How much did my top customer buy this year?','Which items earned me the most profit this year?','Who owes me the most money?','Compare this month sales with last month'];
  var msgH=mg&&mg.t?'<div class="'+(mg.c||'mu')+'" style="margin-top:8px;line-height:1.4">'+esc(mg.t)+'</div>':'';
- h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>'+(c.p==='own'?'Own helper is ready':'AI is ready')+'</b><br><span class="mu">'+(c.p==='own'?'Makes bills and payments only. No AI key needed.':esc(PROV[c.p].n.split(' (')[0])+' &middot; '+esc(c.m||PROV[c.p].m)+' &middot; key '+esc(mask(c.k)))+'</span></span><button class="s" onclick="AI.setup=true;AI.msg=null;render()">Setup</button></div>':
+ h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>'+(c.p==='own'?(c.auto?'Voice is ready (no key needed)':'Own helper is ready'):'AI is ready')+'</b><br><span class="mu">'+(c.p==='own'?'Makes bills and payments, and answers balance, stock and sales questions from your own data. Add a free AI key for answers in your own words.':esc(PROV[c.p].n.split(' (')[0])+' &middot; '+esc(c.m||PROV[c.p].m)+' &middot; key '+esc(mask(c.k)))+'</span></span><button class="s" onclick="AI.setup=true;AI.msg=null;render()">Setup</button></div>':
   '<b>Setup (one time, free)</b><div class="mu" style="margin:4px 0 8px">Get a free key (no card needed) and paste it here. The key stays only on this phone/computer. It is not saved in your shop data and not uploaded anywhere else.</div>'
-  +'<label class="mu">AI service</label><select id="aip" onchange="aiProv(this.value)">'+Object.keys(PROV).map(function(k){return '<option value="'+k+'"'+((c.p||'gemini')===k?' selected':'')+'>'+esc(PROV[k].n)+'</option>'}).join('')+'</select>'
-  +'<div class="mu" style="margin:2px 0 6px">Free key from: <b id="aiu">'+PROV[c.p||'gemini'].u+'</b></div>'
-  +'<div id="aikw"'+(c.p==='own'?' style="display:none"':'')+'><label class="mu">Key</label><input id="aik" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(c.k?'Saved on this device ('+esc(mask(c.k))+'). Paste to replace':'Paste key here')+'"><label class="mu" style="display:flex;gap:6px;align-items:center;margin:0 0 6px"><input type="checkbox" style="width:auto;margin:0" onchange="aiShowKey(this.checked)"> Show key</label>'
-  +'<label class="mu">Model name</label><input id="aim" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(c.m||PROV[c.p||'gemini'].m)+'"></div>'
+  +'<label class="mu">AI service</label><select id="aip" onchange="aiProv(this.value)">'+Object.keys(PROV).map(function(k){return '<option value="'+k+'"'+((cp)===k?' selected':'')+'>'+esc(PROV[k].n)+'</option>'}).join('')+'</select>'
+  +'<div class="mu" style="margin:2px 0 6px">Free key from: <b id="aiu">'+PROV[cp].u+'</b></div>'
+  +'<div id="aikw"'+(cp==='own'?' style="display:none"':'')+'><label class="mu">Key</label><input id="aik" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="'+(c.k?'Saved on this device ('+esc(mask(c.k))+'). Paste to replace':'Paste key here')+'"><label class="mu" style="display:flex;gap:6px;align-items:center;margin:0 0 6px"><input type="checkbox" style="width:auto;margin:0" onchange="aiShowKey(this.checked)"> Show key</label>'
+  +'<label class="mu">Model name</label><input id="aim" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(c.m||PROV[cp].m)+'"></div>'
   +'<div class="mu" style="margin:4px 0 8px">If this model is busy, other free models are tried automatically. Your question and a summary of your shop data (item names, customer names, amounts, no phone numbers) are sent to the service you choose. Free services may use this data to improve their products, so read their terms. Voice: your browser turns speech into text (Chrome or Safari may send the sound to their own speech service). If that is not available, a short recording is sent to Gemini instead.</div>'
   +'<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="b" onclick="aiSave(0)">Save</button><button class="s" id="aitb" onclick="aiSave(1)">Save and test</button>'+(c.k?'<button class="s" onclick="AI.setup=false;AI.msg=null;render()">Cancel</button><button class="s" onclick="aiForget()">Remove key</button>':'')+'</div>')+msgH+'</div>';
  var on=V.st==='listen'&&V.tgt==='page';
@@ -4230,9 +4279,9 @@ function mrStart(why){var o=V.o;if(!(cfg().p==='gemini'&&ready())){V.st='idle';r
   m.start();V.st='listen';o.onState('listen');setTimeout(stop,40000)},function(){vFin('','The microphone is blocked. Allow the microphone for this site in your browser settings, then try again.')})}
 function srStart(){var r=new SR(),err='',o=V.o;V.rec=r;V.fin='';V.last='';r.lang=vlang();r.interimResults=true;r.continuous=!isM();r.maxAlternatives=1;
  r.onstart=function(){V.st='listen';o.onState('listen')};
- r.onresult=function(e){var f='',i2='',i;for(i=0;i<e.results.length;i++){var t=e.results[i][0].transcript;if(e.results[i].isFinal)f+=t+' ';else i2+=t}V.fin=f;V.last=(f+i2).trim();o.onPartial(V.last)};
+ r.onresult=function(e){var f='',i2='',i;for(i=0;i<e.results.length;i++){var t=e.results[i][0].transcript;if(e.results[i].isFinal)f+=t+' ';else i2+=t}V.fin=f;V.last=(f+i2).trim();o.onPartial(V.last);clearTimeout(V.tm);if(V.last)V.tm=setTimeout(function(){try{r.stop()}catch(x){}},1600)};
  r.onerror=function(e){err=e.error||'error'};
- r.onend=function(){V.rec=null;if(V.cancel)return vFin('');if(/^(network|service-not-allowed|language-not-supported)$/.test(err)&&cfg().p==='gemini'&&ready()&&navigator.mediaDevices){V.st='idle';err='';return mrStart()}
+ r.onend=function(){clearTimeout(V.tm);V.rec=null;if(V.cancel)return vFin('');if(/^(network|service-not-allowed|language-not-supported)$/.test(err)&&cfg().p==='gemini'&&ready()&&navigator.mediaDevices){V.st='idle';err='';return mrStart()}
   if(err&&err!=='no-speech'&&err!=='aborted')return vFin('',verr(err));vFin(V.last)};
  try{r.start()}catch(e){V.st='idle';o.onErr('Could not start the microphone. Please try again.')}}
 function useMr(){return !SR||(vp().eng!=='sr'&&cfg().p==='gemini'&&ready()&&!!navigator.mediaDevices&&!!window.MediaRecorder)}
