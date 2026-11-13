@@ -3986,33 +3986,49 @@ function qCands(list,spoken,top){var s=nz(spoken);if(!s)return [];var tk=qWords(
   var rt=null,rc=1e9;tk.forEach(function(t){var c=res.filter(function(x){return hit(x.o,t)}).length;if(c>0&&c<rc){rc=c;rt=t}});
   if(rt)res=res.filter(function(x){return hit(x.o,rt)||x.s>=.85})}
  return res.sort(function(a,b){return b.s-a.s||String(a.o.name).localeCompare(String(b.o.name))}).map(function(x){return x.o})}
-var stq=document.createElement('style');stq.textContent='#aiq{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}.aiqb{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-sizing:border-box}@media(min-width:700px){#aiq{align-items:center}.aiqb{border-radius:16px}}.aiqt{font-size:17px;font-weight:700;color:#1f2437;margin-bottom:2px}.aiqh{font-size:15.5px;color:#3d4468;margin-bottom:6px}.aiqo{display:block;width:100%;text-align:left;background:#f4f6ff;border:1.5px solid #c9cde0;border-radius:10px;padding:10px 12px;margin:6px 0;font-size:15px;color:#1f2437}.aiqo small{display:block;color:#7b8194;font-size:12.5px;margin-top:2px}.aiqi{display:flex;gap:8px;align-items:center;margin-top:8px}.aiqi input{flex:1;min-width:0;font-size:16px;padding:10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0}';document.head.appendChild(stq);
+var stq=document.createElement('style');stq.textContent='#aiq{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}.aiqb{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px;box-sizing:border-box}@media(min-width:700px){#aiq{align-items:center}.aiqb{border-radius:16px}}.aiqt{font-size:17px;font-weight:700;color:#1f2437;margin-bottom:2px}.aiqh{font-size:15.5px;color:#3d4468;margin-bottom:6px}.aiqo{display:block;width:100%;text-align:left;background:#f4f6ff;border:1.5px solid #c9cde0;border-radius:10px;padding:10px 12px;margin:6px 0;font-size:15px;color:#1f2437}.aiqo small{display:block;color:#7b8194;font-size:12.5px;margin-top:2px}.aiqi{display:flex;gap:8px;align-items:center;margin-top:8px}.aiqi input{flex:1;min-width:0;font-size:16px;padding:10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0}';stq.textContent+='.aiql{max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-top:6px;border-top:1px solid #e6e9f0}.aiqi{margin-bottom:2px}';document.head.appendChild(stq);
 var HIN={customer:'ग्राहक',supplier:'सप्लायर',party:'पार्टी'},HT={sale:'बिक्री बिल',purchase:'खरीद बिल',estimate:'एस्टिमेट',sale_order:'सेल ऑर्डर',challan:'डिलीवरी चालान',payment_in:'पेमेंट (मिला)',payment_out:'पेमेंट (दिया)'};
 function hiOf(tt){return HIN[tt]||'पार्टी'}
 /* shows a question card. Resolves {o:value} if an option was tapped, {t:text} if text typed, {n:number} if a number typed */
 function askQ(o){return new Promise(function(ok,no){
  var d=gid('aiq');if(d)d.remove();d=document.createElement('div');d.id='aiq';
- var opts=o.opts||[],h='<div class="aiqb"><div class="aiqt">'+esc(o.t)+'</div>'+(o.hi?'<div class="aiqh">'+esc(o.hi)+'</div>':'')+(o.sub?'<div class="mu vsm">'+esc(o.sub)+(o.shi?'<br>'+esc(o.shi):'')+'</div>':'');
- opts.forEach(function(x,i){h+='<button type="button" class="aiqo" data-i="'+i+'"><b>'+esc(x.l)+'</b>'+(x.s?'<small>'+esc(x.s)+'</small>':'')+'</button>'});
- if(o.inp){h+='<div class="aiqi"><input id="aiqi" '+(o.inp==='number'?'type="number" inputmode="decimal" step="any"':'type="text" autocomplete="off"')+(o.dl?' list="aiqdl"':'')+' placeholder="'+esc(o.ph||'')+'"><button type="button" class="aimic" id="aiqm" aria-label="Speak">'+MIC+'</button><button type="button" class="b" id="aiqok">OK</button></div>'+(o.dl?'<datalist id="aiqdl">'+o.dl.map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>':'')+'<div class="mu vsm red" id="aiqs"></div>'}
+ var opts=o.opts||[],txt=o.inp==='text',many=opts.length>8,saved=opts.filter(function(x){return !(x.v&&x.v.nw)}).length,sure='',
+  h='<div class="aiqb"><div class="aiqt">'+esc(o.t)+'</div>'+(o.hi?'<div class="aiqh">'+esc(o.hi)+'</div>':'')+(o.sub?'<div class="mu vsm">'+esc(o.sub)+(o.shi?'<br>'+esc(o.shi):'')+'</div>':''),oh='',ih='';
+ opts.forEach(function(x,i){oh+='<button type="button" class="aiqo" data-i="'+i+'"><b>'+esc(x.l)+'</b>'+(x.s?'<small>'+esc(x.s)+'</small>':'')+'</button>'});
+ if(o.inp)ih='<div class="aiqi"><input id="aiqi" '+(o.inp==='number'?'type="number" inputmode="decimal" step="any"':'type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"')+(o.dl&&!opts.length?' list="aiqdl"':'')+' placeholder="'+esc(o.ph||'')+'"><button type="button" class="aimic" id="aiqm" aria-label="Speak">'+MIC+'</button><button type="button" class="b" id="aiqok">OK</button></div>'+(o.dl&&!opts.length?'<datalist id="aiqdl">'+o.dl.map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>':'')+'<div class="mu vsm red" id="aiqs"></div>';
+ /* typing questions: search box first, saved names in a scrolling list under it. Number questions: choices first, then the box. */
+ if(txt)h+=ih+(opts.length?'<div class="mu vsm" id="aiqc"></div><div class="aiql">'+oh+'</div>':'');else h+=oh+ih;
  h+='<button type="button" class="s" id="aiqx" style="width:100%;margin-top:10px">Cancel · रद्द करें</button></div>';
  d.innerHTML=h;document.body.appendChild(d);
- var inp=gid('aiqi'),sts=gid('aiqs');
- if(vsay()){var hn=o.hi&&vlang()!=='en-IN',sp2=(hn?o.hi:o.t)+'. ';opts.slice(0,5).forEach(function(x,i){var pr=String(x.l).split(' · ');sp2+=(i+1)+', '+(hn&&pr[1]?pr[1]:pr[0])+'. '});if(o.inp&&!opts.length)sp2+=hn?(o.inp==='number'?'कृपया संख्या बोलिए।':'कृपया नाम बोलिए या लिखिए।'):(o.inp==='number'?'Please say the number.':'Please say or type the name.');speak(sp2)}
+ var inp=gid('aiqi'),sts=gid('aiqs'),cnt=gid('aiqc');
+ if(vsay()){var hn=o.hi&&vlang()!=='en-IN',sp2=(hn?o.hi:o.t)+'. ';if(!many)opts.slice(0,5).forEach(function(x,i){var pr=String(x.l).split(' · ');sp2+=(i+1)+', '+(hn&&pr[1]?pr[1]:pr[0])+'. '});if(o.inp&&(!opts.length||many))sp2+=hn?(o.inp==='number'?'कृपया संख्या बोलिए।':'नाम बोलिए, लिखिए या सूची से चुनिए।'):(o.inp==='number'?'Please say the number.':'Say or type the name, or pick from the list.');speak(sp2)}
  function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened. · ठीक है, रद्द किया। कुछ नहीं खुला।'));else ok(v)}
  d.querySelectorAll('.aiqo').forEach(function(b){b.onclick=function(){done({o:opts[+b.getAttribute('data-i')].v})}});
  gid('aiqx').onclick=function(){done(null,1)};
- function say(m){if(sts)sts.textContent=m||''}
- function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer. · कृपया लिखें या बोलें।');if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0. · 0 से बड़ी संख्या बताइए।');return done({n:n})}done({t:v})}
- if(inp&&o.inp==='text')inp.addEventListener('input',function(){var ws=inp.value.trim().toLowerCase().split(/\s+/).filter(Boolean);d.querySelectorAll('.aiqo').forEach(function(b){var x=opts[+b.getAttribute('data-i')],l=String(x.l).toLowerCase();b.style.display=(!ws.length||(x.v&&x.v.nw)||ws.every(function(w){return l.indexOf(w)>=0}))?'':'none'})});
+ function say(m,info){if(sts){sts.textContent=m||'';sts.className='mu vsm'+(info?'':' red')}}
+ function shown(){return Array.prototype.filter.call(d.querySelectorAll('.aiqo'),function(b){return b.style.display!=='none'}).map(function(b){return opts[+b.getAttribute('data-i')]}).filter(function(x){return !(x.v&&x.v.nw)})}
+ /* live search: normal letters AND sound-alike letters, so "ultra tech vt" finds "ULTRATECH ADHESIVE VT 20KG" */
+ function filt(){if(!txt||!inp)return;var ws=(inp.value||'').trim().toLowerCase().split(/\s+/).filter(Boolean),wp=ws.map(ph),n=0;
+  d.querySelectorAll('.aiqo').forEach(function(b){var x=opts[+b.getAttribute('data-i')],l=String(x.l).toLowerCase(),lp=ph(l),on=!ws.length||(x.v&&x.v.nw)||ws.every(function(w,i){return l.indexOf(w)>=0||lp.indexOf(wp[i])>=0});b.style.display=on?'':'none';if(on&&!(x.v&&x.v.nw))n++});
+  if(cnt)cnt.textContent=ws.length?(n?n+' found. Tap the right one. · '+n+' मिले। सही वाले पर टैप करें।':'Not in your saved list. · सेव लिस्ट में नहीं मिला।'):saved+' saved. Type to search, or scroll and tap. · '+saved+' सेव हैं। टाइप करके खोजें, या स्क्रॉल करके चुनें।'}
+ function submit(){var v=(inp.value||'').trim();if(!v)return say('Please type or speak the answer. · कृपया लिखें या बोलें।');
+  if(o.inp==='number'){var n=+v;if(!(n>0))return say('Please give a number more than 0. · 0 से बड़ी संख्या बताइए।');return done({n:n})}
+  if(opts.length){var m=shown(),ex=m.filter(function(x){return nz(x.l)===nz(v)});
+   if(ex.length===1)return done({o:ex[0].v});
+   if(m.length===1)return done({o:m[0].v});
+   if(m.length>1&&sure!==nz(v)){sure=nz(v);return say('Tap the right one in the list below. To add "'+v+'" as new, press OK again. · नीचे सूची से चुनें। नया जोड़ने के लिए फिर OK दबाएँ।')}
+   if(!m.length&&sure!==nz(v)){sure=nz(v);return say('"'+v+'" is not in your saved list. Press OK again to add it as new. · सेव लिस्ट में नहीं है। नया जोड़ने के लिए फिर OK दबाएँ।')}}
+  done({t:v})}
+ if(txt&&inp){inp.addEventListener('input',function(){sure='';filt()});filt()}
  if(inp){gid('aiqok').onclick=submit;inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();submit()}};if(!isM())inp.focus();
-  var mb=gid('aiqm');mb.onclick=function(){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')return;V.tgt='q';say('');
-   vStart({onPartial:function(t){inp.value=t},onState:function(s){mb.classList.toggle('on',s==='listen')},onErr:function(m){mb.classList.remove('on');say(m)},
+  var mb=gid('aiqm');mb.onclick=function(){try{speechSynthesis.cancel()}catch(e){}if(V.st==='listen'&&V.tgt==='q')return vStop();if(V.st!=='idle')vForce();V.tgt='q';say('');
+   vStart({onPartial:function(t){inp.value=t;filt()},onState:function(st){mb.classList.toggle('on',st==='listen');if(st==='listen')say('Listening... speak now. · सुन रहा हूँ... बोलिए।',1);else if(st==='work')say('Listening to the recording... · रिकॉर्डिंग सुन रहा हूँ...',1)},onErr:function(m){mb.classList.remove('on');say(m)},
     onEnd:function(t){mb.classList.remove('on');t=String(t||'').trim();
-     if(o.inp==='number'){var m=t.replace(/,/g,'').match(/\d+(\.\d+)?/);inp.value=m?m[0]:t;if(m)return submit();return say('I heard "'+t+'". Please type the number. · मैंने सुना "'+t+'"। कृपया संख्या लिखें।')}
-     var dg=t.replace(/[^0-9]/g,'');if(opts.length&&dg&&+dg>=1&&+dg<=opts.length&&t.length<12)return done({o:opts[+dg-1].v});
-     var bi=-1,bs=0;opts.forEach(function(x,i){var s=sim(x.l,t);if(s>bs){bs=s;bi=i}});if(bi>=0&&bs>=.75)return done({o:opts[bi].v});
-     inp.value=t;say('I heard "'+t+'". Press OK, or tap a name above. · मैंने सुना "'+t+'"। OK दबाएँ या ऊपर से नाम चुनें।')}})}}
+     if(o.inp==='number'){var m=t.replace(/,/g,'').match(/\d+(\.\d+)?/),nn=m?+m[0]:null;if(nn===null){var tk=owTok(t);for(var z=0;z<tk.length;z++)if(tk[z].n!==undefined){nn=tk[z].n;break}}
+      if(nn>0){inp.value=nn;return submit()}return say('I heard "'+t+'". Please type the number. · मैंने सुना "'+t+'"। कृपया संख्या लिखें।')}
+     if(opts.length&&opts.length<=8&&/^\s*(option|number|no\.?|नंबर)?\s*\d{1,2}\s*$/i.test(t)){var dg=+t.replace(/[^0-9]/g,'');if(dg>=1&&dg<=opts.length)return done({o:opts[dg-1].v})}
+     var bi=-1,bs=0;opts.forEach(function(x,i){if(x.v&&x.v.nw)return;var s2=sim(x.l,t);if(s2>bs){bs=s2;bi=i}});if(bi>=0&&bs>=.85)return done({o:opts[bi].v});
+     inp.value=t;filt();say('I heard "'+t+'". Tap the right one in the list, or press OK. · मैंने सुना "'+t+'"। सूची से चुनें, या OK दबाएँ।',1)}})}}
 })}
 async function clarify(j,force){
  var a=force||String(j&&j.action||'').toLowerCase().replace(/[^a-z_]/g,'');
@@ -4029,8 +4045,9 @@ async function clarify(j,force){
   if(ex&&(cs.length===1||qWords(sp).length>=2||st.length<=1))j.party=ex.name;
   else if(!ex&&st.length===1)j.party=st[0].name;
   else{
-   var po=cs.slice(0,150).map(function(p){return {l:p.name,s:[p.name===lp?'Last time you chose this · पिछली बार यही चुना था':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}});
+   var mapP=function(p){return {l:p.name,s:[p.name===lp?'Last time you chose this · पिछली बार यही चुना था':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}},po=cs.slice(0,150).map(mapP);
    if(sp)po.push({l:'New '+tt+' · नया '+hP+': '+sp,s:'Not in my list. Create as new. · लिस्ट में नहीं है, नया बनाएँ।',v:{n:sp,nw:1}});
+   var seenP={};cs.slice(0,150).forEach(function(p){seenP[p.id]=1});D.parties.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seenP[p.id]&&po.length<400)po.push(mapP(p))});
    var r=await askQ({t:sp?(cs.length?'Which '+tt+'? You said "'+sp+'"'+(cs.length>1?' ('+cs.length+' found)':''):'I could not find "'+sp+'" in your list'):'Who is the '+tt+'?',hi:sp?(cs.length?'कौन सा '+hP+'? आपने बोला "'+sp+'"'+(cs.length>1?' ('+cs.length+' नाम मिले)':''):'"'+sp+'" आपकी लिस्ट में नहीं मिला'):hP+' कौन है?',sub:cs.length?'Tap the right one, or type / speak the name.':'Type or speak the name.',shi:cs.length?'सही नाम पर टैप करें, या नाम लिखें / बोलें।':'नाम लिखें या बोलें।',opts:po,inp:'text',ph:'Type name · नाम लिखें',dl:D.parties.map(function(p){return p.name})});
    if(r.o){j.party=r.o.n;if(sp)lrnSet('p',sp,r.o.n)}else{var f=findP(r.t),sq=f?[f]:qStrong(D.parties,r.t);j.party=sq.length===1?sq[0].name:r.t}
   }
@@ -4049,8 +4066,9 @@ async function clarify(j,force){
    if(nm&&e2&&(c2.length===1||qWords(nm).length>=2||sti.length<=1))it=e2;
    else if(nm&&!e2&&sti.length===1)it=sti[0];
    else{
-    var io=c2.slice(0,60).map(function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'Last time you chose this · पिछली बार यही चुना था':'',p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}});
+    var mapI=function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'Last time you chose this · पिछली बार यही चुना था':'',p.unit,rt?'Rs '+rt:''].filter(Boolean).join('  |  '),v:{n:p.name}}},io=c2.slice(0,60).map(mapI);
     if(nm)io.push({l:'New item · नया आइटम: '+nm,s:'Not in my stock list. Create as new item. · स्टॉक में नहीं है, नया बनाएँ।',v:{n:nm,nw:1}});
+    var seenI={};c2.slice(0,60).forEach(function(p){seenI[p.id]=1});D.items.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seenI[p.id]&&io.length<400)io.push(mapI(p))});
     var r2=await askQ({t:nm?(c2.length?'Which item? You said "'+nm+'"'+(c2.length>1?' ('+c2.length+' found)':''):'I could not find "'+nm+'" in your items'):'Which item?',hi:nm?(c2.length?'कौन सा आइटम? आपने बोला "'+nm+'"'+(c2.length>1?' ('+c2.length+' मिले)':''):'"'+nm+'" आपके आइटम में नहीं मिला'):'कौन सा आइटम?',sub:c2.length?'Tap the right one, or type / speak the name.':'Type or speak the item name.',shi:c2.length?'सही आइटम पर टैप करें, या नाम लिखें / बोलें।':'आइटम का नाम लिखें या बोलें।',opts:io,inp:'text',ph:'Type item name · आइटम का नाम',dl:D.items.map(function(p){return p.name})});
     if(r2.o){x.name=r2.o.n;if(nm)lrnSet('i',nm,r2.o.n)}else{var f2=findI(r2.t),s2=f2?[f2]:qStrong(D.items,r2.t);x.name=s2.length===1?s2[0].name:r2.t}
     it=findI(x.name)||null;
@@ -4345,11 +4363,13 @@ function srStart(){var r=new SR(),err='',o=V.o,tS=Date.now();V.rec=r;V.fin='';V.
  try{if(navigator.onLine===false)r.processLocally=true}catch(e){}
  function go(n){try{r.start()}catch(e){if(n<2)setTimeout(function(){if(!r._x&&!V.cancel)go(n+1)},350);else{r._x=1;V.st='idle';V.rec=null;o.onErr('Could not start the microphone. Please tap the mic again.')}}}go(0)}
 function useMr(){return !SR||(vp().eng!=='sr'&&cfg().p==='gemini'&&ready()&&!!navigator.mediaDevices&&!!window.MediaRecorder)}
+function vForce(){V.cancel=0;clearTimeout(V.tm);clearTimeout(V.fz);if(V.rec){V.rec._x=1;try{V.rec.abort()}catch(e){}V.rec=null}try{if(V.mr&&V.mr.state==='recording')V.mr.stop()}catch(e){}V.st='idle'}
+var IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function vStart(o){if(V.st!=='idle')return;V.o=o;V.cancel=0;V.st='listen';V.t0=Date.now();V.rt=0;
  var go=function(){if(useMr())mrStart();else srStart()},sp=false;
  try{var ss=window.speechSynthesis;sp=!!(ss&&(ss.speaking||ss.pending||Date.now()-(V.spk||0)<1500));if(sp)ss.cancel()}catch(e){}
  if(V.rec){V.rec._x=1;try{V.rec.abort()}catch(e){}V.rec=null}
- if(sp)setTimeout(function(){if(V.o!==o)return;if(V.cancel){V.cancel=0;V.st='idle';return}go()},800);else go()}
+ if(sp&&!IOS)setTimeout(function(){if(V.o!==o||V.st!=='listen')return;if(V.cancel){V.cancel=0;V.st='idle';return}go()},800);else go()}
 function vStop(cancel){V.cancel=cancel?1:0;if(V.rec){var rr=V.rec;try{rr.stop()}catch(e){}clearTimeout(V.fz);V.fz=setTimeout(function(){if(V.rec===rr&&!rr._x){rr._x=1;V.rec=null;clearTimeout(V.tm);vFin(V.cancel?'':V.last)}},1500)}else if(V.mr&&V.mr.state==='recording'){try{V.mr.stop()}catch(e){}}else if(V.st==='listen'){vFin('')}}
 /* safety net: if the browser never reports that listening ended, free the mic so the next tap works */
 setInterval(function(){if((V.st==='listen'||V.st==='work')&&V.t0&&Date.now()-V.t0>50000){try{if(V.rec){V.rec._x=1;V.rec.abort()}}catch(e){}V.rec=null;try{if(V.mr&&V.mr.state==='recording')V.mr.stop()}catch(e){}V.cancel=0;vFin('','Voice stopped. Tap the mic and try again.')}},2000);
