@@ -2431,7 +2431,7 @@ function obPaint(){var e=$('#obx');if(!e)return;
  if(!OB.rows.length)h+='<p class="mu">No messages yet.</p>';
  OB.rows.forEach(function(m){var st={pending:'Waiting',sending:'Sending…',sent:'Sent',failed:'Failed'}[m.status]||m.status,cl=m.status==='sent'?'grn':m.status==='failed'?'red':'mu',
   tm=new Date(m.sent_at||m.created_at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-  h+='<div style="border-top:1px solid var(--bd);padding:7px 0"><div class="row"><b>'+esc(m.party_name||m.phone)+'</b><span class="'+cl+'">'+st+'</span></div><div class="mu">'+tm+' · +'+esc(m.phone)+'</div><div class="mu" style="white-space:pre-wrap;max-height:3.6em;overflow:hidden">'+esc(m.message)+'</div>'+(m.error?'<div class="red" style="font-size:12px">'+esc(m.error)+'</div>':'')+
+  h+='<div style="border-top:1px solid var(--bd);padding:7px 0"><div class="row"><b>'+esc(m.party_name||m.phone)+'</b><span class="'+cl+'">'+st+'</span></div><div class="mu">'+tm+' · +'+esc(m.phone)+(m.media_url?' · 📷 Photo attached':'')+'</div><div class="mu" style="white-space:pre-wrap;max-height:3.6em;overflow:hidden">'+esc(m.message)+'</div>'+(m.error?'<div class="red" style="font-size:12px">'+esc(m.error)+'</div>':'')+
   (m.status==='failed'?'<button class="s" data-id="'+m.id+'" onclick="obAct(this.dataset.id,\'retry\')">Try again</button>':'')+(m.status==='pending'?'<button class="s" data-id="'+m.id+'" onclick="obAct(this.dataset.id,\'cancel\')">Cancel</button>':'')+'</div>'});
  e.innerHTML=h+'</div>'}
 function obAct(id,a){
@@ -5179,6 +5179,7 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   if(!c.name.trim())h+='<div class="pr-warn">Write an offer name in Step 1. The app uses it to remember who already got this offer.</div>';
   if(c.mode==='pick'&&!E.length)h+='<div class="pr-warn">No party is chosen yet. In Step 3, search a party and tap its box.</div>';
   h+='<div class="pr-box"><b>'+n+'</b> '+(n===1?'party':'parties')+' will get this message now.';
+  if(n){h+='<div style="margin-top:8px"><b>Selected parties:</b><div class="pr-fl" style="margin-top:6px">'+L.map(function(p){return '<span class="pr-chip">'+esc(p.name)+'</span>'}).join('')+'</div></div>'}
   if(E.length>n)h+='<br>📦 <b>'+(E.length-n)+'</b> more are waiting for the next group. When this group is sent, press the send button again.';
   if(skipped)h+='<br>✓ <b>'+skipped+'</b> already got "'+esc(c.name.trim())+'" earlier and will be skipped.';
   if(n){var t=plan(n,c,Date.now()+30000,function(){return .5}),last=t[n-1];h+='<br>This group takes about <b>'+dur(last-Date.now())+'</b>. Last message goes around <b>'+fmt(last)+'</b>.'}
@@ -5307,7 +5308,8 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   if(!c.msg.trim())return alert('Write the message first.');
   if(!L.length)return alert(c.mode==='pick'?'No party is chosen. In Step 3, search a party and tap its box.':'Nobody left to send. Everyone selected already got this offer, or no party is selected.');
   var t=plan(L.length,c,Date.now()+30000,Math.random),last=t[t.length-1];
-  if(!confirm('Send "'+c.name.trim()+'" to '+parties(L.length)+'?'+(E>L.length?'\n('+(E-L.length)+' more will wait for the next group.)':'')+'\n\nOne by one, about '+c.min+' to '+c.max+' seconds apart.\nLast message goes around '+fmt(last)+'.'+(PR.img?'\nThe photo will go with it.':'')))return;
+  var names=L.map(function(p){return p.name}).join(', ');
+  if(!confirm('Send "'+c.name.trim()+'" to '+parties(L.length)+'?\n\nSelected: '+names+(E>L.length?'\n\n('+(E-L.length)+' more will wait for the next group.)':'')+'\n\nOne by one, about '+c.min+' to '+c.max+' seconds apart.\nLast message goes around '+fmt(last)+'.'+(PR.img?'\nThe photo will go with it.':'')))return;
   PR.busy=true;var bt=$('#pr_go');if(bt){bt.disabled=true;bt.textContent='Please wait...'}
   function done(){PR.busy=false;var b=$('#pr_go');if(b){b.disabled=false;b.textContent=goText()}}
   var up=PR.img?Promise.resolve(SB.storage.from('promo').upload('p'+Date.now()+'.jpg',PR.img,{contentType:'image/jpeg'})).then(function(r){
