@@ -1531,7 +1531,7 @@ var _r9=render;render=function(){_r9();try{sugUp()}catch(e){}};
 function sgList(id,html,key){var l=document.getElementById(id);if(!l){l=document.createElement('datalist');l.id=id;document.body.appendChild(l)}if(l.dataset.k!==key){l.dataset.k=key;l.innerHTML=html}}
 var _su10=sugUp;
 sugUp=function(){_su10();
- var q=[].slice.call(document.querySelectorAll('input[placeholder*="earch"]')).filter(function(i){return !i.dataset.dl});
+ var q=[].slice.call(document.querySelectorAll('input[placeholder*="earch"]')).filter(function(i){return !i.dataset.dl&&!i.hasAttribute('data-nosug')});
  if(!q.length)return;
  var needI=q.some(function(i){return /item/i.test(i.placeholder)});
  sgList('sgP',D.parties.map(function(p){return '<option value="'+esc(p.name)+'" label="'+esc(p.name+(p.phone?' · '+p.phone:''))+'">'}).join(''),D.parties.length+'|'+D.parties.reduce(function(n,p){return n+(p.phone?1:0)},0));
@@ -4490,6 +4490,8 @@ var st2=document.createElement('style');st2.textContent='.aimic{flex:0 0 auto;wi
 +'@media(min-width:900px){.aibox.aivbox{max-width:760px;border-radius:16px;padding:8px 24px 20px}.aivm{display:flex;flex-direction:row;align-items:center;gap:16px;margin:8px 0}.aimic.big{width:60px;height:60px}.aimic.big svg{width:28px;height:28px}.aivbox .aibt{justify-content:flex-end}.aivbox .aibt button{flex:0 0 auto;min-width:130px;padding:11px 18px;font-size:15px}.vr,.vrh{grid-template-columns:minmax(0,1fr) 84px 84px 104px 110px 36px;grid-template-areas:"n q u r a x"}.vrh{display:grid;font-size:12px;color:#7b8194;padding:6px 0 0;grid-template-areas:none}.vr .x{height:34px}.aiin .aimic{width:44px;height:44px}}';
 document.head.appendChild(st2);try{fabSync();topBtn()}catch(e){}
 try{buildNav()}catch(e){}
+/* bridge: the add-on patches below run in separate closures, so expose the AI internals they extend */
+try{Object.defineProperty(window,'isCmd',{get:function(){return isCmd},set:function(v){isCmd=v},configurable:true});Object.defineProperty(window,'strongCmd',{get:function(){return strongCmd},set:function(v){strongCmd=v},configurable:true});Object.defineProperty(window,'ownParse',{get:function(){return ownParse},set:function(v){ownParse=v},configurable:true});Object.defineProperty(window,'parseCmd',{get:function(){return parseCmd},set:function(v){parseCmd=v},configurable:true});Object.defineProperty(window,'mkConf',{get:function(){return mkConf},set:function(v){mkConf=v},configurable:true});Object.defineProperty(window,'confHtml',{get:function(){return confHtml},set:function(v){confHtml=v},configurable:true});Object.defineProperty(window,'vmerge',{get:function(){return vmerge},set:function(v){vmerge=v},configurable:true});Object.defineProperty(window,'normAlias',{get:function(){return normAlias},set:function(v){normAlias=v},configurable:true});Object.defineProperty(window,'resolveName',{get:function(){return resolveName},set:function(v){resolveName=v},configurable:true});Object.defineProperty(window,'OWNHELP',{get:function(){return OWNHELP},set:function(v){OWNHELP=v},configurable:true});Object.defineProperty(window,'PSYS',{get:function(){return PSYS},set:function(v){PSYS=v},configurable:true});Object.defineProperty(window,'owTok',{get:function(){return owTok},set:function(v){owTok=v},configurable:true});Object.defineProperty(window,'psim',{get:function(){return psim},set:function(v){psim=v},configurable:true});Object.defineProperty(window,'qWords',{get:function(){return qWords},set:function(v){qWords=v},configurable:true});Object.defineProperty(window,'qn',{get:function(){return qn},set:function(v){qn=v},configurable:true});Object.defineProperty(window,'vcErr',{get:function(){return vcErr},set:function(v){vcErr=v},configurable:true});Object.defineProperty(window,'W_IN',{get:function(){return W_IN},set:function(v){W_IN=v},configurable:true});Object.defineProperty(window,'W_FILL',{get:function(){return W_FILL},set:function(v){W_FILL=v},configurable:true});Object.defineProperty(window,'clarify',{get:function(){return clarify},set:function(v){clarify=v},configurable:true});}catch(e){}
 })();
 
 /* ================= OFFLINEAI TRANSACTION ROUTER v5 ================= */
@@ -5083,14 +5085,24 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
 </script>
 
 <style id="promo-style">
-.pr-step{max-width:640px}
+.pr-step{max-width:none}
+.pr-wrap{max-width:680px}
+.pr-seg{display:flex;gap:6px;margin:6px 0 10px}.pr-seg button{flex:1;padding:11px 8px;font-size:14px}.pr-seg button.on{background:#1a73e8;color:#fff}
+.pr-sel{background:#f4f8ff;border:1px solid #cfe0fb;border-radius:8px;padding:10px;margin:0 0 10px}
+.pr-selh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.pr-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto}
+.pr-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #bcd3f5;border-radius:999px;padding:3px 4px 3px 10px;font-size:13px}
+.pr-chip button{border:0;background:#e8eefc;color:#1a56b8;width:22px;height:22px;border-radius:50%;font-size:15px;line-height:1;padding:0}
+#pr_go:disabled{opacity:.5;cursor:not-allowed}
+@media(min-width:1000px){.pr-wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}.pr-list{max-height:340px}.pr-chips{max-height:180px}}
+@media(max-width:999px){.pr-list{max-height:46vh}.pr-fl button,.pr-seg button{min-height:40px}.pr-list label{padding:12px 10px}}
 .pr-n{display:inline-flex;width:26px;height:26px;border-radius:50%;background:#1a73e8;color:#fff;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:8px}
 .pr-h{font-size:16px;font-weight:600;display:flex;align-items:center;margin-bottom:4px}
 .pr-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:6px 0}
 .pr-list{max-height:280px;overflow-y:auto;border:1px solid #e4e8f0;border-radius:6px;margin-top:6px}
 .pr-list label{display:flex;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid #eef0f5;margin:0;cursor:pointer}
 .pr-list input{width:18px;height:18px;margin:0;flex:none}
-.pr-bub{background:#d9fdd3;color:#111;border-radius:8px;padding:10px;white-space:pre-wrap;font-size:14px;max-width:340px}
+.pr-bub{background:#d9fdd3;color:#111;border-radius:8px;padding:10px;white-space:pre-wrap;font-size:14px;max-width:340px;word-break:break-word}
 .pr-bub img{max-width:100%;border-radius:6px;display:block;margin-bottom:6px}
 .pr-warn{background:#fff4e5;color:#8a4b00;border-radius:6px;padding:8px 10px;font-size:13px;margin:8px 0}
 .pr-box{background:#f4f6fb;border-radius:6px;padding:10px;margin:8px 0;font-size:14px}
@@ -5120,14 +5132,18 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  function pp(){var p=PS();p.promo=p.promo||{};return p.promo}
  function num(v,d){v=parseFloat(v);return isFinite(v)?v:d}
  function cfg(){var c=pp(),sp=SPEED[c.speed]?c.speed:'safe',b=sp==='custom'?{min:num(c.min,30),max:num(c.max,60),batch:num(c.batch,15),rest:num(c.rest,10),cap:num(c.cap,150)}:SPEED[sp];
-  return{speed:sp,min:b.min,max:b.max,batch:b.batch,rest:b.rest,cap:b.cap,from:num(c.from,10),to:num(c.to,20),stop:c.stop==null?1:+c.stop,msg:c.msg==null?DEFMSG:c.msg,name:c.cname||'',skip:c.skip||{}}}
+  return{speed:sp,min:b.min,max:b.max,batch:b.batch,rest:b.rest,cap:b.cap,from:num(c.from,10),to:num(c.to,20),stop:c.stop==null?1:+c.stop,msg:c.msg==null?DEFMSG:c.msg,name:c.cname||'',mode:c.mode==='pick'?'pick':'all',sel:c.sel||{}}}
  function ckey(c){return String(c.name||'').trim().toLowerCase()}
  function camp(c){var k=ckey(c),cs=pp().camps||{};return k&&cs[k]?cs[k]:null}
  function sentMap(c){var x=camp(c);return x?x.phones:{}}
  function aud(){var seen={},L=[];D.parties.forEach(function(p){if(p.x)return;var n=phone(p);if(n.length<10||seen[n])return;seen[n]=1;L.push(p)});
   return L.sort(function(a,b){return String(a.name).localeCompare(String(b.name))})}
  function isSent(c,p){return !!sentMap(c)[phone(p)]}
- function pick(c){return aud().filter(function(p){return !c.skip[p.id]&&!isSent(c,p)})}
+ function pick(c){return aud().filter(function(p){return !isSent(c,p)&&(c.mode!=='pick'||c.sel[p.id])})}
+ function goLbl(){var c=cfg(),n=pick(c).length;return c.mode==='pick'?'Send to '+n+' selected '+(n===1?'party':'parties'):'Send to all '+n+' parties'}
+ function shown(c){var q=PR.q.toLowerCase().trim();return aud().filter(function(p){var s=isSent(c,p);
+   if(PR.f==='new'&&s)return false;if(PR.f==='sent'&&!s)return false;
+   return !q||String(p.name).toLowerCase().indexOf(q)>=0||phone(p).indexOf(q.replace(/\D/g,'')||'~')>=0})}
  function fill(t,p){return String(t).replace(/\{name\}/g,function(){return p?p.name:'Customer'}).replace(/\{shop\}/g,function(){return D.shop||''})}
  function plan(n,c,start,rnd){
   var mn=Math.max(1,c.min),mx=Math.max(mn,c.max),fr=c.from,to=c.to;if(!(fr>=0&&to<=24&&fr<to)){fr=0;to=24}
@@ -5149,7 +5165,8 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  function sumHtml(){
   var c=cfg(),all=aud(),L=pick(c),n=L.length,sent=all.filter(function(p){return isSent(c,p)}).length,h='';
   if(!c.name.trim())h+='<div class="pr-warn">Write an offer name in Step 1. The app uses it to remember who already got this offer.</div>';
-  h+='<div class="pr-box"><b>'+n+'</b> parties will get this message.';
+  h+='<div class="pr-box"><b>'+n+'</b> '+(c.mode==='pick'?'selected ':'')+(n===1?'party':'parties')+' will get this message.';
+  if(c.mode==='pick'&&!n)h+='<br>Tick the parties you want in Step 3.';
   if(sent)h+='<br>✓ <b>'+sent+'</b> already got "'+esc(c.name.trim())+'" earlier and will be skipped.';
   if(n){var t=plan(n,c,Date.now()+30000,function(){return .5}),last=t[n-1];h+='<br>Total time about <b>'+dur(last-Date.now())+'</b>. Last message goes around <b>'+fmt(last)+'</b>.'}
   h+='</div>';
@@ -5159,14 +5176,14 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   return h}
  function bubHtml(){var c=cfg(),p=pick(c)[0]||aud()[0],t=fill(c.msg,p)+(c.stop?STOPLINE:'');
   return '<div class="pr-bub">'+(PR.prev?'<img src="'+PR.prev+'">':'')+esc(t)+'</div>'}
- function listHtml(){var c=cfg(),q=PR.q.toLowerCase().trim(),n=0;
-  var h=aud().filter(function(p){
-    var s=isSent(c,p);
-    if(PR.f==='new'&&s)return false;if(PR.f==='sent'&&!s)return false;
-    return !q||String(p.name).toLowerCase().indexOf(q)>=0||phone(p).indexOf(q.replace(/\D/g,'')||'~')>=0}).map(function(p){n++;
-   var s=isSent(c,p);
-   return '<label><input type="checkbox" '+(s?'disabled ':(c.skip[p.id]?'':'checked '))+'onchange="prTog(\''+p.id+'\',this.checked)"><span style="flex:1">'+esc(p.name)+'</span>'+(s?'<span class="pr-tag">✓ already sent</span>':'<span class="mu">'+esc(phone(p).slice(-10))+'</span>')+'</label>'}).join('');
+ function listHtml(){var c=cfg(),pk=c.mode==='pick';
+  var h=shown(c).map(function(p){var s=isSent(c,p);
+   return '<label>'+(pk?'<input type="checkbox" '+(s?'disabled ':(c.sel[p.id]?'checked ':''))+'onchange="prTog(\''+p.id+'\',this.checked)">':'')+'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</span>'+(s?'<span class="pr-tag">✓ already sent</span>':'<span class="mu">'+esc(phone(p).slice(-10))+'</span>')+'</label>'}).join('');
   return h||'<div class="mu" style="padding:10px">No party found.</div>'}
+ function selHtml(){var c=cfg();if(c.mode!=='pick')return '';
+  var L=pick(c);
+  return '<div class="pr-selh"><b>📋 Your list: '+L.length+' '+(L.length===1?'party':'parties')+'</b>'+(L.length?'<button class="s" onclick="prClear()">Clear list</button>':'')+'</div>'+
+   (L.length?'<div class="pr-chips">'+L.map(function(p){return '<span class="pr-chip">'+esc(p.name)+'<button aria-label="Remove '+esc(p.name)+'" onclick="prUnsel(\''+p.id+'\')">×</button></span>'}).join('')+'</div>':'<div class="mu">Nobody ticked yet. Tick parties below and they appear here. Only this list gets the message.</div>')}
  function recsHtml(){
   var cs=pp().camps||{},ks=Object.keys(cs).sort(function(a,b){return cs[b].date-cs[a].date});
   if(!ks.length)return '<div class="mu">No offer sent yet. Sent offers are remembered here so nobody gets the same offer twice.</div>';
@@ -5174,15 +5191,18 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
    return '<div class="row" style="padding:8px 0;border-bottom:1px solid #eef0f5;flex-wrap:wrap"><div><b>'+esc(x.name)+'</b><div class="mu">'+n+' parties · '+new Date(x.date).toLocaleDateString('en-IN')+'</div></div><span style="display:flex;gap:6px"><button class="s" onclick="prUse(\''+encodeURIComponent(k)+'\')">Open</button><button class="s dlb" onclick="prDel(\''+encodeURIComponent(k)+'\')">Delete record</button></span></div>'}).join('')}
  function chipsHtml(){var cs=pp().camps||{},ks=Object.keys(cs).sort(function(a,b){return cs[b].date-cs[a].date}).slice(0,4);
   return ks.length?'<div class="mu" style="margin-top:4px">Continue an earlier offer:</div><div class="pr-fl">'+ks.map(function(k){return '<button class="s" onclick="prUse(\''+encodeURIComponent(k)+'\')">'+esc(cs[k].name)+'</button>'}).join('')+'</div>':''}
- function paint(){var a=$('#pr_sum'),b=$('#pr_bub');if(a)a.innerHTML=sumHtml();if(b)b.innerHTML=bubHtml()}
+ function paint(){var a=$('#pr_sum'),b=$('#pr_bub'),g=$('#pr_go'),l=$('#pr_sel'),n=pick(cfg()).length;if(a)a.innerHTML=sumHtml();if(b)b.innerHTML=bubHtml();if(l)l.innerHTML=selHtml();if(g&&!PR.busy){g.textContent=goLbl();g.disabled=!n}}
  function paintList(){var a=$('#pr_list');if(a)a.innerHTML=listHtml();paint()}
  function paintRecs(){var a=$('#pr_recs');if(a)a.innerHTML=recsHtml()}
  function numIn(k,lb,v){return '<div><label class="mu">'+lb+'</label><input type="number" inputmode="numeric" value="'+v+'" oninput="prSet(\''+k+'\',this.value)"></div>'}
 
  window.prSet=function(k,v){var c=pp();c[k]=(k==='msg')?v:num(v,0);save();paint()};
  window.prName=function(v){pp().cname=v;save();paintList()};
- window.prTog=function(id,on){var c=pp();c.skip=c.skip||{};if(on)delete c.skip[id];else c.skip[id]=1;save();paint()};
- window.prAll=function(on){var c=pp();c.skip={};if(!on)aud().forEach(function(p){c.skip[p.id]=1});save();paintList()};
+ window.prTog=function(id,on){var c=pp();c.sel=c.sel||{};if(on)c.sel[id]=1;else delete c.sel[id];save();paint()};
+ window.prUnsel=function(id){var c=pp();if(c.sel)delete c.sel[id];save();paintList()};
+ window.prClear=function(){pp().sel={};save();paintList()};
+ window.prMode=function(m){pp().mode=m==='pick'?'pick':'all';save();render()};
+ window.prAll=function(on){var c=pp(),k=cfg();c.sel=c.sel||{};shown(k).forEach(function(p){if(isSent(k,p))return;if(on)c.sel[p.id]=1;else delete c.sel[p.id]});save();paintList()};
  window.prFind=function(v){PR.q=v||'';var a=$('#pr_list');if(a)a.innerHTML=listHtml()};
  window.prFilt=function(f){PR.f=f;render()};
  window.prStop=function(on){pp().stop=on?1:0;save();paint()};
@@ -5226,11 +5246,11 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   if(!obOk())return alert('The app is not connected to the cloud yet. Open the app again and try.');
   if(!key)return alert('Write an offer name in Step 1 (example: Diwali Sale).');
   if(!c.msg.trim())return alert('Write the message first.');
-  if(!L.length)return alert('Nobody left to send. Everyone selected already got this offer, or no party is selected.');
+  if(!L.length)return alert(c.mode==='pick'?'No party is ticked. Tick the parties in Step 3 first.':'Nobody left to send. Everyone already got this offer.');
   var t=plan(L.length,c,Date.now()+30000,Math.random),last=t[t.length-1];
-  if(!confirm('Send "'+c.name.trim()+'" to '+L.length+' parties?\n\nOne by one, about '+c.min+' to '+c.max+' seconds apart.\nLast message goes around '+fmt(last)+'.'+(PR.img?'\nThe photo will go with it.':'')))return;
+  if(!confirm('Send "'+c.name.trim()+'" to '+(c.mode==='pick'?'ONLY these '+L.length+' selected':L.length)+' parties?'+(c.mode==='pick'&&L.length<=8?'\n\n'+L.map(function(p){return '• '+p.name}).join('\n'):'')+'\n\nOne by one, about '+c.min+' to '+c.max+' seconds apart.\nLast message goes around '+fmt(last)+'.'+(PR.img?'\nThe photo will go with it.':'')))return;
   PR.busy=true;var bt=$('#pr_go');if(bt){bt.disabled=true;bt.textContent='Please wait...'}
-  function done(){PR.busy=false;var b=$('#pr_go');if(b){b.disabled=false;b.textContent='Send to '+pick(cfg()).length+' parties'}}
+  function done(){PR.busy=false;var b=$('#pr_go');if(b){b.disabled=false;b.textContent=goLbl()}}
   var up=PR.img?Promise.resolve(SB.storage.from('promo').upload('p'+Date.now()+'.jpg',PR.img,{contentType:'image/jpeg'})).then(function(r){
     if(r&&r.error)throw new Error('Photo upload failed: '+r.error.message+' (is the one-time setup at the bottom done?)');
     return SB.storage.from('promo').getPublicUrl(r.data.path).data.publicUrl}):Promise.resolve('');
@@ -5249,7 +5269,7 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
 
  function home(){
   var c=cfg(),h='<h2 style="font-size:20px;margin:6px 0">📢 Send an offer to customers</h2><button class="s" onclick="sTab=\'msg\';render()">← Back to Messages</button>'+
-   '<div class="mu" style="margin:8px 0">Follow the 5 steps. Messages go out slowly, one by one, and the app remembers who already got each offer.</div>';
+   '<div class="mu" style="margin:8px 0">Follow the 5 steps. Messages go out slowly, one by one, and the app remembers who already got each offer.</div><div class="pr-wrap"><div class="pr-colA">';
   h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">1</span>Offer name and message</div>'+
    '<label class="mu">Offer name (only for you, example: Diwali Sale)</label><input placeholder="Offer name" value="'+esc(c.name)+'" oninput="prName(this.value)">'+chipsHtml()+
    '<label class="mu">Message. {name} = party name, {shop} = your shop name</label>'+
@@ -5257,10 +5277,15 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
    '<label style="display:flex;gap:10px;align-items:center;margin:6px 0"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(c.stop?'checked ':'')+'onchange="prStop(this.checked)"><span>Add "reply STOP to stop offers" (customers will not report you)</span></label></div>';
   h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">2</span>Photo (optional)</div>'+
    '<input id="pr_file" type="file" accept="image/*" onchange="prImg(this)"><div id="pr_imgx" style="display:'+(PR.prev?'block':'none')+'"><button class="s" onclick="prNoImg()">Remove photo</button></div></div>';
+  var pk=c.mode==='pick';
   h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">3</span>Who gets it</div>'+
-   '<input class="pr-srch" placeholder="🔍 Search party name or number" value="'+esc(PR.q)+'" oninput="prFind(this.value)">'+
-   '<div class="pr-fl">'+[['all','All'],['new','Not sent yet'],['sent','Already sent']].map(function(f){return '<button class="s'+(PR.f===f[0]?' on':'')+'" onclick="prFilt(\''+f[0]+'\')">'+f[1]+'</button>'}).join('')+'<span style="flex:1"></span><button class="s" onclick="prAll(true)">Tick all</button><button class="s" onclick="prAll(false)">Untick all</button></div>'+
-   '<div id="pr_list" class="pr-list">'+listHtml()+'</div></div>';
+   '<div class="pr-seg"><button class="s'+(!pk?' on':'')+'" onclick="prMode(\'all\')">👥 Everyone</button><button class="s'+(pk?' on':'')+'" onclick="prMode(\'pick\')">✅ Only chosen parties</button></div>'+
+   (pk?'<div id="pr_sel" class="pr-sel">'+selHtml()+'</div>'+
+   '<input class="pr-srch" data-nosug="1" autocomplete="off" placeholder="🔍 Search party name or number" value="'+esc(PR.q)+'" oninput="prFind(this.value)">'+
+   '<div class="pr-fl">'+[['all','All'],['new','Not sent yet'],['sent','Already sent']].map(function(f){return '<button class="s'+(PR.f===f[0]?' on':'')+'" onclick="prFilt(\''+f[0]+'\')">'+f[1]+'</button>'}).join('')+'<span style="flex:1"></span><button class="s" onclick="prAll(true)">Tick all shown</button><button class="s" onclick="prAll(false)">Untick shown</button></div>'+
+   '<div id="pr_list" class="pr-list">'+listHtml()+'</div>'
+   :'<div class="mu" style="margin-top:6px">The offer goes to every party that has a phone number and has not got this offer yet. To send to only a few parties, choose "Only chosen parties".</div><div id="pr_list" class="hid" style="display:none"></div>')+'</div>';
+  h+='</div><div class="pr-colB">';
   h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">4</span>Speed</div><div class="mu">A slower speed is safer for your WhatsApp number.</div>'+
    '<div class="pr-sp">'+['safe','extra','custom'].map(function(k){return '<button class="s'+(c.speed===k?' on':'')+'" onclick="prSpeed(\''+k+'\')">'+SPEED[k].t+'</button>'}).join('')+'</div>'+
    '<div class="mu">'+SPEED[c.speed].d+'</div>'+
@@ -5268,10 +5293,11 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
    '<div class="mu" style="margin-top:8px">Send only between these hours (24-hour clock). Outside these hours the app waits.</div><div class="pr-g">'+numIn('from','From hour',c.from)+numIn('to','Until hour',c.to)+'</div></div>';
   h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">5</span>Check and send</div><div class="mu">This is how it will look:</div><div id="pr_bub" style="margin:6px 0">'+bubHtml()+'</div>'+
    '<div id="pr_sum">'+sumHtml()+'</div>'+
-   '<button id="pr_go" class="b pr-big" onclick="prQueue()">Send to '+pick(c).length+' parties</button>'+
+   '<button id="pr_go" class="b pr-big" onclick="prQueue()"'+(pick(c).length?'':' disabled')+'>'+goLbl()+'</button>'+
    '<div id="pr_ok" class="ok" style="display:none;margin-top:8px"></div>'+
    '<div id="pr_pend" class="mu" style="margin-top:8px"></div>'+
    '<button class="s" style="margin-top:6px" onclick="prCancel()">Cancel all waiting offer messages</button></div>';
+  h+='</div></div>';
   h+='<div class="card pr-step"><div class="pr-h">📒 Offers already sent</div><div id="pr_recs">'+recsHtml()+'</div></div>';
   h+='<details class="card pr-step"><summary><b>One-time setup (do this once)</b></summary><div class="mu" style="margin-top:6px">Needed for the photo, the timing and the record. Press Copy, open Supabase &gt; SQL Editor, paste, press Run. If it says a policy already exists, that part was done before. That is fine.</div><button class="s" style="margin-top:6px" onclick="prCopySql()">Copy setup text</button></details>';
   setTimeout(prPend,60);
