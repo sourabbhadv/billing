@@ -1480,7 +1480,7 @@ function mBar(){
  bar.innerHTML='<button class="'+on('home')+'" onclick="nav(\'home\')"><b>🏠</b>Home</button><button class="'+(g==='sale'?'on':'')+'" onclick="nav(\'sale\')"><b>🧾</b>Sale</button><button class="'+on('party')+'" onclick="nav(\'party\')"><b>👥</b>Parties</button><button class="'+on('items')+'" onclick="nav(\'items\')"><b>📦</b>Items</button><button onclick="mMore()"><b>☰</b>More</button>';
  var detail=!!(form||sub||viewB||openB||viewD||pg!=='home');
  top.style.display=(detail?'':'none');bar.style.display=form?'none':'';
- var nm={home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',ana:'Analytics'};
+ var nm={ai:'Ask AI',ins:'Insights',home:'Home',party:'Parties',items:'Items',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',ana:'Analytics'};
  var tt=$('#mtt');if(tt)tt.textContent=form?'New Sale':(nm[pg]||'')}
 var _r8=render;render=function(){_r8();try{mBar()}catch(e){}};
 var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTimeout(_sr8,400)};
@@ -1650,7 +1650,7 @@ mBar=function(){
  bar.style.display=form?'none':'';
  if(root){var sy=document.getElementById('sy');
   top.innerHTML='<div class="mlogo">'+esc((D.shop||'A').charAt(0).toUpperCase())+'</div><div class="mnm"><b>'+esc(D.shop)+'</b><small>'+esc(sy?sy.textContent:'')+'</small></div><button onclick="nav(\'set\')">⚙</button>'}
- else{var nm={si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns',ana:'Analytics'};
+ else{var nm={ai:'Ask AI',ins:'Insights',si:'Sale Invoices',est:'Estimates',pin:'Payment-In',so:'Sale Orders',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bills',pout:'Payment-Out',pret:'Purchase Return',rep:'Reports',out:'WhatsApp Outbox',bk:'Backup',set:'Settings',party:'Parties',items:'Items',gd:'Godowns',ana:'Analytics'};
   var t=form?'New Sale':sub==='pin'?(pdraft&&pdraft.out?'Payment-Out':'Payment-In'):sub==='ret'?'Sale Return':viewB?'Sale #'+viewB:(pg==='party'&&P(selP))?P(selP).name:(pg==='items'&&I(selI))?I(selI).name:pform?'Party':iform?'Item':(nm[pg]||'');
   top.innerHTML='<button onclick="goBack()">←</button><div class="mttl">'+esc(t)+'</div>'}
  top.style.display='';
@@ -3810,6 +3810,156 @@ st.textContent='#lne{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45
 +'#lne .lnbt{display:flex;gap:10px;margin-top:12px}#lne .lnbt button{flex:1;border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:700}#lne .lnd{background:#fdecee;color:#e8213a}#lne .lns{background:#1a73e8;color:#fff;flex:2!important}'
 +'.sfit{cursor:pointer}';
 document.head.appendChild(st);
+})();
+</script>
+<script>
+/* ================= INSIGHTS: free smart suggestions worked out from your own bills (no AI service, no cost) ================= */
+(function(){
+var DYs=864e5,INS={tab:'ro',more:{}};window.INS=INS;
+function ik(l){return (l.iid&&I(l.iid))||findI(l.name)}
+function kOf(b){var s=0;b.lines.forEach(function(l){s+=+l.amt||0});var k=s>0?(+b.total||0)/s:1;return k>0&&k<1.5?k:1}
+function data(){var now=Date.now(),d30=now-30*DYs,d60=now-60*DYs,d90=now-90*DYs,live=D.bills.filter(function(b){return !b.x}),S={},last={},r1={},r0={},t1=0,t0=0,lp=[],lastPay={},firstBill={};
+ live.forEach(function(b){var k=kOf(b),cur=b.date>=d30,prv=b.date>=d60&&b.date<d30;
+  if(cur)t1+=+b.total||0;else if(prv)t0+=+b.total||0;
+  if(!firstBill[b.pid]||b.date<firstBill[b.pid])firstBill[b.pid]=b.date;
+  b.lines.forEach(function(l){var i=ik(l);if(!i)return;var id=i.id;
+   if(!last[id]||b.date>last[id])last[id]=b.date;
+   if(cur){S[id]=(S[id]||0)+(+l.qty||0);r1[id]=(r1[id]||0)+(+l.amt||0)*k}else if(prv)r0[id]=(r0[id]||0)+(+l.amt||0)*k;
+   if(b.date>=d60&&!i.pass&&!CE.noBuy(i)){var c=itemBuy(l),e=(+l.rate||0)*k;if(e>0&&c>0&&(e-c)/e<0.03)lp.push({b:b,l:l,i:i,e:e,c:c,m:(e-c)/e,p:(e-c)*(+l.qty||0)})}})});
+ D.pays.forEach(function(x){if(x.x)return;if(x.ret&&x.date>=d30&&x.lines)x.lines.forEach(function(l){var i=ik(l);if(i)S[i.id]=(S[i.id]||0)-(+l.qty||0)});if(!x.out&&!x.ret&&(!lastPay[x.pid]||x.date>lastPay[x.pid]))lastPay[x.pid]=x.date});
+ var ro=[],fu=[],dd=[],dv=0,tr=[];
+ D.items.forEach(function(i){if(i.pass)return;var q=+i.qty||0,s=S[i.id]||0;
+  if(s>0){var dl=q<=0?0:q/(s/30);if(dl<15)ro.push({i:i,s:s,q:q,dl:dl,sg:Math.max(1,Math.ceil(s-q))})}
+  if(q>0){var l=last[i.id];if(!l||l<d90){var v=q*(+i.buy||+i.rate||0);dv+=v;dd.push({i:i,q:q,l:l,v:v})}}
+  var a=r1[i.id]||0,b0=r0[i.id]||0;if(a||b0)tr.push({i:i,a:a,b:b0,d:a-b0})});
+ ro.sort(function(x,y){return x.dl-y.dl||y.s-x.s});dd.sort(function(x,y){return y.v-x.v});
+ D.parties.forEach(function(p){var b=bal(p);if(!(b>=1))return;var ref=lastPay[p.id]||firstBill[p.id]||0;if(!ref)return;var q=Math.floor((now-ref)/DYs);if(q>=30)fu.push({p:p,b:b,q:q,lp:lastPay[p.id]||0})});
+ fu.sort(function(x,y){return y.b-x.b});lp.sort(function(x,y){return x.m-y.m});
+ return {ro:ro,fu:fu,dd:dd,dv:dv,lp:lp,up:tr.filter(function(x){return x.d>0}).sort(function(x,y){return y.d-x.d}).slice(0,8),dn:tr.filter(function(x){return x.d<0}).sort(function(x,y){return x.d-y.d}).slice(0,8),t1:t1,t0:t0}}
+function nm(i){if(isM())return '<span onclick="CE.openItem(\''+i.id+'\')">'+esc(i.name)+'</span>';return '<a href="#" style="text-transform:none" onclick="CE.openItem(\''+i.id+'\');return false">'+esc(i.name)+'</a>'}
+function u(i){return esc(i.unit||'')}
+function d1(x){return Math.round(x*10)/10}
+function chg(a,b){return b>0?(a>=b?'+':'')+Math.round((a-b)/b*100)+'%':(a>0?'new':'-')}
+function st3(a){return '<div class="mc3" style="gap:0;justify-content:space-between">'+a.map(function(x){return '<div style="min-width:60px"><span>'+x[0]+'</span><b'+(x[2]?' class="'+x[2]+'"':'')+'>'+x[1]+'</b></div>'}).join('')+'</div>'}
+function cut(arr,t){var n=INS.more[t]?arr.length:12;return arr.slice(0,n)}
+function more(arr,t){return arr.length>12?'<div style="text-align:center;margin:8px 0"><button class="s" onclick="INS.more[\''+t+'\']='+(INS.more[t]?0:1)+';render()">'+(INS.more[t]?'Show less':'Show all '+arr.length)+'</button></div>':''}
+function note(t){return '<div class="mu" style="margin:2px 0 8px">'+t+'</div>'}
+function empty(t){return '<div class="mc mu card" style="padding:14px">'+t+'</div>'}
+function tbl(h,rows){return '<div class="card" style="overflow-x:auto"><table class="tbl"><tr>'+h.map(function(x){return '<th>'+x+'</th>'}).join('')+'</tr>'+rows.join('')+'</table></div>'}
+function tabRO(d,m){var a=cut(d.ro,'ro');if(!d.ro.length)return empty('All good. No item that sells regularly is about to run out in the next 15 days.');
+ var h=note('Items that sell regularly and may finish within 15 days. "Buy" covers about 30 days of sales.');
+ if(m)return h+a.map(function(r){return '<div class="mc"><div class="t"><b style="text-transform:none">'+nm(r.i)+'</b></div>'+st3([['Stock',fmtQ(r.q)+' '+u(r.i),r.q<=0?'red':''],['Sold 30 days',fmtQ(r.s)],['Days left',r.q<=0?'Out':d1(r.dl)+'','red']])+'<div class="mu" style="margin-top:6px">Suggested to buy: <b>'+r.sg+' '+u(r.i)+'</b></div></div>'}).join('')+more(d.ro,'ro');
+ return h+tbl(['Item','Stock','Sold in 30 days','Days left','Suggested to buy'],a.map(function(r){return '<tr><td>'+nm(r.i)+'</td><td class="'+(r.q<=0?'red':'')+'">'+fmtQ(r.q)+' '+u(r.i)+'</td><td>'+fmtQ(r.s)+' '+u(r.i)+'</td><td class="red">'+(r.q<=0?'Out':d1(r.dl))+'</td><td><b>'+r.sg+' '+u(r.i)+'</b></td></tr>'}))+more(d.ro,'ro')}
+function tabFU(d,m){var a=cut(d.fu,'fu');if(!d.fu.length)return empty('Nobody has an old pending balance. No payment follow-up needed.');
+ var tot=0;d.fu.forEach(function(r){tot+=r.b});var h=note('Customers who owe you money and have not paid anything for 30 days or more. Total '+money(tot)+'.');
+ if(m)return h+a.map(function(r){return '<div class="mc"><div class="t"><b style="text-transform:none">'+esc(r.p.name)+'</b></div>'+st3([['Pending',money(r.b),'red'],['Last payment',r.lp?dt(r.lp):'None'],['Days quiet',r.q+'']])+'<button class="b" style="width:100%;margin-top:8px" onclick="INSWA(\''+r.p.id+'\')">Send WhatsApp reminder</button></div>'}).join('')+more(d.fu,'fu');
+ return h+tbl(['Customer','Pending','Last payment','Days quiet',''],a.map(function(r){return '<tr><td>'+esc(r.p.name)+'</td><td class="red">'+money(r.b)+'</td><td>'+(r.lp?dt(r.lp):'None')+'</td><td>'+r.q+'</td><td><button class="s addb" onclick="INSWA(\''+r.p.id+'\')">WhatsApp reminder</button></td></tr>'}))+more(d.fu,'fu')}
+function tabDD(d,m){var a=cut(d.dd,'dd');if(!d.dd.length)return empty('Every item in stock has sold in the last 90 days.');
+ var h=note('Items in stock that have not sold for 90 days. Money stuck: <b>'+money(d.dv)+'</b>. Think of a discount or an offer to clear them.');
+ if(m)return h+a.map(function(r){return '<div class="mc"><div class="t"><b style="text-transform:none">'+nm(r.i)+'</b></div>'+st3([['Stock',fmtQ(r.q)+' '+u(r.i)],['Last sold',r.l?dt(r.l):'Never'],['Stock value',money(r.v),'red']])+'</div>'}).join('')+more(d.dd,'dd');
+ return h+tbl(['Item','Stock','Last sold','Stock value'],a.map(function(r){return '<tr><td>'+nm(r.i)+'</td><td>'+fmtQ(r.q)+' '+u(r.i)+'</td><td>'+(r.l?dt(r.l):'Never')+'</td><td class="red">'+money(r.v)+'</td></tr>'}))+more(d.dd,'dd')}
+function tabLP(d,m){var a=cut(d.lp,'lp');if(!d.lp.length)return empty('No sale in the last 60 days was below cost or at a very low profit (under 3%).');
+ var h=note('Sales in the last 60 days with profit under 3% (including below cost). Items with no real purchase price are not checked.');
+ var who=function(r){var p=P(r.b.pid);return '#'+r.b.no+' · '+esc(p?p.name:'?')+' · '+dt(r.b.date)};
+ if(m)return h+a.map(function(r){return '<div class="mc"><div class="t"><b style="text-transform:none">'+nm(r.i)+'</b><div class="mu" style="font-weight:400">'+who(r)+'</div></div>'+st3([['Sold at',money(r.e)],['Cost',money(r.c)],['Profit',money(r.p),r.p<0?'red':'']])+'</div>'}).join('')+more(d.lp,'lp');
+ return h+tbl(['Bill','Item','Sold at','Cost','Profit'],a.map(function(r){return '<tr><td>'+who(r)+'</td><td>'+nm(r.i)+'</td><td>'+money(r.e)+'</td><td>'+money(r.c)+'</td><td class="'+(r.p<0?'red':'')+'">'+money(r.p)+'</td></tr>'}))+more(d.lp,'lp')}
+function tabTR(d,m){var ch=d.t0>0?Math.round((d.t1-d.t0)/d.t0*100):null;
+ var h='<div class="card" style="padding:12px 14px"><div class="mu">Sales, last 30 days</div><div style="font-size:22px;font-weight:700">'+money(d.t1)+'</div><div class="'+(ch!=null&&ch<0?'red':'grn')+'">'+(ch==null?'No sales in the 30 days before':(ch>=0?'Up ':'Down ')+Math.abs(ch)+'% compared with the previous 30 days ('+money(d.t0)+')')+'</div></div>';
+ var blk=function(t,arr,c){if(!arr.length)return '';return '<div style="font-weight:700;margin:12px 2px 6px">'+t+'</div>'+(m?arr.map(function(r){return '<div class="mc"><div class="t"><b style="text-transform:none">'+nm(r.i)+'</b></div>'+st3([['Last 30 days',money(r.a)],['Before',money(r.b)],['Change',(r.d>0?'+':'')+money(r.d),c]])+'</div>'}).join(''):tbl(['Item','Last 30 days','Previous 30 days','Change'],arr.map(function(r){return '<tr><td>'+nm(r.i)+'</td><td>'+money(r.a)+'</td><td>'+money(r.b)+'</td><td class="'+c+'">'+(r.d>0?'+':'')+money(r.d)+' ('+chg(r.a,r.b)+')</td></tr>'})))};
+ var x=blk('Selling more',d.up,'grn')+blk('Selling less',d.dn,'red');return h+(x||empty('Not enough sales yet to compare.'))}
+window.vIns=function(){var d=data(),m=isM(),T=[['ro','Reorder',d.ro.length],['fu','Follow-up',d.fu.length],['dd','Dead stock',d.dd.length],['lp','Low price',d.lp.length],['tr','Trend',0]],h='';
+ var bar=m?'<div class="inschips">'+T.map(function(t){return '<button class="'+(INS.tab===t[0]?'on':'')+'" onclick="INS.tab=\''+t[0]+'\';render()">'+t[1]+(t[2]?' '+t[2]:'')+'</button>'}).join('')+'</div>':'<div class="vtab">'+T.map(function(t){return '<span class="'+(INS.tab===t[0]?'on':'')+'" onclick="INS.tab=\''+t[0]+'\';render()">'+t[1].toUpperCase()+(t[2]?' <b style="color:#e8213a">('+t[2]+')</b>':'')+'</span>'}).join('')+'</div>';
+ var body={ro:tabRO,fu:tabFU,dd:tabDD,lp:tabLP,tr:tabTR}[INS.tab](d,m);
+ return bar+body};
+window.INSWA=function(id){var p=P(id);if(!p)return;var b=bal(p);openWA(p,'Hello '+p.name+',\nThis is a gentle reminder from '+(PS().name||D.shop)+'. An amount of '+money(b)+' is pending on your account. Please arrange the payment at your earliest convenience.\nThank you.')};
+var _vPI=vPage;vPage=function(){return pg==='ins'?vIns():_vPI()};
+var _bnI=buildNav;buildNav=function(){_bnI();var n=$('nav');if(!n||n.querySelector('[data-ins]'))return;var b=document.createElement('button');b.setAttribute('data-ins','1');b.textContent='Insights';if(pg==='ins')b.className='on';b.onclick=function(){nav('ins')};var rp=Array.prototype.find.call(n.children,function(x){return x.textContent==='Reports'});n.insertBefore(b,rp||null)};
+var _vPmI=vPage;vPage=function(){var h=_vPmI();return pg==='more'&&typeof h==='string'?h.replace(/(<div class="mr" onclick="nav\('rep'\)">)/,'<div class="mr" onclick="nav(\'ins\')"><span>Insights</span><span class="mrc">›</span></div>$1'):h};
+var _rI=render;render=function(){var r=_rI.apply(this,arguments);try{if(pg==='ins'){var tt=document.getElementById('mtt');if(tt)tt.textContent='Insights'}}catch(e){}return r};
+var st=document.createElement('style');st.textContent='.inschips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;margin:0 -2px;-webkit-overflow-scrolling:touch}.inschips button{white-space:nowrap;border:1.5px solid #c9cde0;background:#fff;color:#4a5070;border-radius:20px;padding:8px 14px;font-size:14px;font-weight:600;flex:0 0 auto}.inschips button.on{background:#1a73e8;border-color:#1a73e8;color:#fff}';document.head.appendChild(st);
+try{buildNav()}catch(e){}
+})();
+</script>
+<script>
+/* ================= ASK AI: free AI services (Google Gemini or Groq), your own free key, stored only on this device ================= */
+(function(){
+var DYs=864e5,AI={msgs:[],busy:0,scan:null,setup:false};window.AI=AI;
+var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80}},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15}}};
+function cfg(){try{return JSON.parse(localStorage.getItem('ash_ai')||'{}')}catch(e){return {}}}
+function setCfg(o){try{localStorage.setItem('ash_ai',JSON.stringify(o))}catch(e){}}
+function ready(){var c=cfg();return !!(c.k&&c.p&&PROV[c.p])}
+function kOf(b){var s=0;b.lines.forEach(function(l){s+=+l.amt||0});var k=s>0?(+b.total||0)/s:1;return k>0&&k<1.5?k:1}
+function ik(l){return (l.iid&&I(l.iid))||findI(l.name)}
+function r0(n){return Math.round(+n||0)}
+function pack(lim){var now=Date.now(),d30=now-30*DYs,d90=now-90*DYs,d365=now-365*DYs,live=D.bills.filter(function(b){return !b.x}),PA={},IT={},MO={},lastPay={};
+ D.pays.forEach(function(x){if(!x.x&&!x.out&&!x.ret&&(!lastPay[x.pid]||x.date>lastPay[x.pid]))lastPay[x.pid]=x.date});
+ live.forEach(function(b){var k=kOf(b),pa=PA[b.pid]||(PA[b.pid]={y:0,m:0,l:0});if(b.date>=d365)pa.y+=+b.total||0;if(b.date>=d30)pa.m+=+b.total||0;if(b.date>pa.l)pa.l=b.date;
+  var mk=new Date(b.date).toISOString().slice(0,7);if(b.date>=now-370*DYs){var mo=MO[mk]||(MO[mk]={s:0,p:0});mo.s+=+b.total||0}
+  b.lines.forEach(function(l){var i=ik(l);if(!i)return;var it=IT[i.id]||(IT[i.id]={r:0,q:0,q30:0,q90:0,pf:0});var a=(+l.amt||0)*k;
+   if(b.date>=d365){it.r+=a;it.q+=+l.qty||0;it.pf+=i.pass?0:a-(+l.qty||0)*itemBuy(l);if(MO[mk])MO[mk].p+=i.pass?0:a-(+l.qty||0)*itemBuy(l)}
+   if(b.date>=d30)it.q30+=+l.qty||0;if(b.date>=d90)it.q90+=+l.qty||0})});
+ var t='TODAY: '+new Date().toISOString().slice(0,10)+'\nSHOP: '+D.shop+'\nAll amounts in Indian rupees. Profit uses purchase prices; items without a purchase price use an assumed profit.\n\n';
+ var ms=Object.keys(MO).sort();t+='MONTHLY (month | sales | profit):\n'+ms.map(function(m){return m+' | '+r0(MO[m].s)+' | '+r0(MO[m].p)}).join('\n')+'\n\n';
+ var ps=D.parties.map(function(p){var a=PA[p.id]||{y:0,m:0,l:0};return {p:p,y:a.y,m:a.m,l:a.l,b:bal(p)}}).filter(function(x){return x.y>0||Math.abs(x.b)>=1}).sort(function(x,y){return (y.y+Math.max(y.b,0))-(x.y+Math.max(x.b,0))});
+ t+='CUSTOMERS/PARTIES (name | pending to receive (negative = advance) | bought last 30 days | bought last 365 days | last bill date | last payment date)'+(ps.length>lim.p?' [top '+lim.p+' of '+ps.length+' only]':'')+':\n'+ps.slice(0,lim.p).map(function(x){return x.p.name+' | '+r0(x.b)+' | '+r0(x.m)+' | '+r0(x.y)+' | '+(x.l?new Date(x.l).toISOString().slice(0,10):'-')+' | '+(lastPay[x.p.id]?new Date(lastPay[x.p.id]).toISOString().slice(0,10):'-')}).join('\n')+'\n\n';
+ var its=D.items.map(function(i){var a=IT[i.id]||{r:0,q:0,q30:0,q90:0,pf:0};return {i:i,a:a}}).sort(function(x,y){return y.a.r-x.a.r||(+y.i.qty||0)-(+x.i.qty||0)});
+ t+='ITEMS (name | unit | sale price | purchase price | stock | qty sold last 30d | last 90d | last 365d | sales value 365d | profit 365d)'+(its.length>lim.i?' [top '+lim.i+' of '+its.length+' only]':'')+':\n'+its.slice(0,lim.i).map(function(x){return x.i.name+' | '+(x.i.unit||'')+' | '+r0(x.i.rate)+' | '+(x.i.pass?'transport item':r0(x.i.buy))+' | '+Math.round((+x.i.qty||0)*10)/10+' | '+Math.round(x.a.q30*10)/10+' | '+Math.round(x.a.q90*10)/10+' | '+Math.round(x.a.q*10)/10+' | '+r0(x.a.r)+' | '+r0(x.a.pf)}).join('\n')+'\n\n';
+ var rb=live.slice().sort(function(a,b){return b.date-a.date}).slice(0,lim.b);
+ t+='RECENT SALE BILLS (no | date | party | total | items):\n'+rb.map(function(b){var p=P(b.pid);return '#'+b.no+' | '+new Date(b.date).toISOString().slice(0,10)+' | '+(p?p.name:'?')+' | '+r0(b.total)+' | '+b.lines.map(function(l){return l.name+' x'+l.qty+' @'+r0(l.rate)}).join(', ')}).join('\n');
+ return t}
+var SYS='You are the helper inside a small Indian shop billing app. Answer ONLY from the shop data given below. If the data does not contain the answer, say so plainly. Never invent numbers. Show amounts with the rupee sign and Indian digit grouping. Reply in the same language the user writes (English, Hindi or Marathi). Keep answers short and clear. If a list in the data says it is only the top part, mention that when it matters.\n\n';
+function call(parts,sys,json){var c=cfg();if(!ready())return Promise.reject(new Error('Add your free AI key first (Setup).'));var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},60000),m=c.m||PROV[c.p].m,req;
+ if(c.p==='gemini'){req=fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent',{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','x-goog-api-key':c.k},body:JSON.stringify({systemInstruction:sys?{parts:[{text:sys}]}:undefined,contents:parts.map(function(x){return {role:x.role==='assistant'?'model':'user',parts:x.parts}}),generationConfig:json?{responseMimeType:'application/json',temperature:0.1}:{temperature:0.3}})})}
+ else{req=fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','Authorization':'Bearer '+c.k},body:JSON.stringify({model:m,temperature:0.3,messages:(sys?[{role:'system',content:sys}]:[]).concat(parts.map(function(x){return {role:x.role,content:x.parts.map(function(q){return q.text||''}).join('\n')}}))})})}
+ return req.then(function(r){clearTimeout(to);return r.json().catch(function(){return {}}).then(function(j){if(!r.ok){var e=(j.error&&(j.error.message||j.error))||('Error '+r.status);throw new Error(r.status===429?'Free limit reached for now. Wait a minute (or until tomorrow) and try again.':r.status===401||r.status===403?'The AI key was not accepted. Check the key in Setup.':String(e).slice(0,200))}
+  if(c.p==='gemini'){var cd=j.candidates&&j.candidates[0];var tx=cd&&cd.content&&cd.content.parts?cd.content.parts.map(function(x){return x.text||''}).join(''):'';if(!tx)throw new Error('The AI gave no answer. Try asking in a different way.');return tx}
+  var g=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(!g)throw new Error('The AI gave no answer. Try again.');return g})},function(e){clearTimeout(to);throw new Error(e.name==='AbortError'?'The AI took too long. Try again.':'No internet or the AI service is not reachable.')})}
+function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')}
+window.aiDraw=function(){var l=document.getElementById('aiLog');if(!l)return;l.innerHTML=AI.msgs.length?AI.msgs.map(function(m){return '<div class="aib '+(m.r==='user'?'u':'a')+(m.e?' e':'')+'">'+fmt(m.t)+'</div>'}).join('')+(AI.busy?'<div class="aib a mu">Thinking...</div>':''):'<div class="mu" style="padding:4px 2px">Ask about your sales, profit, stock or customers. Tap an example below or type your own question.</div>';l.scrollTop=l.scrollHeight};
+window.aiAsk=function(q){var inp=document.getElementById('aiQ');q=(q||(inp&&inp.value)||'').trim();if(!q||AI.busy)return;if(!ready()){AI.setup=true;render();return alert('First add your free AI key in Setup.')}
+ AI.ok='';AI.msgs.push({r:'user',t:q});if(inp)inp.value='';AI.busy=1;aiDraw();var c=cfg(),hist=AI.msgs.filter(function(m){return !m.e}).slice(-8).map(function(m){return {role:m.r==='user'?'user':'assistant',parts:[{text:m.t}]}});
+ var sys=SYS+'SHOP DATA:\n'+pack(PROV[c.p].lim);
+ call(hist,sys,false).then(function(t){AI.msgs.push({r:'ai',t:t})},function(e){AI.msgs.push({r:'ai',t:e.message,e:1})}).then(function(){AI.busy=0;aiDraw()})};
+window.aiSave=function(test){var p=document.getElementById('aip').value,k=document.getElementById('aik').value.trim(),m=document.getElementById('aim').value.trim();var o=cfg();if(!k&&!o.k)return alert('Paste your free key first');setCfg({p:p,k:k||o.k,m:m||PROV[p].m});if(test){var b=document.getElementById('aitb');if(b)b.textContent='Testing...';call([{role:'user',parts:[{text:'Reply with the single word OK'}]}],'',false).then(function(){AI.setup=false;AI.ok='Connected. AI is ready.';render()},function(e){AI.ok='';alert('Test failed: '+e.message);render()})}else{AI.setup=false;render()}};
+window.aiProv=function(v){var m=document.getElementById('aim');if(m)m.value=PROV[v].m;var u=document.getElementById('aiu');if(u)u.textContent=PROV[v].u};
+window.aiForget=function(){if(!confirm('Remove the AI key from this device?'))return;setCfg({});AI.setup=true;render()};
+window.vAi=function(){var m=isM(),cl=m?'mc':'card',c=cfg(),rd=ready(),show=AI.setup||!rd,h='';
+ var ex=['How much did my top customer buy this year?','Which items earned me the most profit this year?','Who owes me the most money?','Compare this month sales with last month'];
+ h+='<div class="'+cl+'">'+(rd&&!show?'<div class="row"><span><b>AI is ready</b><br><span class="mu">'+esc(PROV[c.p].n.split(' (')[0])+' · '+esc(c.m||PROV[c.p].m)+'</span></span><button class="s" onclick="AI.setup=true;render()">Setup</button></div>':
+  '<b>Setup (one time, free)</b><div class="mu" style="margin:4px 0 8px">Get a free key (no card needed) and paste it here. The key stays only on this phone/computer. It is not saved in your shop data and not uploaded anywhere else.</div>'
+  +'<label class="mu">AI service</label><select id="aip" onchange="aiProv(this.value)">'+Object.keys(PROV).map(function(k){return '<option value="'+k+'"'+((c.p||'gemini')===k?' selected':'')+'>'+esc(PROV[k].n)+'</option>'}).join('')+'</select>'
+  +'<div class="mu" style="margin:2px 0 6px">Free key from: <b id="aiu">'+PROV[c.p||'gemini'].u+'</b></div>'
+  +'<label class="mu">Key</label><input id="aik" type="password" autocomplete="off" placeholder="'+(c.k?'Saved on this device (paste to replace)':'Paste key here')+'">'
+  +'<label class="mu">Model name</label><input id="aim" autocomplete="off" value="'+esc(c.m||PROV[c.p||'gemini'].m)+'">'
+  +'<div class="mu" style="margin:4px 0 8px">Your question and a summary of your shop data (item names, customer names, amounts, no phone numbers) are sent to the service you choose. Free services may use this data to improve their products, so read their terms.</div>'
+  +'<div class="row" style="gap:8px;flex-wrap:wrap"><button class="b" id="aitb" onclick="aiSave(1)">Save and test</button>'+(c.k?'<button class="s" onclick="AI.setup=false;render()">Cancel</button><button class="s" onclick="aiForget()">Remove key</button>':'')+'</div>')+(AI.ok?'<div class="grn" style="margin-top:6px">'+esc(AI.ok)+'</div>':'')+'</div>';
+ h+='<div class="'+cl+'"><b>Ask your shop</b><div id="aiLog" class="ailog"></div><div class="aiex">'+ex.map(function(q){return '<button onclick="aiAsk(this.textContent)">'+esc(q)+'</button>'}).join('')+'</div><div class="aiin"><textarea id="aiQ" rows="2" placeholder="Type your question (English, Hindi or Marathi)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();aiAsk()}"></textarea><button class="b" onclick="aiAsk()">Ask</button></div></div>';
+ h+='<div class="'+cl+'"><b>Scan a purchase bill</b><div class="mu" style="margin:4px 0 8px">Take a photo of a supplier bill. The AI reads the items, you check them, and a Purchase Bill opens ready to save. '+(c.p==='groq'?'<span class="red">This needs Google Gemini. Groq here is text only.</span>':'')+'</div><input type="file" id="aiF" accept="image/*" style="display:none" onchange="aiScan(this)"><button class="b" style="width:100%" onclick="aiFile()">Take / choose bill photo</button></div>';
+ setTimeout(aiDraw,0);return h};
+window.aiFile=function(){if(!ready()){AI.setup=true;render();return alert('First add your free AI key in Setup.')}if(cfg().p!=='gemini')return alert('Reading photos needs Google Gemini. Change the AI service in Setup.');var f=document.getElementById('aiF');if(f){f.value='';f.click()}};
+function shrink(file){return new Promise(function(ok,no){var r=new FileReader();r.onerror=function(){no(new Error('Could not read the photo'))};r.onload=function(){var im=new Image();im.onerror=function(){no(new Error('This photo cannot be opened'))};im.onload=function(){var s=Math.min(1,1600/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);ok(cv.toDataURL('image/jpeg',0.85).split(',')[1])};im.src=r.result};r.readAsDataURL(file)})}
+function match(n){var q=String(n||'').trim().toLowerCase();if(!q)return '';var e=D.items.find(function(i){return i.name.trim().toLowerCase()===q});if(e)return e.name;var c=D.items.filter(function(i){var a=i.name.toLowerCase();return a.indexOf(q)>=0||q.indexOf(a)>=0});return c.length===1?c[0].name:n}
+window.aiScan=function(inp){var f=inp.files&&inp.files[0];if(!f)return;AI.scan={st:'Reading the bill...',rows:[],sup:'',dt:''};aiScanUI();
+ shrink(f).then(function(b64){var pr='This is a photo of a supplier/purchase bill from India. Extract the supplier name, the bill date (as YYYY-MM-DD if visible) and every item line with name, quantity, unit and rate per unit. If only the line amount is shown, compute rate = amount / quantity. Do not guess unreadable lines, skip them. Return ONLY JSON like {"supplier":"","date":"","items":[{"name":"","qty":0,"unit":"","rate":0}]}';
+  return call([{role:'user',parts:[{text:pr},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],'',true)}).then(function(t){var j;try{j=JSON.parse(String(t).replace(/^```json|```$/g,'').trim())}catch(e){throw new Error('Could not understand the AI reply. Try a clearer photo.')}
+  var rows=(j.items||[]).map(function(x){return {n:match(x.name),q:+x.qty||0,u:String(x.unit||'').trim()||'pcs',r:+x.rate||0}}).filter(function(x){return x.n});if(!rows.length)throw new Error('No items found in the photo. Try a clearer, straight photo.');
+  var sp=findP(j.supplier||'');AI.scan={st:'',rows:rows,sup:sp?sp.name:(j.supplier||''),supFound:!!sp,dt:/^\d{4}-\d{2}-\d{2}$/.test(j.date||'')?j.date:''};aiScanUI()},function(e){AI.scan={st:e.message,rows:[],err:1};aiScanUI()})};
+window.aiScanUI=function(){var o=document.getElementById('aisc');if(o)o.remove();var s=AI.scan;if(!s)return;o=document.createElement('div');o.id='aisc';o.onclick=function(e){if(e.target===o){AI.scan=null;aiScanUI()}};
+ var body;if(s.st){body='<div style="padding:14px 4px">'+(s.err?'<span class="red">'+esc(s.st)+'</span>':'<span class="mu">'+esc(s.st)+'</span>')+'</div><div class="aibt"><button class="s" onclick="AI.scan=null;aiScanUI()">Close</button></div>'}
+ else{body='<div class="mu" style="margin-bottom:6px">Check each line. Fix anything the AI misread, then continue.</div><label class="mu">Supplier</label><input id="ais" list="pl" value="'+esc(s.sup)+'" oninput="AI.scan.sup=this.value"><datalist id="pl">'+D.parties.map(function(p){return '<option value="'+esc(p.name)+'">'}).join('')+'</datalist>'+(s.supFound?'':'<div class="mu" style="font-size:12px">Not found in your parties. Pick the supplier in the purchase bill.</div>')
+  +'<div class="aiscl">'+s.rows.map(function(x,k){return '<div class="aisr"><input value="'+esc(x.n)+'" onchange="AI.scan.rows['+k+'].n=this.value"><div class="aisg"><input type="number" inputmode="decimal" value="'+x.q+'" onchange="AI.scan.rows['+k+'].q=+this.value"><input value="'+esc(x.u)+'" onchange="AI.scan.rows['+k+'].u=this.value"><input type="number" inputmode="decimal" value="'+x.r+'" onchange="AI.scan.rows['+k+'].r=+this.value"><button class="x" onclick="AI.scan.rows.splice('+k+',1);aiScanUI()">✕</button></div></div>'}).join('')+'</div><div class="mu" style="font-size:12px">Each line: name, then quantity, unit, rate per unit.</div><div class="aibt"><button class="s" onclick="AI.scan=null;aiScanUI()">Cancel</button><button class="b" onclick="aiScanGo()">Open purchase bill</button></div>'}
+ o.innerHTML='<div class="aibox"><div class="aih"><b>Scanned bill</b><span onclick="AI.scan=null;aiScanUI()">&times;</span></div>'+body+'</div>';document.body.appendChild(o)};
+window.aiScanGo=function(){var s=AI.scan;if(!s)return;var rows=s.rows.filter(function(x){return x.n&&x.q>0});if(!rows.length)return alert('Keep at least one item with a quantity');var sp=findP(s.sup||'');AI.scan=null;aiScanUI();
+ newDoc('pur');ddraft.name=sp?sp.name:'';ddraft.lines=rows.map(function(x){return {name:x.n,unit:x.u,qty:x.q,rate:x.r,amt:Math.round(x.q*x.r*100)/100,loc:''}});if(s.dt){ddraft.dt=s.dt;if(ddraft.tm===undefined)ddraft.tm='12:00'}render()};
+var _vPai=vPage;vPage=function(){return pg==='ai'?vAi():_vPai()};
+var _bnai=buildNav;buildNav=function(){_bnai();var n=$('nav');if(!n||n.querySelector('[data-ai]'))return;var b=document.createElement('button');b.setAttribute('data-ai','1');b.textContent='Ask AI';if(pg==='ai')b.className='on';b.onclick=function(){nav('ai')};var rp=Array.prototype.find.call(n.children,function(x){return x.textContent==='Reports'});n.insertBefore(b,rp||null)};
+var _vPmA=vPage;vPage=function(){var h=_vPmA();return pg==='more'&&typeof h==='string'?h.replace(/(<div class="mr" onclick="nav\('rep'\)">)/,'<div class="mr" onclick="nav(\'ai\')"><span>Ask AI</span><span class="mrc">›</span></div>$1'):h};
+var st=document.createElement('style');st.textContent='.ailog{max-height:46vh;overflow-y:auto;margin:8px 0;display:flex;flex-direction:column;gap:8px}.aib{padding:9px 12px;border-radius:14px;max-width:92%;line-height:1.4;font-size:15px;word-wrap:break-word}.aib.u{align-self:flex-end;background:#1a73e8;color:#fff}.aib.a{align-self:flex-start;background:#eef1f8;color:#2d3350}.aib.e{background:#fdecee;color:#c0182e}'
++'.aiex{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.aiex button{border:1.5px solid #c9cde0;background:#fff;color:#4a5070;border-radius:16px;padding:6px 11px;font-size:13px;text-align:left}.aiin{display:flex;gap:8px;align-items:flex-end}.aiin textarea{flex:1;margin:0;resize:none;font-size:16px}.aiin button{flex:0 0 auto}'
++'#aisc{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}.aibox{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:6px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:92vh;overflow-y:auto}@media(min-width:700px){#aisc{align-items:center}.aibox{border-radius:16px}}'
++'.aih{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:18px;color:#2d3350}.aih span{font-size:30px;color:#7b8194;line-height:1;padding:0 6px}.aibox input{width:100%;box-sizing:border-box;font-size:16px;padding:9px 10px;border:1.5px solid #b9bdd6;border-radius:10px;margin:0 0 6px}.aibox label{display:block;font-size:12.5px;margin:8px 0 3px}'
++'.aisg{display:grid;grid-template-columns:1fr 1fr 1fr 40px;gap:6px;align-items:center}.aisr{border-top:1px solid #e6e9f0;padding:8px 0 2px}.aiscl{max-height:42vh;overflow-y:auto;margin-top:8px}.aisg .x{border:0;background:#fdecee;color:#e8213a;border-radius:8px;height:38px;margin-bottom:6px}.aibt{display:flex;gap:10px;margin-top:12px}.aibt button{flex:1;padding:13px;border-radius:12px;font-size:16px;font-weight:700}';
+document.head.appendChild(st);try{buildNav()}catch(e){}
 })();
 </script>
 </body></html>
