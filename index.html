@@ -3950,7 +3950,7 @@ function call(parts,sys,json,opt){opt=opt||{};var c=cfg();if(c.p==='own')return 
  return next()}
 function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')}
 var MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0,chain:false};
+var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0};
 var CMD=/\b(bill|invoice|estimate|quotation|quote|challan|order|payment|received|receive|paid|jama|banao|bana|banaiye|banado|likho|create|make|add|entry|mile|mila|mili|diye|diya|liye|liya|bheje|bheja|udhar|credit|debit)\b|बिल|बना|बनवा|लिखो|जमा|मिले|मिला|दिए|दिये|पेमेंट|कोटेशन|ऑर्डर|तयार|करा/i;
 var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "sale_return" (customer returns goods), "purchase_return" (goods returned to supplier), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY one valid JSON object. No explanation, no markdown, no Hindi sentence outside JSON, and no code fences. Use exactly this schema: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}. Missing values must be empty string, 0, or an empty array; NEVER invent values.\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names ONLY exactly as spoken by the owner. CRITICAL: NEVER complete, expand, guess, or select a longer party/item name from the shop database. If the owner says "Raju", output party="Raju" even if saved names include "Raju Tidke" or "Raju Traders". If the owner says "cement", output item name="cement" even if saved items include several cement products. The APP, not Gemini, will match spoken words against the saved list and will ask the owner when there is more than one match. If the quantity or rate was not clearly said, use 0. Write names in Latin letters. IMPORTANT FOR NATURAL HINDI/HINGLISH: understand everyday shop speech, not only formal commands. Examples: \"Raju ka maal vapsi aaya hai\" means action=sale_return, party=Raju; \"Raju ke 5000 rupaye aaye hain\" means action=payment_in, party=Raju, amount=5000; \"Raju ko 2000 rupaye diye\" means action=payment_out, party=Raju, amount=2000. For a return, words like maal/samaan together with wapas/vapsi/return mean a return even if the sentence also contains aaya/aayi/aaye. Never classify a return as a payment merely because it says aaya. Ask through missing fields later; do not invent item or quantity.\n';
 var DVR=/[\u0900-\u097f]/,
@@ -4032,7 +4032,7 @@ function askQ(o){return new Promise(function(ok,no){
  d.innerHTML=h;document.body.appendChild(d);
  var inp=gid('aiqi'),sts=gid('aiqs'),cnt=gid('aiqc');
  if(vsay()){var hn=o.hi&&vlang()!=='en-IN',sp2=(hn?o.hi:o.t)+'. ';if(!many)opts.slice(0,5).forEach(function(x,i){var pr=String(x.l).split(' · ');sp2+=(i+1)+', '+(hn&&pr[1]?pr[1]:pr[0])+'. '});if(o.inp&&(!opts.length||many))sp2+=hn?(o.inp==='number'?'कृपया संख्या बोलिए।':'नाम बोलिए, लिखिए या सूची से चुनिए।'):(o.inp==='number'?'Please say the number.':'Say or type the name, or pick from the list.');speak(sp2)}
- function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad){V.chain=false;no(new Error('Okay, cancelled. Nothing was opened. · ठीक है, रद्द किया। कुछ नहीं खुला।'))}else ok(v)}
+ function done(v,bad){try{speechSynthesis.cancel()}catch(e){}V.spk=Date.now();if(V.st==='listen'&&V.tgt==='q')vStop(true);d.remove();if(bad)no(new Error('Okay, cancelled. Nothing was opened. · ठीक है, रद्द किया। कुछ नहीं खुला।'));else ok(v)}
  d.querySelectorAll('.aiqo').forEach(function(b){b.onclick=function(){done({o:opts[+b.getAttribute('data-i')].v})}});
  gid('aiqx').onclick=function(){done(null,1)};
  function say(m,info){if(sts){sts.textContent=m||'';sts.className='mu vsm'+(info?'':' red')}}
@@ -4060,18 +4060,7 @@ function askQ(o){return new Promise(function(ok,no){
      if(opts.length&&opts.length<=8&&/^\s*(option|number|no\.?|नंबर)?\s*\d{1,2}\s*$/i.test(t)){var dg=+t.replace(/[^0-9]/g,'');if(dg>=1&&dg<=opts.length)return done({o:opts[dg-1].v})}
      var bi=-1,bs=0;opts.forEach(function(x,i){if(x.v&&x.v.nw)return;var s2=sim(x.l,t);if(s2>bs){bs=s2;bi=i}});if(bi>=0&&bs>=.85)return done({o:opts[bi].v});
      var tw=t.toLowerCase().split(/\s+/).filter(function(z){return z.length>1}),tm=opts.filter(function(x){if(x.v&&x.v.nw)return false;var l=String(x.l).toLowerCase();return tw.length&&tw.every(function(w){return l.indexOf(w)>=0})});if(tm.length===1)return done({o:tm[0].v});
-     inp.value=t;filt();say('I heard "'+t+'". Tap the right one in the list, or press OK. · मैंने सुना "'+t+'"। सूची से चुनें, या OK दबाएँ।',1)}})}
-  /* Hands-free transaction mode: after every spoken question, start listening again automatically. */
-  if(V.chain){
-   var autoTry=0;
-   (function autoListen(){
-     if(!V.chain||!document.body.contains(d)||V.st!=='idle')return;
-     var speaking=false;try{speaking=!!(window.speechSynthesis&&(speechSynthesis.speaking||speechSynthesis.pending))}catch(e){}
-     if(speaking&&autoTry++<32)return setTimeout(autoListen,250);
-     try{mb.click()}catch(e){}
-   })();
-  }
- }})}
+     inp.value=t;filt();say('I heard "'+t+'". Tap the right one in the list, or press OK. · मैंने सुना "'+t+'"। सूची से चुनें, या OK दबाएँ।',1)}})}}
 })}
 async function clarify(j,force){
  var a=force||String(j&&j.action||'').toLowerCase().replace(/[^a-z_]/g,'');
@@ -4434,10 +4423,10 @@ window.vcSetup=function(){vcClose();AI.setup=true;nav('ai')};
 function vcConfirm(conf,q){if(!AI.vc)AI.vc={txt:'',q:'',ans:'',st:'idle',msg:'',conf:null,err:''};AI.vc.conf=conf;AI.vc.q=q;AI.vc.err='';vcDraw();fabSync()}
 function vcStatus(){var v=AI.vc;if(!v)return;var b=gid('aivmic'),s=gid('aivs');if(b)b.classList.toggle('on',v.st==='listen');if(s){s.className='aivs'+(v.msg?' red':'');s.textContent=v.msg||(v.st==='listen'?'Listening... सुन रहा हूँ. Tap the mic when done · बोलकर माइक दबाइए':v.st==='work'?(V.st==='work'?'Listening to the recording... · रिकॉर्डिंग सुन रहा हूँ':'Understanding... · समझ रहा हूँ'):'Tap the mic and speak · माइक दबाकर बोलिए')}}
 window.vcMic=function(){var v=AI.vc;if(!v||v.conf||v.st==='work')return;if(V.st==='listen'&&V.tgt==='dlg')return vStop();if(V.st!=='idle')return;v.msg='';V.tgt='dlg';
- vStart({onPartial:function(t){v.txt=t;var e=gid('vct');if(e)e.value=t},onState:function(s){if(AI.vc===v&&!v.conf){v.st=s;vcStatus()}},onErr:function(m){if(AI.vc===v){v.st='idle';v.msg=m;vcStatus()}},onEnd:function(t){if(AI.vc===v){v.txt=t;V.chain=true;vcSend()}}})};
+ vStart({onPartial:function(t){v.txt=t;var e=gid('vct');if(e)e.value=t},onState:function(s){if(AI.vc===v&&!v.conf){v.st=s;vcStatus()}},onErr:function(m){if(AI.vc===v){v.st='idle';v.msg=m;vcStatus()}},onEnd:function(t){if(AI.vc===v){v.txt=t;vcSend()}}})};
 window.vcSend=function(){var v=AI.vc;if(!v||v.st==='work'||v.conf)return;var e=gid('vct'),q=((e&&e.value)||v.txt||'').trim();if(!q)return;
  if(!ready())return vcSetup();v.q=q;v.txt='';v.ans='';v.msg='';v.st='work';vcDraw();
- run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd'){V.chain=false;v.conf=r.conf;if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'){V.chain=false;v.ans=r.t;if(vsay())speak(r.t)}else {V.chain=false;v.msg=r.t}vcDraw()})};
+ run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd'){v.conf=r.conf;if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'){v.ans=r.t;if(vsay())speak(r.t)}else v.msg=r.t;vcDraw()})};
 function capHtml(v){var h='';
  if(!ready())return '<div class="red" style="margin:8px 0">Add your free AI key first, then you can talk to the app.</div><div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSetup()">Open Setup</button></div>';
  h+='<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'</div>';
@@ -5004,7 +4993,8 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
       '<div class="pills" style="display:flex"><button class="s" onclick="sTab=\'gen\';render()">General</button><button class="s" style="background:#1a73e8;color:#fff">💬 Messages</button></div>'+
       '<div class="card msg-editor"><b>Custom transaction messages</b><p class="mu">Create and save a different WhatsApp message for each transaction. The message text is the same data on all devices; only the Settings layout changes automatically for phone and desktop.</p>'+
       '<div class="msgtabs">'+tabs+'</div>'+
-      '<p class="mu">Choose a message type to edit it.</p></div>';
+      '<p class="mu">Choose a message type to edit it.</p></div>'+
+      '<div class="card msg-editor"><b>📢 Send an offer to customers</b><p class="mu">Send an offer (with a photo if you like) to all your parties, one by one, slowly. The app remembers who already got it.</p><button class="b" onclick="sTab=\'promo\';render()">Open</button></div>';
   }
 
   window.msgEdit=function(k){
@@ -5092,134 +5082,204 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
 })();
 </script>
 
-<!-- Promotional Campaign Manager: isolated module -->
-<style id="campaign-manager-ui">
-.camp-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
-.camp-rec{max-height:360px;overflow:auto;border:1px solid #e2e5ee;border-radius:12px;padding:8px}
-.camp-rec label{display:flex;gap:9px;align-items:center;padding:8px;border-bottom:1px solid #eef0f5}
-.camp-rec input{width:auto;margin:0}
-.camp-stat{padding:10px;border-radius:10px;background:#f6f8fc;margin:8px 0}
-.camp-media{max-width:100%;max-height:220px;border-radius:12px;display:none;margin-top:8px}
-.camp-batches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.camp-batch{border:1px solid #e0e4ee;border-radius:12px;padding:12px;background:#fff}
-@media(max-width:760px){
- .camp-grid{display:block}
- .camp-grid>.card{margin-bottom:10px}
- .camp-rec{max-height:300px}
- .camp-batches{grid-template-columns:1fr}
- .camp-sticky{position:sticky;bottom:0;background:#fff;padding:9px 0;z-index:2}
-}
+<style id="promo-style">
+.pr-step{max-width:640px}
+.pr-n{display:inline-flex;width:26px;height:26px;border-radius:50%;background:#1a73e8;color:#fff;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-right:8px}
+.pr-h{font-size:16px;font-weight:600;display:flex;align-items:center;margin-bottom:4px}
+.pr-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:6px 0}
+.pr-list{max-height:280px;overflow-y:auto;border:1px solid #e4e8f0;border-radius:6px;margin-top:6px}
+.pr-list label{display:flex;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid #eef0f5;margin:0;cursor:pointer}
+.pr-list input{width:18px;height:18px;margin:0;flex:none}
+.pr-bub{background:#d9fdd3;color:#111;border-radius:8px;padding:10px;white-space:pre-wrap;font-size:14px;max-width:340px}
+.pr-bub img{max-width:100%;border-radius:6px;display:block;margin-bottom:6px}
+.pr-warn{background:#fff4e5;color:#8a4b00;border-radius:6px;padding:8px 10px;font-size:13px;margin:8px 0}
+.pr-box{background:#f4f6fb;border-radius:6px;padding:10px;margin:8px 0;font-size:14px}
+.pr-sp{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.pr-sp button.on,.pr-fl button.on{background:#1a73e8;color:#fff}
+.pr-fl{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.pr-tag{font-size:12px;background:#e3f6ec;color:#17794f;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.pr-big{width:100%;padding:14px;font-size:16px}
+.pr-srch{font-size:16px;padding:12px!important;border:2px solid #1a73e8!important}
 </style>
-<script id="campaign-manager-module">
+<script id="promo-module">
+/* ---------- PROMOTION MESSAGES v2 (Settings > Messages > Promotions) ---------- */
 (function(){
- function C(){D.campaigns=D.campaigns||[];return D.campaigns}
- function phones(){
-   return (D.parties||[]).filter(function(p){return p&&String(p.phone||'').replace(/\D/g,'').length>=8})
- }
- function norm(n){
-   n=String(n||'').replace(/\D/g,'');
-   if(n.length===10)return '91'+n;
-   return n
- }
- function escA(x){return esc(x==null?'':String(x))}
- function campHome(){
-   var cs=C().slice().reverse();
-   return '<h2 style="font-size:20px;margin:6px 0">📢 Promotional Campaigns</h2>'+
-   '<div class="row" style="margin-bottom:12px"><button class="b" onclick="campNew()">+ New Campaign</button><button class="s" onclick="sTab=\'msg\';render()">← Message Settings</button></div>'+
-   '<div class="card"><b>Send in your own batches</b><p class="mu">Create a campaign, choose recipients and split them into batches of 10, 20 or any size. You decide when to open each batch. This tool does not auto-send or try to bypass WhatsApp rules.</p></div>'+
-   (cs.length?'<div class="camp-batches">'+cs.map(function(c){
-     return '<div class="camp-batch"><b>'+escA(c.name||'Campaign')+'</b><div class="mu">'+escA(c.created||'')+'</div><div class="camp-stat">'+(c.recipients||[]).length+' recipients · '+(c.batches||[]).length+' batches</div><button class="s" onclick="campOpen(\''+c.id+'\')">Open</button></div>'
-   }).join('')+'</div>':'<div class="card mu">No campaign yet. Create your first offer campaign.</div>')
- }
- window.campNew=function(){
-   var ps=phones(), rows=ps.map(function(p,i){
-     return '<label><input class="campCheck" type="checkbox" value="'+escA(p.id)+'" checked onchange="campCount()"><span><b>'+escA(p.name)+'</b><br><span class="mu">'+escA(p.phone)+'</span></span></label>'
-   }).join('');
-   $('#v').innerHTML='<h2 style="font-size:20px;margin:6px 0">New Promotional Campaign</h2>'+
-   '<div class="row"><button class="s" onclick="sTab=\'camp\';render()">← Back</button></div>'+
-   '<div class="camp-grid" style="margin-top:10px"><div class="card">'+
-   '<label class="mu">Campaign name</label><input id="camp_name" placeholder="Example: Diwali Offer">'+
-   '<label class="mu">Promotional message</label><textarea id="camp_msg" rows="9" placeholder="Write your offer message here..."></textarea>'+
-   '<label class="mu">Optional promotional image (preview/draft)</label><input id="camp_media" type="file" accept="image/*" onchange="campMedia(this)"><img id="camp_preview" class="camp-media">'+
-   '<p class="mu">Note: a normal browser link cannot automatically attach your local image to WhatsApp for every recipient. The image is stored as the campaign preview/draft; actual media sharing remains under your control.</p>'+
-   '</div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b>Recipients</b><button class="s" onclick="campToggleAll()">Select all</button></div>'+
-   '<div class="camp-stat"><b id="camp_count">'+ps.length+'</b> selected</div><div class="camp-rec">'+(rows||'<div class="mu">No parties with valid phone numbers found.</div>')+'</div>'+
-   '<label class="mu">Batch size</label><select id="camp_size" onchange="campCount()"><option value="10">10 recipients</option><option value="20">20 recipients</option><option value="custom">Custom</option></select>'+
-   '<input id="camp_custom" type="number" min="1" placeholder="Custom batch size" style="display:none;margin-top:7px" oninput="campCount()">'+
-   '<label class="mu">First batch schedule (optional)</label><input id="camp_schedule" type="datetime-local">'+
-   '<div class="camp-sticky"><button class="b" onclick="campCreate()">Create batches</button></div></div></div>';
-   var sel=$('#camp_size');sel.onchange=function(){var x=$('#camp_custom');x.style.display=this.value==='custom'?'block':'none';campCount()}
-   campCount();
- }
- window.campCount=function(){
-   var n=document.querySelectorAll('.campCheck:checked').length;
-   var size=$('#camp_size')?$('#camp_size').value:'10';
-   if(size==='custom')size=Math.max(1,parseInt($('#camp_custom').value||'0')||0);
-   else size=parseInt(size||'10');
-   var c=$('#camp_count');if(c)c.textContent=n+' selected · '+(size?Math.ceil(n/size):0)+' batches';
- }
- window.campToggleAll=function(){
-   var all=[].slice.call(document.querySelectorAll('.campCheck')), any=all.some(function(x){return !x.checked});
-   all.forEach(function(x){x.checked=any});campCount()
- }
- window.campMedia=function(inp){
-   var f=inp.files&&inp.files[0],im=$('#camp_preview');if(!f)return;
-   if(f.size>2*1024*1024){alert('Please choose an image smaller than 2 MB.');inp.value='';return}
-   var r=new FileReader();r.onload=function(){im.src=r.result;im.style.display='block';im.dataset.data=r.result};r.readAsDataURL(f)
- }
- window.campCreate=function(){
-   var ids=[].slice.call(document.querySelectorAll('.campCheck:checked')).map(function(x){return x.value});
-   if(!ids.length)return alert('Select at least one recipient.');
-   var name=($('#camp_name').value||'').trim()||'Promotional Campaign';
-   var msg=($('#camp_msg').value||'').trim();if(!msg)return alert('Write your promotional message first.');
-   var sz=$('#camp_size').value,bs=sz==='custom'?parseInt($('#camp_custom').value||'0'):parseInt(sz);
-   if(!bs||bs<1)return alert('Enter a valid batch size.');
-   var recipients=ids.map(function(id){return D.parties.find(function(p){return p.id===id})}).filter(Boolean).map(function(p){return {id:p.id,name:p.name,phone:p.phone}});
-   var batches=[];for(var i=0;i<recipients.length;i+=bs)batches.push({recipients:recipients.slice(i,i+bs),status:'ready'});
-   var im=$('#camp_preview'), media=im&&im.dataset.data||'';
-   var c={id:'camp_'+Date.now(),name:name,message:msg,media:media,recipients:recipients,batches:batches,created:new Date().toLocaleString(),schedule:$('#camp_schedule').value||''};
-   C().push(c);save();sTab='camp';render()
- }
- function getCamp(id){return C().find(function(c){return c.id===id})}
- window.campOpen=function(id){
-   var c=getCamp(id);if(!c)return;
-   var html='<h2 style="font-size:20px;margin:6px 0">'+escA(c.name)+'</h2><button class="s" onclick="sTab=\'camp\';render()">← Campaigns</button>'+
-   '<div class="card" style="margin-top:10px"><b>Message</b><pre style="white-space:pre-wrap;font-family:inherit">'+escA(c.message)+'</pre>'+
-   (c.media?'<img src="'+c.media+'" class="camp-media" style="display:block">':'')+
-   '<div class="camp-stat">Recipients: '+c.recipients.length+' · Batches: '+c.batches.length+(c.schedule?' · First schedule: '+escA(c.schedule):'')+'</div></div>'+
-   '<div class="camp-batches">'+c.batches.map(function(b,i){
-      return '<div class="camp-batch"><b>Batch '+(i+1)+'</b><div class="mu">'+b.recipients.length+' recipients</div><div class="camp-stat">Status: '+(b.status==='done'?'✅ Completed':'▶️ Ready')+'</div><button class="b" onclick="campRun(\''+c.id+'\','+i+')">Open batch</button></div>'
-   }).join('')+'</div>';
-   $('#v').innerHTML=html;window.scrollTo(0,0)
- }
- window.campRun=function(id,bi){
-   var c=getCamp(id),b=c&&c.batches[bi];if(!b)return;
-   var i=0;
-   function next(){
-     if(i>=b.recipients.length){b.status='done';save();alert('Batch completed.');campOpen(id);return}
-     var p=b.recipients[i++],text=c.message
-       .split('{{partyName}}').join(p.name||'')
-       .split('{{businessName}}').join(D.shop||'');
-     var url='https://wa.me/'+norm(p.phone)+'?text='+encodeURIComponent(text);
-     var w=window.open(url,'_blank');
-     if(!w){alert('Please allow pop-ups, then try again.');return}
-     var d=document.createElement('div');d.className='modal';d.innerHTML='<div class="box"><h3>Recipient '+i+' of '+b.recipients.length+'</h3><p><b>'+escA(p.name)+'</b><br>'+escA(p.phone)+'</p><p class="mu">Send the message in WhatsApp when you are ready, then return here.</p><div class="row"><button class="b" id="cn">Next recipient</button><button class="s" id="cx">Stop batch</button></div></div>';document.body.appendChild(d);
-     d.querySelector('#cn').onclick=function(){d.remove();next()};
-     d.querySelector('#cx').onclick=function(){d.remove();b.status='ready';save()};
-   }
-   next()
- }
+ var PR={img:null,prev:'',busy:false,q:'',f:'all',note:''};
+ var DEFMSG='Namaste {name},\n\n🎉 Special offer at {shop}!\n\n(Write your offer here)\n\nThank you 🙏';
+ var STOPLINE='\n\nTo stop offers reply STOP / ऑफर बंद करने के लिए STOP लिखें';
+ var SQL="alter table outbox add column if not exists send_after timestamptz;\n"+
+  "alter table outbox add column if not exists media_url text;\n"+
+  "alter table outbox add column if not exists campaign text;\n"+
+  "insert into storage.buckets (id,name,public) values ('promo','promo',true) on conflict (id) do nothing;\n"+
+  "create policy \"promo upload\" on storage.objects for insert to anon, authenticated with check (bucket_id='promo');\n"+
+  "create policy \"promo read\" on storage.objects for select to anon, authenticated using (bucket_id='promo');";
+ var SPEED={
+  safe:{min:30,max:60,batch:15,rest:10,cap:150,t:'Safe (recommended)',d:'About 30 to 60 seconds between messages. A 10 minute rest after every 15 messages. Up to 150 a day.'},
+  extra:{min:60,max:90,batch:10,rest:15,cap:100,t:'Extra safe',d:'About 60 to 90 seconds between messages. A 15 minute rest after every 10 messages. Up to 100 a day. Slower, but the safest.'},
+  custom:{t:'My own',d:'Set the numbers yourself.'}};
+ function pp(){var p=PS();p.promo=p.promo||{};return p.promo}
+ function num(v,d){v=parseFloat(v);return isFinite(v)?v:d}
+ function cfg(){var c=pp(),sp=SPEED[c.speed]?c.speed:'safe',b=sp==='custom'?{min:num(c.min,30),max:num(c.max,60),batch:num(c.batch,15),rest:num(c.rest,10),cap:num(c.cap,150)}:SPEED[sp];
+  return{speed:sp,min:b.min,max:b.max,batch:b.batch,rest:b.rest,cap:b.cap,from:num(c.from,10),to:num(c.to,20),stop:c.stop==null?1:+c.stop,msg:c.msg==null?DEFMSG:c.msg,name:c.cname||'',skip:c.skip||{}}}
+ function ckey(c){return String(c.name||'').trim().toLowerCase()}
+ function camp(c){var k=ckey(c),cs=pp().camps||{};return k&&cs[k]?cs[k]:null}
+ function sentMap(c){var x=camp(c);return x?x.phones:{}}
+ function aud(){var seen={},L=[];D.parties.forEach(function(p){if(p.x)return;var n=phone(p);if(n.length<10||seen[n])return;seen[n]=1;L.push(p)});
+  return L.sort(function(a,b){return String(a.name).localeCompare(String(b.name))})}
+ function isSent(c,p){return !!sentMap(c)[phone(p)]}
+ function pick(c){return aud().filter(function(p){return !c.skip[p.id]&&!isSent(c,p)})}
+ function fill(t,p){return String(t).replace(/\{name\}/g,function(){return p?p.name:'Customer'}).replace(/\{shop\}/g,function(){return D.shop||''})}
+ function plan(n,c,start,rnd){
+  var mn=Math.max(1,c.min),mx=Math.max(mn,c.max),fr=c.from,to=c.to;if(!(fr>=0&&to<=24&&fr<to)){fr=0;to=24}
+  var out=[],t=start,day=null,cnt=0,inb=0;
+  function dawn(d){d.setHours(fr,Math.floor(rnd()*5),Math.floor(rnd()*60),0);return d.getTime()}
+  for(var i=0;i<n;i++){
+   var d=new Date(t);
+   if(d.getHours()<fr)t=dawn(d);else if(d.getHours()>=to){d.setDate(d.getDate()+1);t=dawn(d)}
+   var dk=new Date(t).toDateString();if(dk!==day){day=dk;cnt=0}
+   if(c.cap>0&&cnt>=c.cap){var e=new Date(t);e.setDate(e.getDate()+1);t=dawn(e);day=new Date(t).toDateString();cnt=0}
+   out.push(t);cnt++;inb++;
+   t+=(mn+rnd()*(mx-mn))*1000;
+   if(c.batch>0&&inb>=c.batch){inb=0;t+=c.rest*60000*(0.8+rnd()*0.4)}
+  }
+  return out}
+ function dur(ms){var m=Math.max(1,Math.round(ms/60000));if(m<60)return m+' min';var h=Math.floor(m/60);if(h<36)return h+' hr '+(m%60)+' min';return Math.round(h/24)+' days'}
+ function fmt(t){return new Date(t).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}
 
- var oldSettings=vSettings;
- vSettings=function(){
-   if(sTab==='camp')return campHome();
-   var h=oldSettings();
-   var target='Settings · Messages';
-   if(h.indexOf(target)>=0 && h.indexOf('Promotional Campaigns')<0){
-     h=h.replace('</div><div class="card msg-editor">','<button class="s" style="margin-left:6px" onclick="sTab=\'camp\';render()">📢 Promotional Campaigns</button></div><div class="card msg-editor">');
-   }
-   return h;
- }
+ function sumHtml(){
+  var c=cfg(),all=aud(),L=pick(c),n=L.length,sent=all.filter(function(p){return isSent(c,p)}).length,h='';
+  if(!c.name.trim())h+='<div class="pr-warn">Write an offer name in Step 1. The app uses it to remember who already got this offer.</div>';
+  h+='<div class="pr-box"><b>'+n+'</b> parties will get this message.';
+  if(sent)h+='<br>✓ <b>'+sent+'</b> already got "'+esc(c.name.trim())+'" earlier and will be skipped.';
+  if(n){var t=plan(n,c,Date.now()+30000,function(){return .5}),last=t[n-1];h+='<br>Total time about <b>'+dur(last-Date.now())+'</b>. Last message goes around <b>'+fmt(last)+'</b>.'}
+  h+='</div>';
+  if(c.min<20)h+='<div class="pr-warn">⚠️ Less than 20 seconds gap is risky. WhatsApp can block the number.</div>';
+  if(c.cap>200||c.cap<=0)h+='<div class="pr-warn">⚠️ More than about 200 messages a day is risky for the number.</div>';
+  if(!/\{name\}/.test(c.msg))h+='<div class="pr-warn">Tip: add {name} in the message so each person sees their own name. The same text for everyone looks like spam.</div>';
+  return h}
+ function bubHtml(){var c=cfg(),p=pick(c)[0]||aud()[0],t=fill(c.msg,p)+(c.stop?STOPLINE:'');
+  return '<div class="pr-bub">'+(PR.prev?'<img src="'+PR.prev+'">':'')+esc(t)+'</div>'}
+ function listHtml(){var c=cfg(),q=PR.q.toLowerCase().trim(),n=0;
+  var h=aud().filter(function(p){
+    var s=isSent(c,p);
+    if(PR.f==='new'&&s)return false;if(PR.f==='sent'&&!s)return false;
+    return !q||String(p.name).toLowerCase().indexOf(q)>=0||phone(p).indexOf(q.replace(/\D/g,'')||'~')>=0}).map(function(p){n++;
+   var s=isSent(c,p);
+   return '<label><input type="checkbox" '+(s?'disabled ':(c.skip[p.id]?'':'checked '))+'onchange="prTog(\''+p.id+'\',this.checked)"><span style="flex:1">'+esc(p.name)+'</span>'+(s?'<span class="pr-tag">✓ already sent</span>':'<span class="mu">'+esc(phone(p).slice(-10))+'</span>')+'</label>'}).join('');
+  return h||'<div class="mu" style="padding:10px">No party found.</div>'}
+ function recsHtml(){
+  var cs=pp().camps||{},ks=Object.keys(cs).sort(function(a,b){return cs[b].date-cs[a].date});
+  if(!ks.length)return '<div class="mu">No offer sent yet. Sent offers are remembered here so nobody gets the same offer twice.</div>';
+  return ks.map(function(k){var x=cs[k],n=Object.keys(x.phones).length;
+   return '<div class="row" style="padding:8px 0;border-bottom:1px solid #eef0f5;flex-wrap:wrap"><div><b>'+esc(x.name)+'</b><div class="mu">'+n+' parties · '+new Date(x.date).toLocaleDateString('en-IN')+'</div></div><span style="display:flex;gap:6px"><button class="s" onclick="prUse(\''+encodeURIComponent(k)+'\')">Open</button><button class="s dlb" onclick="prDel(\''+encodeURIComponent(k)+'\')">Delete record</button></span></div>'}).join('')}
+ function chipsHtml(){var cs=pp().camps||{},ks=Object.keys(cs).sort(function(a,b){return cs[b].date-cs[a].date}).slice(0,4);
+  return ks.length?'<div class="mu" style="margin-top:4px">Continue an earlier offer:</div><div class="pr-fl">'+ks.map(function(k){return '<button class="s" onclick="prUse(\''+encodeURIComponent(k)+'\')">'+esc(cs[k].name)+'</button>'}).join('')+'</div>':''}
+ function paint(){var a=$('#pr_sum'),b=$('#pr_bub');if(a)a.innerHTML=sumHtml();if(b)b.innerHTML=bubHtml()}
+ function paintList(){var a=$('#pr_list');if(a)a.innerHTML=listHtml();paint()}
+ function paintRecs(){var a=$('#pr_recs');if(a)a.innerHTML=recsHtml()}
+ function numIn(k,lb,v){return '<div><label class="mu">'+lb+'</label><input type="number" inputmode="numeric" value="'+v+'" oninput="prSet(\''+k+'\',this.value)"></div>'}
+
+ window.prSet=function(k,v){var c=pp();c[k]=(k==='msg')?v:num(v,0);save();paint()};
+ window.prName=function(v){pp().cname=v;save();paintList()};
+ window.prTog=function(id,on){var c=pp();c.skip=c.skip||{};if(on)delete c.skip[id];else c.skip[id]=1;save();paint()};
+ window.prAll=function(on){var c=pp();c.skip={};if(!on)aud().forEach(function(p){c.skip[p.id]=1});save();paintList()};
+ window.prFind=function(v){PR.q=v||'';var a=$('#pr_list');if(a)a.innerHTML=listHtml()};
+ window.prFilt=function(f){PR.f=f;render()};
+ window.prStop=function(on){pp().stop=on?1:0;save();paint()};
+ window.prSpeed=function(k){var c=pp(),cur=cfg();if(k==='custom'){c.min=cur.min;c.max=cur.max;c.batch=cur.batch;c.rest=cur.rest;c.cap=cur.cap}c.speed=k;save();render()};
+ window.prUse=function(k){k=decodeURIComponent(k);var x=(pp().camps||{})[k];if(!x)return;var c=pp();c.cname=x.name;c.msg=x.msg;save();render();window.scrollTo(0,0)};
+ window.prDel=function(k){k=decodeURIComponent(k);var cs=pp().camps||{},x=cs[k];if(!x)return;
+  if(!confirm('Delete the record of "'+x.name+'"?\n\nThe app will forget who got this offer and could send it to them again. Messages already sent are not affected.'))return;
+  delete cs[k];save();paintList();paintRecs()};
+ window.prCopySql=function(){function prt(){prompt('Copy this text:',SQL)}try{navigator.clipboard.writeText(SQL).then(function(){obToast('Copied. Now paste it in Supabase > SQL Editor and press Run')},prt)}catch(e){prt()}};
+ window.prImg=function(inp){
+  var f=inp.files&&inp.files[0];if(!f)return;if(!/^image\//.test(f.type))return alert('Please choose a photo');
+  var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){
+   var s=Math.min(1,1280/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);
+   var x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);x.drawImage(im,0,0,cv.width,cv.height);
+   cv.toBlob(function(b){PR.img=b;PR.prev=cv.toDataURL('image/jpeg',.82);var e=$('#pr_imgx');if(e)e.style.display='block';paint()},'image/jpeg',.82)};
+   im.onerror=function(){alert('Could not read this photo')};im.src=r.result};
+  r.readAsDataURL(f)};
+ window.prNoImg=function(){PR.img=null;PR.prev='';var e=$('#pr_file');if(e)e.value='';var x=$('#pr_imgx');if(x)x.style.display='none';paint()};
+ /* waiting count + take failed messages out of the record so they can be sent again */
+ window.prPend=function(){
+  if(!obOk())return;
+  Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').eq('status','pending')).then(function(r){
+   var e=$('#pr_pend');if(e)e.textContent=(r&&!r.error&&r.count!=null)?('Offer messages waiting to be sent: '+r.count):''}).catch(function(){});
+  Promise.resolve(SB.from('outbox').select('phone,campaign,created_at').eq('kind','promo').eq('status','failed').limit(500)).then(function(r){
+   if(!r||r.error||!r.data)return;var cs=pp().camps||{},ch=0;
+   r.data.forEach(function(m){var x=m.campaign&&cs[m.campaign],ts=x&&x.phones[m.phone];if(ts&&Math.abs(Date.parse(m.created_at)-ts)<600000){delete x.phones[m.phone];ch++}});
+   if(ch){save();paintList();paintRecs();obToast(ch+' message(s) failed earlier. They can be sent again.')}}).catch(function(){})};
+ window.prCancel=function(){
+  if(!obOk())return;
+  if(!confirm('Cancel ALL offer messages that are still waiting?\nMessages already sent are not affected. Those parties can be sent the offer again later.'))return;
+  Promise.resolve(SB.from('outbox').select('phone,campaign').eq('kind','promo').eq('status','pending').limit(2000)).then(function(r){
+   if(r&&r.error)throw r.error;var rows=(r&&r.data)||[];
+   return Promise.resolve(SB.from('outbox').delete().eq('kind','promo').eq('status','pending')).then(function(d){
+    if(d&&d.error)throw d.error;
+    var cs=pp().camps||{};rows.forEach(function(m){var x=m.campaign&&cs[m.campaign];if(x)delete x.phones[m.phone]});
+    save();paintList();paintRecs();obToast('Waiting messages cancelled');prPend();if(typeof obLoad==='function')obLoad()})
+  }).catch(function(e){alert('Could not cancel: '+((e&&e.message)||e))})};
+ window.prQueue=function(){
+  if(PR.busy)return;
+  var c=cfg(),L=pick(c),key=ckey(c);
+  if(!obOk())return alert('The app is not connected to the cloud yet. Open the app again and try.');
+  if(!key)return alert('Write an offer name in Step 1 (example: Diwali Sale).');
+  if(!c.msg.trim())return alert('Write the message first.');
+  if(!L.length)return alert('Nobody left to send. Everyone selected already got this offer, or no party is selected.');
+  var t=plan(L.length,c,Date.now()+30000,Math.random),last=t[t.length-1];
+  if(!confirm('Send "'+c.name.trim()+'" to '+L.length+' parties?\n\nOne by one, about '+c.min+' to '+c.max+' seconds apart.\nLast message goes around '+fmt(last)+'.'+(PR.img?'\nThe photo will go with it.':'')))return;
+  PR.busy=true;var bt=$('#pr_go');if(bt){bt.disabled=true;bt.textContent='Please wait...'}
+  function done(){PR.busy=false;var b=$('#pr_go');if(b){b.disabled=false;b.textContent='Send to '+pick(cfg()).length+' parties'}}
+  var up=PR.img?Promise.resolve(SB.storage.from('promo').upload('p'+Date.now()+'.jpg',PR.img,{contentType:'image/jpeg'})).then(function(r){
+    if(r&&r.error)throw new Error('Photo upload failed: '+r.error.message+' (is the one-time setup at the bottom done?)');
+    return SB.storage.from('promo').getPublicUrl(r.data.path).data.publicUrl}):Promise.resolve('');
+  up.then(function(url){
+   var rows=L.map(function(p,i){var o={phone:phone(p),party_name:p.name,kind:'promo',campaign:key,message:fill(c.msg,p)+(c.stop?STOPLINE:''),send_after:new Date(t[i]).toISOString()};if(url)o.media_url=url;return o}),i=0;
+   function next(){if(i>=rows.length)return Promise.resolve();var part=rows.slice(i,i+200);i+=200;
+    return obAdd(part).then(function(){
+     var cs=pp().camps=pp().camps||{},x=cs[key];if(!x)x=cs[key]={name:c.name.trim(),date:Date.now(),msg:c.msg,phones:{}};x.msg=c.msg;
+     var now=Date.now();part.forEach(function(o){x.phones[o.phone]=now});save()}).then(next)}
+   return next().then(function(){return rows.length})
+  }).then(function(n){done();paintList();paintRecs();prPend();if(typeof obLoad==='function')obLoad();
+    var e=$('#pr_ok');if(e){e.style.display='block';e.innerHTML='✅ <b>'+n+'</b> messages added. They will go out slowly, one by one, until about <b>'+fmt(last)+'</b>. You can close the app.'}})
+  .catch(function(e){done();paintList();paintRecs();var m=(e&&e.message)||String(e);
+   if(/send_after|media_url|campaign/.test(m))m='The one-time setup is not done yet. Do the "One-time setup" step at the bottom of this page first.\n\n('+m+')';
+   alert('Could not add: '+m)})};
+
+ function home(){
+  var c=cfg(),h='<h2 style="font-size:20px;margin:6px 0">📢 Send an offer to customers</h2><button class="s" onclick="sTab=\'msg\';render()">← Back to Messages</button>'+
+   '<div class="mu" style="margin:8px 0">Follow the 5 steps. Messages go out slowly, one by one, and the app remembers who already got each offer.</div>';
+  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">1</span>Offer name and message</div>'+
+   '<label class="mu">Offer name (only for you, example: Diwali Sale)</label><input placeholder="Offer name" value="'+esc(c.name)+'" oninput="prName(this.value)">'+chipsHtml()+
+   '<label class="mu">Message. {name} = party name, {shop} = your shop name</label>'+
+   '<textarea rows="7" oninput="prSet(\'msg\',this.value)">'+esc(c.msg)+'</textarea>'+
+   '<label style="display:flex;gap:10px;align-items:center;margin:6px 0"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(c.stop?'checked ':'')+'onchange="prStop(this.checked)"><span>Add "reply STOP to stop offers" (customers will not report you)</span></label></div>';
+  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">2</span>Photo (optional)</div>'+
+   '<input id="pr_file" type="file" accept="image/*" onchange="prImg(this)"><div id="pr_imgx" style="display:'+(PR.prev?'block':'none')+'"><button class="s" onclick="prNoImg()">Remove photo</button></div></div>';
+  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">3</span>Who gets it</div>'+
+   '<input class="pr-srch" placeholder="🔍 Search party name or number" value="'+esc(PR.q)+'" oninput="prFind(this.value)">'+
+   '<div class="pr-fl">'+[['all','All'],['new','Not sent yet'],['sent','Already sent']].map(function(f){return '<button class="s'+(PR.f===f[0]?' on':'')+'" onclick="prFilt(\''+f[0]+'\')">'+f[1]+'</button>'}).join('')+'<span style="flex:1"></span><button class="s" onclick="prAll(true)">Tick all</button><button class="s" onclick="prAll(false)">Untick all</button></div>'+
+   '<div id="pr_list" class="pr-list">'+listHtml()+'</div></div>';
+  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">4</span>Speed</div><div class="mu">A slower speed is safer for your WhatsApp number.</div>'+
+   '<div class="pr-sp">'+['safe','extra','custom'].map(function(k){return '<button class="s'+(c.speed===k?' on':'')+'" onclick="prSpeed(\''+k+'\')">'+SPEED[k].t+'</button>'}).join('')+'</div>'+
+   '<div class="mu">'+SPEED[c.speed].d+'</div>'+
+   (c.speed==='custom'?'<div class="pr-g">'+numIn('min','Gap from (seconds)',c.min)+numIn('max','Gap up to (seconds)',c.max)+'</div><div class="pr-g">'+numIn('batch','Rest after every (messages)',c.batch)+numIn('rest','Rest for (minutes)',c.rest)+'</div><div class="pr-g">'+numIn('cap','Maximum per day',c.cap)+'</div>':'')+
+   '<div class="mu" style="margin-top:8px">Send only between these hours (24-hour clock). Outside these hours the app waits.</div><div class="pr-g">'+numIn('from','From hour',c.from)+numIn('to','Until hour',c.to)+'</div></div>';
+  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">5</span>Check and send</div><div class="mu">This is how it will look:</div><div id="pr_bub" style="margin:6px 0">'+bubHtml()+'</div>'+
+   '<div id="pr_sum">'+sumHtml()+'</div>'+
+   '<button id="pr_go" class="b pr-big" onclick="prQueue()">Send to '+pick(c).length+' parties</button>'+
+   '<div id="pr_ok" class="ok" style="display:none;margin-top:8px"></div>'+
+   '<div id="pr_pend" class="mu" style="margin-top:8px"></div>'+
+   '<button class="s" style="margin-top:6px" onclick="prCancel()">Cancel all waiting offer messages</button></div>';
+  h+='<div class="card pr-step"><div class="pr-h">📒 Offers already sent</div><div id="pr_recs">'+recsHtml()+'</div></div>';
+  h+='<details class="card pr-step"><summary><b>One-time setup (do this once)</b></summary><div class="mu" style="margin-top:6px">Needed for the photo, the timing and the record. Press Copy, open Supabase &gt; SQL Editor, paste, press Run. If it says a policy already exists, that part was done before. That is fine.</div><button class="s" style="margin-top:6px" onclick="prCopySql()">Copy setup text</button></details>';
+  setTimeout(prPend,60);
+  return h}
+
+ var prevSettings=vSettings;
+ vSettings=function(){if(sTab==='promo')return home();return prevSettings.apply(this,arguments)};
 })();
 </script>
+
 </body></html>
