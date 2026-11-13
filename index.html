@@ -2784,7 +2784,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 14-Nov-H';
+var APPV='App version 14-Nov-I';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -5404,7 +5404,9 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
       return SB.storage.from('promo').upload(name,blob,{contentType:'image/png'}).then(function(up){
        if(up.error)throw new Error(up.error.message);
        return SB.storage.from('promo').getPublicUrl(up.data.path).data.publicUrl});
-     }).then(function(u){return u},function(){return ''}).then(function(u){
+     }).then(function(u){return u},function(e){
+      try{alert('Bill #'+b.no+': the picture could not be attached, so only the text is being sent.\n\nReason: '+((e&&e.message)||e))}catch(x){}
+      return ''}).then(function(u){
       if(u)list[0].media_url=u;
       return oldAdd(list)});
     }
