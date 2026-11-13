@@ -693,7 +693,92 @@ function mItems(t,a){modal('<b>'+t+'</b>'+a.map(function(x){return '<button clas
 function tbl2(h,rows,act){return '<div style="overflow-x:auto"><table class="tbl"><tr>'+h.map(function(x){return '<th>'+x+'</th>'}).join('')+(act?'<th></th>':'')+'</tr>'+rows.map(function(r){var a=Array.isArray(r)?{c:r}:r;return '<tr'+(a.n!=null?' data-n="'+esc(String(a.n).toLowerCase())+'"':'')+(a.k?' style="cursor:pointer" onclick="'+a.k+'"':'')+'>'+a.c.map(function(x){return '<td>'+x+'</td>'}).join('')+(act?'<td style="white-space:nowrap" onclick="event.stopPropagation()">'+(a.a||'')+'</td>':'')+'</tr>'}).join('')+'</table>'+(rows.length?'':'<p class="mu" style="padding:8px">Nothing to show</p>')+'</div>'}
 function csvOut(name,h,rows){var s=[h].concat(rows).map(function(r){return r.map(function(c){return '"'+plain(c).replace(/"/g,'""')+'"'}).join(',')}).join('\r\n');saveFile(name+'.csv',new Blob(['﻿'+s],{type:'text/csv'}))}
 function csvCur(){if(RCUR)csvOut(RCUR.name,RCUR.h,RCUR.r)}
-function printHtml(title,body){var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;padding:24px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.r{text-align:right}.m{color:#666;font-size:12px}</style></head><body>'+body+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},400)}
+function printHtml(title,body){var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;padding:24px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.r{text-align:right}.m{color:#666;font-size:12px}</style></head><body>'+body+'
+<!-- MOBILE DESIGN OVERHAUL: visual only, no business logic changed -->
+<style id="vyapar-mobile-overhaul-v21">
+@media(max-width:899px){
+  :root{--bg:#eef3f9;--card:#fff;--tx:#202534;--mu:#7f8798;--ac:#1a73e8;--bd:#e7ebf2;--rd:#e63746}
+  html,body{background:#eef3f9!important;color:#202534;font-size:14px;line-height:1.35;-webkit-text-size-adjust:100%}
+  body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important}
+  #v{padding:8px 8px 14px!important;max-width:100%!important}
+
+  /* compact Vyapar-like top bar */
+  body #mtop{min-height:58px!important;padding:8px 12px!important;background:#fff!important;border-bottom:1px solid #edf0f5!important;box-shadow:0 1px 3px rgba(27,45,77,.06)!important}
+  #mtop .mlogo{width:30px!important;height:30px!important;font-size:13px!important}
+  #mtop .mnm b,#mtop .mttl{font-size:16px!important;font-weight:600!important;letter-spacing:-.15px}
+  #mtop .mnm small{font-size:10.5px!important}
+  body #mtop button{width:34px!important;height:34px!important;background:#f5f7fa!important;font-size:18px!important}
+
+  /* fixed bottom navigation */
+  body #mbar{height:auto!important;background:#fff!important;border-top:1px solid #edf0f5!important;box-shadow:0 -3px 12px rgba(27,45,77,.09)!important;padding:5px 6px calc(5px + env(safe-area-inset-bottom,0px))!important}
+  body #mbar button{min-height:52px!important;border-radius:10px!important;color:#737b8c!important;font-size:9.5px!important;font-weight:600!important;letter-spacing:0!important;text-transform:none!important}
+  body #mbar button.on{background:#edf5ff!important;color:#1a73e8!important}
+  #mbar button svg{width:21px!important;height:21px!important;stroke-width:1.8!important}
+
+  /* compact cards and content */
+  .card,.mc,.mq,.mg{border-radius:9px!important;background:#fff!important;box-shadow:0 1px 4px rgba(29,45,76,.08)!important}
+  .card{padding:11px!important;margin:7px 0!important}
+  .stat{border-radius:9px!important;padding:11px!important;box-shadow:0 1px 4px rgba(29,45,76,.08)!important}
+  .stats{gap:7px!important}
+  .stat b{font-size:20px!important}
+  h1{font-size:17px!important}h2{font-size:15px!important;margin:11px 2px 7px!important;font-weight:600!important}
+  .mu{font-size:12px!important}.red,.grn{font-weight:600!important}
+
+  /* lists */
+  .mc{padding:10px 12px!important;margin:6px 0!important}
+  .mc .t b{font-size:14px!important;text-transform:none!important;font-weight:600!important;letter-spacing:0!important}
+  .mc .t span,.mc3 span{font-size:10.5px!important;color:#8b93a3!important}
+  .mc3{gap:26px!important;margin-top:7px!important}.mc3 b{font-size:13.5px!important}
+  .chip{font-size:9.5px!important;padding:3px 7px!important;border-radius:4px!important;margin:5px 0 1px!important}
+  .mr{padding:12px 1px!important;font-size:14px!important}.mgt{font-size:13px!important;padding:9px 0 4px!important}
+
+  /* forms: smaller, cleaner */
+  input,select,textarea{min-height:40px!important;padding:9px 10px!important;border-color:#dfe5ee!important;border-radius:6px!important;font-size:14px!important;background:#fff!important;margin:3px 0!important}
+  textarea{min-height:76px!important}
+  input:focus,select:focus,textarea:focus{border-color:#1a73e8!important;box-shadow:0 0 0 2px rgba(26,115,232,.10)!important}
+  .g{gap:7px!important}
+  .fgrid{gap:8px!important}
+
+  /* buttons */
+  button.b{min-height:40px!important;padding:9px 16px!important;border-radius:7px!important;font-size:14px!important;box-shadow:none!important}
+  button.s{min-height:34px!important;padding:6px 11px!important;border-radius:6px!important;font-size:12.5px!important;background:#eef4ff!important;color:#1a73e8!important}
+  .addb{border-radius:7px!important}
+  #mfab.show{bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;padding:11px 18px!important;font-size:13.5px!important;border-radius:7px!important;box-shadow:0 5px 14px rgba(232,33,58,.28)!important}
+
+  /* transaction/search controls */
+  input.msr,.msrw{border-radius:7px!important;box-shadow:0 1px 3px rgba(29,45,76,.08)!important}
+  input.msr{padding:11px 12px!important;min-height:42px!important}
+  .mpills{gap:7px!important;margin:2px 0 8px!important}.mp{padding:8px 5px!important;border-radius:6px!important;font-size:12.5px!important}
+  .mp.on{background:#fff!important;border-color:#1a73e8!important;color:#1a73e8!important;font-weight:600!important}
+  .mq{padding:10px!important;margin-bottom:8px!important}.mq>b{font-size:13.5px!important}.mqg{gap:5px!important;margin-top:8px!important}.mqg i{width:40px!important;height:38px!important;border-radius:8px!important;font-size:19px!important}.mqg button{font-size:10.5px!important}
+
+  /* tables */
+  .tbl{font-size:12.5px!important}.tbl th{padding:8px 7px!important;font-size:10.5px!important;color:#7b8495!important;background:#f7f9fc!important}.tbl td{padding:8px 7px!important;border-bottom-color:#edf0f5!important}
+
+  /* sale form compact header */
+  .sfh{margin:0 -8px!important;padding:6px 8px!important}.sfh small{font-size:10px!important}.sfh b,.sfh input{font-size:13px!important}
+
+  /* action/footer bars */
+  .dxact,.dhact{background:#fff!important;border-top:1px solid #e9edf3!important;box-shadow:0 -4px 14px rgba(29,45,76,.10)!important;padding:8px 10px calc(9px + env(safe-area-inset-bottom,0px))!important}
+  .dxact button,.dhact button{min-height:42px!important;border-radius:7px!important}
+
+  /* dialogs and AI */
+  .aibox,.aivbox{border-radius:14px 14px 0 0!important;padding:14px!important}
+  .aivbox{max-height:92vh!important}.aimic{width:48px!important;height:48px!important}.aimic.big{width:82px!important;height:82px!important}
+  .aichip{padding:7px 11px!important;font-size:12px!important}.aiin input{min-height:42px!important}
+
+  /* reduce visual clutter and excessive rounding */
+  .ok{border-radius:7px!important;padding:9px!important}
+  .archip{padding:7px 12px!important;border-radius:6px!important}
+  .scl{border:0!important;border-radius:9px!important}
+  .pills{margin:4px 0!important}
+
+  /* safe area + tap comfort */
+  button,select,input{font-family:Roboto,system-ui,-apple-system,"Segoe UI",sans-serif!important}
+}
+</style>
+
+</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},400)}
 function saleStatus(b){var pd=paidOn(b);return b.x?'Cancelled':(b.total-pd<=0.009?'Paid':pd>0?'Partly paid':'Unpaid')}
 function stH(s){var c=(s==='Paid'||s==='Received'||s==='Returned'||s==='Converted')?'grn':(s==='Cancelled'||s==='Open')?'mu':s==='Partly paid'?'':'red';return '<span class="'+c+'"'+(s==='Partly paid'?' style="color:#c77700;font-weight:600"':'')+'>'+s+'</span>'}
 function paidDoc(d){var s=0;D.pays.forEach(function(x){if(x.dn===d.id&&!x.x)s+=x.amt});return s}
@@ -3885,21 +3970,17 @@ try{buildNav()}catch(e){}
 var DYs=864e5,AI={msgs:[],busy:0,scan:null,setup:false};window.AI=AI;
 var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-lite-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80},fb:['gemini-flash-latest','gemini-2.5-flash-lite','gemini-2.5-flash','gemini-2.0-flash']},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15},fb:['openai/gpt-oss-20b','llama-3.3-70b-versatile']},own:{n:'Own AI (offline, no key, no internet needed)',m:'',u:'no key needed',lim:{p:40,i:60,b:15},fb:[]}};
 var MEM={};
-/* Persistent AI settings: localStorage is primary. A same-site cookie backup restores the key if
-   a browser/webview clears localStorage during refresh or an app update. Nothing is sent anywhere
-   except to the selected AI provider when the user actually makes an AI request. */
-function p64(o){try{return btoa(unescape(encodeURIComponent(JSON.stringify(o))))}catch(e){return ''}}
-function u64(s){try{return JSON.parse(decodeURIComponent(escape(atob(s))))}catch(e){return null}}
-function ckGet(n){try{var m=document.cookie.match(new RegExp('(?:^|; )'+n.replace(/[.$?*|{}()\[\]\\/+^]/g,'\\$&')+'=([^;]*)'));return m?decodeURIComponent(m[1]):''}catch(e){return ''}}
-function ckSet(n,v){try{document.cookie=n+'='+encodeURIComponent(v)+'; max-age=31536000; path=/; SameSite=Lax';return true}catch(e){return false}}
-function ckDel(n){try{document.cookie=n+'=; max-age=0; path=/; SameSite=Lax'}catch(e){}}
-function readPersist(n,bn){var x=null;try{var z=localStorage.getItem(n);if(z)x=JSON.parse(z)}catch(e){}if(!x){try{x=u64(ckGet(bn))}catch(e){}if(x)try{localStorage.setItem(n,JSON.stringify(x))}catch(e){}}return x}
-function writePersist(n,bn,o){var ok=false;try{localStorage.setItem(n,JSON.stringify(o));ok=!!localStorage.getItem(n)}catch(e){}var b=p64(o);if(b)ckSet(bn,b);return ok||!!b}
-function cfg(){var c=readPersist('ash_ai','ash_ai_bk')||MEM.c||{};return c&&c.p?c:{p:'own',auto:1}}
-function setCfg(o){MEM.c=o||{};return writePersist('ash_ai','ash_ai_bk',MEM.c)}
+/* Persistent AI settings: localStorage is primary; a same-device cookie mirror restores
+   settings if Safari/WebView drops localStorage after a refresh. */
+function _pcGet(n){try{var m=document.cookie.match(new RegExp('(?:^|; )'+n.replace(/[.$?*|{}()\\[\\]\\\\/+^]/g,'\\\\$&')+'=([^;]*)'));return m?decodeURIComponent(m[1]):''}catch(e){return ''}}
+function _pcSet(n,v){try{document.cookie=n+'='+encodeURIComponent(v)+'; Max-Age=31536000; Path=/; SameSite=Lax';return true}catch(e){return false}}
+function _pcDel(n){try{document.cookie=n+'=; Max-Age=0; Path=/; SameSite=Lax'}catch(e){}}
+function _persistRead(key,cookieKey){var v='';try{v=localStorage.getItem(key)||''}catch(e){}if(!v)v=_pcGet(cookieKey);if(v){try{localStorage.setItem(key,v)}catch(e){}}return v}
+function cfg(){var c=null;try{var s=_persistRead('ash_ai','ash_ai_p');if(s)c=JSON.parse(s)}catch(e){}c=c||MEM.c||{};return c.p?c:{p:'own',auto:1}}
+function setCfg(o){MEM.c=o;var raw=JSON.stringify(o),ok=false;try{localStorage.setItem('ash_ai',raw);ok=localStorage.getItem('ash_ai')===raw}catch(e){}try{_pcSet('ash_ai_p',raw);ok=true}catch(e){}return ok}
 /* Gemini Brain: keeps natural-language understanding available even when Own AI is selected for offline execution. */
-function brainGet(){var x=readPersist('ash_gemini_brain','ash_gb_bk');return x||MEM.gb||null}
-function brainSet(x){MEM.gb=x||null;return writePersist('ash_gemini_brain','ash_gb_bk',MEM.gb)}
+function brainGet(){try{var x=_persistRead('ash_gemini_brain','ash_gb_p');return x?JSON.parse(x):null}catch(e){return MEM.gb||null}}
+function brainSet(x){MEM.gb=x;var raw=JSON.stringify(x),ok=false;try{localStorage.setItem('ash_gemini_brain',raw);ok=true}catch(e){}try{_pcSet('ash_gb_p',raw);ok=true}catch(e){}return ok}
 function brainReady(){var b=brainGet();return !!(b&&b.k)}
 function vp(){try{var s=localStorage.getItem('ash_vp');if(s)return JSON.parse(s)}catch(e){}return MEM.vp||{}}
 function setVp(o){MEM.vp=o;try{localStorage.setItem('ash_vp',JSON.stringify(o))}catch(e){}}
@@ -4318,7 +4399,7 @@ window.aiSave=function(test){var p=gid('aip').value,k=cleanKey(gid('aik').value)
  AI.msg={t:'Key saved. Testing the connection...',c:'mu'};render();
  call([{role:'user',parts:[{text:'Reply with the single word OK'}]}],'',false,{t:20000}).then(function(){AI.setup=false;AI.msg={t:'Connected. AI is ready ('+(AI.used||'')+').'+warn,c:'grn'};render()},function(e){var soft=/busy|limit|timeout/.test(e.kind);if(soft)AI.setup=false;AI.msg={t:(soft?'Key saved. '+e.message+' This is not a problem with your key. Ask again shortly, other free models are tried automatically.':e.message)+warn,c:soft?'amb':'red'};render()})};
 window.aiProv=function(v){var m=gid('aim');if(m)m.value=PROV[v].m;var kw=gid('aikw');if(kw)kw.style.display=v==='own'?'none':'';var u=gid('aiu');if(u)u.textContent=PROV[v].u};
-window.aiForget=function(){if(!confirm('Remove the AI key from this device?'))return;MEM.c={};MEM.gb=null;try{localStorage.removeItem('ash_ai');localStorage.removeItem('ash_gemini_brain')}catch(e){}ckDel('ash_ai_bk');ckDel('ash_gb_bk');AI.setup=true;AI.msg=null;render()};
+window.aiForget=function(){if(!confirm('Remove the AI key from this device?'))return;setCfg({});try{localStorage.removeItem('ash_gemini_brain')}catch(e){}_pcDel('ash_ai_p');_pcDel('ash_gb_p');AI.setup=true;AI.msg=null;render()};
 window.aiShowKey=function(on){var e=gid('aik');if(e)e.type=on?'text':'password'};
 function engUI(){if(!(SR&&cfg().p==='gemini'&&ready()))return '';var e=vp().eng==='sr'?'sr':'gm';return '<span class="mu" style="margin-left:8px">Listen with</span><button type="button" class="aichip eng'+(e==='gm'?' on':'')+'" data-e="gm" onclick="vcEng(\'gm\')">Gemini</button><button type="button" class="aichip eng'+(e==='sr'?' on':'')+'" data-e="sr" onclick="vcEng(\'sr\')">Browser</button>'}
 window.vcEng=function(e){var o=vp();o.eng=e;setVp(o);Array.prototype.forEach.call(document.querySelectorAll('.aichip.eng'),function(b){b.classList.toggle('on',b.getAttribute('data-e')===e)})};
