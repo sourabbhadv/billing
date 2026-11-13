@@ -3926,7 +3926,7 @@ function httpErr(s,j,m){var raw=j&&j.error,msg=String((raw&&(raw.message||raw))|
  if(s===404)return E('Model "'+m+'" was not found. Clear the Model name box in Setup.','nomodel');
  return E(msg.slice(0,200),'other')}
 function once(c,m,parts,sys,json,ms){var ctl=new AbortController(),to=setTimeout(function(){ctl.abort()},ms),req;
- if(c.p==='gemini'){var url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent',body=JSON.stringify({systemInstruction:sys?{parts:[{text:sys}]}:undefined,contents:parts.map(function(x){return {role:x.role==='assistant'?'model':'user',parts:x.parts}}),generationConfig:json?{responseMimeType:'application/json',temperature:0,maxOutputTokens:512}:{temperature:0.2,maxOutputTokens:512}});
+ if(c.p==='gemini'){var url='https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent',body=JSON.stringify({systemInstruction:sys?{parts:[{text:sys}]}:undefined,contents:parts.map(function(x){return {role:x.role==='assistant'?'model':'user',parts:x.parts}}),generationConfig:json?{responseMimeType:'application/json',temperature:0,maxOutputTokens:256}:{temperature:0.2,maxOutputTokens:384}});
   req=fetch(url,{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','x-goog-api-key':c.k},body:body}).catch(function(e){if(e&&e.name==='AbortError')throw e;return fetch(url+'?key='+encodeURIComponent(c.k),{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json'},body:body})})}
  else{req=fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','Authorization':'Bearer '+c.k},body:JSON.stringify({model:m,temperature:0.3,messages:(sys?[{role:'system',content:sys}]:[]).concat(parts.map(function(x){return {role:x.role,content:x.parts.map(function(q){return q.text||''}).join('\n')}}))})})}
  return req.then(function(r){return r.json().catch(function(){return {}}).then(function(j){clearTimeout(to);if(!r.ok)throw httpErr(r.status,j,m);
@@ -4386,8 +4386,8 @@ function srStart(){var ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(naviga
   if(err&&err!=='no-speech'&&err!=='aborted')return vFin('',verr(err));vFin(V.last)};
  try{if(navigator.onLine===false)r.processLocally=true}catch(e){}
  function go(n){try{r.start()}catch(e){if(n<3)setTimeout(function(){if(!r._x&&!V.cancel)go(n+1)},ios?500:350);else{r._x=1;V.st='idle';V.rec=null;o.onErr('Could not start the microphone. Please tap the mic again.')}}}go(0)}
- /* Safari often needs a short gap after the previous speech session ends before a fresh instance can start. */
- if(ios)setTimeout(boot,450);else boot()}
+ /* iOS/Safari must usually start speech recognition directly from the user's tap. */
+ boot()}
 function useMr(){return !SR||(vp().eng!=='sr'&&cfg().p==='gemini'&&ready()&&!!navigator.mediaDevices&&!!window.MediaRecorder)}
 function vForce(){V.cancel=0;clearTimeout(V.tm);clearTimeout(V.fz);if(V.rec){V.rec._x=1;try{V.rec.abort()}catch(e){}V.rec=null}try{if(V.mr&&V.mr.state==='recording')V.mr.stop()}catch(e){}V.st='idle'}
 var IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -4395,7 +4395,7 @@ function vStart(o){if(V.st!=='idle')return;V.o=o;V.cancel=0;V.st='listen';V.t0=D
  var go=function(){if(useMr())mrStart();else srStart()},sp=false;
  try{var ss=window.speechSynthesis;sp=!!(ss&&(ss.speaking||ss.pending||Date.now()-(V.spk||0)<1500));if(sp)ss.cancel()}catch(e){}
  if(V.rec){V.rec._x=1;try{V.rec.abort()}catch(e){}V.rec=null}
- if(sp)setTimeout(function(){if(V.o!==o||V.st!=='listen')return;if(V.cancel){V.cancel=0;V.st='idle';return}go()},IOS?650:800);else if(IOS)setTimeout(function(){if(V.o===o&&V.st==='listen'&&!V.cancel)go()},120);else go()}
+ if(sp)setTimeout(function(){if(V.o!==o||V.st!=='listen')return;if(V.cancel){V.cancel=0;V.st='idle';return}go()},IOS?180:800);else go()}
 function vStop(cancel){V.cancel=cancel?1:0;if(V.rec){var rr=V.rec;try{rr.stop()}catch(e){}clearTimeout(V.fz);V.fz=setTimeout(function(){if(V.rec===rr&&!rr._x){rr._x=1;V.rec=null;clearTimeout(V.tm);vFin(V.cancel?'':V.last)}},1500)}else if(V.mr&&V.mr.state==='recording'){try{V.mr.stop()}catch(e){}}else if(V.st==='listen'){vFin('')}}
 /* safety net: if the browser never reports that listening ended, free the mic so the next tap works */
 setInterval(function(){if((V.st==='listen'||V.st==='work')&&V.t0&&Date.now()-V.t0>50000){try{if(V.rec){V.rec._x=1;V.rec.abort()}}catch(e){}V.rec=null;try{if(V.mr&&V.mr.state==='recording')V.mr.stop()}catch(e){}V.cancel=0;vFin('','Voice stopped. Tap the mic and try again.')}},2000);
@@ -4892,5 +4892,13 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   };
 })();
 
+</script>
+
+<script>
+(function(){
+  /* OfflineAI v17 reliability guard: protect saved settings and accidental rapid double-taps. */
+  try{var b=localStorage.getItem('ash_ai');if(b){var c=JSON.parse(b);if(!c||typeof c!=="object")localStorage.removeItem('ash_ai')}}catch(e){try{localStorage.removeItem('ash_ai')}catch(_){}}
+  try{window.addEventListener('unhandledrejection',function(e){if(e&&e.reason&&e.reason.name==='AbortError')e.preventDefault()})}catch(e){}
+})();
 </script>
 </body></html>
