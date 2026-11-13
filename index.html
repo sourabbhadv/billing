@@ -2784,7 +2784,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 14-Nov-G';
+var APPV='App version 14-Nov-H';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -5389,25 +5389,24 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
 </script>
 
 <script id="bill-photo-on-save">
-/* New sale bill: the automatic WhatsApp message now goes out WITH the bill picture (picture + same text as caption) */
+/* New sale bill: the automatic WhatsApp message goes out WITH the bill picture (the message text becomes the caption) */
 (function(){
- var oldAdd=obAdd;
+ var BPNO=null,oldAdd=obAdd,oldWa=wa;
+ wa=function(no){BPNO=no;try{return oldWa.apply(this,arguments)}finally{BPNO=null}};
  obAdd=function(list){
+  var no=BPNO;
   try{
-   if(PS().billPic!==0&&PS().autoWA&&list&&list.length===1&&list[0].kind==='msg'&&!list[0].media_url){
-    var m=/^Namaste [^\n]*,\nBill #(\d+) \(/.exec(list[0].message||'');
-    if(m){
-     var b=bl(+m[1]),p=b&&P(b.pid);
-     if(b&&p&&awKind(list[0].message)==='bill'){
-      return Promise.resolve(billImg(b,p)).then(function(blob){
-       var name='bill-'+b.no+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)+'.png';
-       return SB.storage.from('promo').upload(name,blob,{contentType:'image/png'}).then(function(up){
-        if(up.error)throw new Error(up.error.message);
-        return SB.storage.from('promo').getPublicUrl(up.data.path).data.publicUrl});
-      }).then(function(u){return u},function(){return ''}).then(function(u){
-       if(u)list[0].media_url=u;
-       return oldAdd(list)});
-     }
+   if(no!=null&&PS().billPic!==0&&PS().autoWA&&list&&list.length===1&&list[0].kind==='msg'&&!list[0].media_url&&!/^\*Updated/.test(list[0].message||'')){
+    var b=bl(no),p=b&&P(b.pid);
+    if(b&&p){
+     return Promise.resolve(billImg(b,p)).then(function(blob){
+      var name='bill-'+b.no+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)+'.png';
+      return SB.storage.from('promo').upload(name,blob,{contentType:'image/png'}).then(function(up){
+       if(up.error)throw new Error(up.error.message);
+       return SB.storage.from('promo').getPublicUrl(up.data.path).data.publicUrl});
+     }).then(function(u){return u},function(){return ''}).then(function(u){
+      if(u)list[0].media_url=u;
+      return oldAdd(list)});
     }
    }
   }catch(e){}
