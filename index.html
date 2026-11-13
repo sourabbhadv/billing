@@ -3885,17 +3885,21 @@ try{buildNav()}catch(e){}
 var DYs=864e5,AI={msgs:[],busy:0,scan:null,setup:false};window.AI=AI;
 var PROV={gemini:{n:'Google Gemini (free, can read bill photos)',m:'gemini-flash-lite-latest',u:'aistudio.google.com/apikey',lim:{p:200,i:300,b:80},fb:['gemini-flash-latest','gemini-2.5-flash-lite','gemini-2.5-flash','gemini-2.0-flash']},groq:{n:'Groq (free, very fast, text only)',m:'openai/gpt-oss-120b',u:'console.groq.com/keys',lim:{p:40,i:60,b:15},fb:['openai/gpt-oss-20b','llama-3.3-70b-versatile']},own:{n:'Own AI (offline, no key, no internet needed)',m:'',u:'no key needed',lim:{p:40,i:60,b:15},fb:[]}};
 var MEM={};
-/* Persistent AI settings: localStorage is primary; a same-device cookie mirror restores
-   settings if Safari/WebView drops localStorage after a refresh. */
-function _pcGet(n){try{var m=document.cookie.match(new RegExp('(?:^|; )'+n.replace(/[.$?*|{}()\\[\\]\\\\/+^]/g,'\\\\$&')+'=([^;]*)'));return m?decodeURIComponent(m[1]):''}catch(e){return ''}}
-function _pcSet(n,v){try{document.cookie=n+'='+encodeURIComponent(v)+'; Max-Age=31536000; Path=/; SameSite=Lax';return true}catch(e){return false}}
-function _pcDel(n){try{document.cookie=n+'=; Max-Age=0; Path=/; SameSite=Lax'}catch(e){}}
-function _persistRead(key,cookieKey){var v='';try{v=localStorage.getItem(key)||''}catch(e){}if(!v)v=_pcGet(cookieKey);if(v){try{localStorage.setItem(key,v)}catch(e){}}return v}
-function cfg(){var c=null;try{var s=_persistRead('ash_ai','ash_ai_p');if(s)c=JSON.parse(s)}catch(e){}c=c||MEM.c||{};return c.p?c:{p:'own',auto:1}}
-function setCfg(o){MEM.c=o;var raw=JSON.stringify(o),ok=false;try{localStorage.setItem('ash_ai',raw);ok=localStorage.getItem('ash_ai')===raw}catch(e){}try{_pcSet('ash_ai_p',raw);ok=true}catch(e){}return ok}
+/* Persistent AI settings: localStorage is primary. A same-site cookie backup restores the key if
+   a browser/webview clears localStorage during refresh or an app update. Nothing is sent anywhere
+   except to the selected AI provider when the user actually makes an AI request. */
+function p64(o){try{return btoa(unescape(encodeURIComponent(JSON.stringify(o))))}catch(e){return ''}}
+function u64(s){try{return JSON.parse(decodeURIComponent(escape(atob(s))))}catch(e){return null}}
+function ckGet(n){try{var m=document.cookie.match(new RegExp('(?:^|; )'+n.replace(/[.$?*|{}()\[\]\\/+^]/g,'\\$&')+'=([^;]*)'));return m?decodeURIComponent(m[1]):''}catch(e){return ''}}
+function ckSet(n,v){try{document.cookie=n+'='+encodeURIComponent(v)+'; max-age=31536000; path=/; SameSite=Lax';return true}catch(e){return false}}
+function ckDel(n){try{document.cookie=n+'=; max-age=0; path=/; SameSite=Lax'}catch(e){}}
+function readPersist(n,bn){var x=null;try{var z=localStorage.getItem(n);if(z)x=JSON.parse(z)}catch(e){}if(!x){try{x=u64(ckGet(bn))}catch(e){}if(x)try{localStorage.setItem(n,JSON.stringify(x))}catch(e){}}return x}
+function writePersist(n,bn,o){var ok=false;try{localStorage.setItem(n,JSON.stringify(o));ok=!!localStorage.getItem(n)}catch(e){}var b=p64(o);if(b)ckSet(bn,b);return ok||!!b}
+function cfg(){var c=readPersist('ash_ai','ash_ai_bk')||MEM.c||{};return c&&c.p?c:{p:'own',auto:1}}
+function setCfg(o){MEM.c=o||{};return writePersist('ash_ai','ash_ai_bk',MEM.c)}
 /* Gemini Brain: keeps natural-language understanding available even when Own AI is selected for offline execution. */
-function brainGet(){try{var x=_persistRead('ash_gemini_brain','ash_gb_p');return x?JSON.parse(x):null}catch(e){return MEM.gb||null}}
-function brainSet(x){MEM.gb=x;var raw=JSON.stringify(x),ok=false;try{localStorage.setItem('ash_gemini_brain',raw);ok=true}catch(e){}try{_pcSet('ash_gb_p',raw);ok=true}catch(e){}return ok}
+function brainGet(){var x=readPersist('ash_gemini_brain','ash_gb_bk');return x||MEM.gb||null}
+function brainSet(x){MEM.gb=x||null;return writePersist('ash_gemini_brain','ash_gb_bk',MEM.gb)}
 function brainReady(){var b=brainGet();return !!(b&&b.k)}
 function vp(){try{var s=localStorage.getItem('ash_vp');if(s)return JSON.parse(s)}catch(e){}return MEM.vp||{}}
 function setVp(o){MEM.vp=o;try{localStorage.setItem('ash_vp',JSON.stringify(o))}catch(e){}}
@@ -4314,7 +4318,7 @@ window.aiSave=function(test){var p=gid('aip').value,k=cleanKey(gid('aik').value)
  AI.msg={t:'Key saved. Testing the connection...',c:'mu'};render();
  call([{role:'user',parts:[{text:'Reply with the single word OK'}]}],'',false,{t:20000}).then(function(){AI.setup=false;AI.msg={t:'Connected. AI is ready ('+(AI.used||'')+').'+warn,c:'grn'};render()},function(e){var soft=/busy|limit|timeout/.test(e.kind);if(soft)AI.setup=false;AI.msg={t:(soft?'Key saved. '+e.message+' This is not a problem with your key. Ask again shortly, other free models are tried automatically.':e.message)+warn,c:soft?'amb':'red'};render()})};
 window.aiProv=function(v){var m=gid('aim');if(m)m.value=PROV[v].m;var kw=gid('aikw');if(kw)kw.style.display=v==='own'?'none':'';var u=gid('aiu');if(u)u.textContent=PROV[v].u};
-window.aiForget=function(){if(!confirm('Remove the AI key from this device?'))return;setCfg({});try{localStorage.removeItem('ash_gemini_brain')}catch(e){}_pcDel('ash_ai_p');_pcDel('ash_gb_p');AI.setup=true;AI.msg=null;render()};
+window.aiForget=function(){if(!confirm('Remove the AI key from this device?'))return;MEM.c={};MEM.gb=null;try{localStorage.removeItem('ash_ai');localStorage.removeItem('ash_gemini_brain')}catch(e){}ckDel('ash_ai_bk');ckDel('ash_gb_bk');AI.setup=true;AI.msg=null;render()};
 window.aiShowKey=function(on){var e=gid('aik');if(e)e.type=on?'text':'password'};
 function engUI(){if(!(SR&&cfg().p==='gemini'&&ready()))return '';var e=vp().eng==='sr'?'sr':'gm';return '<span class="mu" style="margin-left:8px">Listen with</span><button type="button" class="aichip eng'+(e==='gm'?' on':'')+'" data-e="gm" onclick="vcEng(\'gm\')">Gemini</button><button type="button" class="aichip eng'+(e==='sr'?' on':'')+'" data-e="sr" onclick="vcEng(\'sr\')">Browser</button>'}
 window.vcEng=function(e){var o=vp();o.eng=e;setVp(o);Array.prototype.forEach.call(document.querySelectorAll('.aichip.eng'),function(b){b.classList.toggle('on',b.getAttribute('data-e')===e)})};
