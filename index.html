@@ -2784,7 +2784,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 14-Nov-I';
+var APPV='App version 14-Nov-J';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -5389,25 +5389,50 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
 </script>
 
 <script id="bill-photo-on-save">
-/* New sale bill: the automatic WhatsApp message goes out WITH the bill picture (the message text becomes the caption) */
+/* Every automatic transaction message goes out WITH a picture: bill -> invoice picture, statement -> statement picture,
+   everything else (payment, return, estimate, order, challan, dispatch, updates) -> a clean picture card of the message.
+   The message text stays as the caption. Reminders stay text-only. */
 (function(){
  var BPNO=null,oldAdd=obAdd,oldWa=wa;
  wa=function(no){BPNO=no;try{return oldWa.apply(this,arguments)}finally{BPNO=null}};
+ function msgCard(text){
+  var W=900,pad=40,fs=30,lh=44,c=document.createElement('canvas'),g=c.getContext('2d'),lines=[];
+  g.font=fs+'px sans-serif';
+  String(text||'').split('\n').forEach(function(par){
+   if(!par){lines.push('');return}
+   var cur='';par.split(' ').forEach(function(w){var t=cur?cur+' '+w:w;if(g.measureText(t).width>W-2*pad&&cur){lines.push(cur);cur=w}else cur=t});
+   lines.push(cur)});
+  var H=90+pad*2+lines.length*lh;c.width=W;c.height=H;g=c.getContext('2d');
+  g.fillStyle='#ffffff';g.fillRect(0,0,W,H);
+  g.fillStyle='#1a73e8';g.fillRect(0,0,W,90);
+  g.fillStyle='#ffffff';g.font='bold 38px sans-serif';g.textBaseline='middle';g.fillText(String(D.shop||''),pad,45);
+  g.fillStyle='#1f2437';g.font=fs+'px sans-serif';g.textBaseline='alphabetic';
+  lines.forEach(function(l,i){g.fillText(l,pad,90+pad+(i+1)*lh-12)});
+  return new Promise(function(res){c.toBlob(res,'image/png')});
+ }
  obAdd=function(list){
   var no=BPNO;
   try{
-   if(no!=null&&PS().billPic!==0&&PS().autoWA&&list&&list.length===1&&list[0].kind==='msg'&&!list[0].media_url&&!/^\*Updated/.test(list[0].message||'')){
-    var b=bl(no),p=b&&P(b.pid);
-    if(b&&p){
-     return Promise.resolve(billImg(b,p)).then(function(blob){
-      var name='bill-'+b.no+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)+'.png';
+   if(PS().billPic!==0&&PS().autoWA&&list&&list.length===1&&list[0].kind==='msg'&&!list[0].media_url&&list[0].message){
+    var row=list[0],k=awKind(row.message),b=null,p=null,maker=null;
+    if(k!=='reminder'){
+     if(no!=null){b=bl(no);p=b&&P(b.pid)}
+     if(b&&p)maker=function(){return billImg(b,p)};
+     else if(k==='stmt'){
+      var ph=String(row.phone||'');
+      p=(D.parties||[]).filter(function(x){try{return phone(x)===ph}catch(e){return false}})[0];
+      if(p)maker=function(){return stmtImg(p)};
+     }
+     if(!maker)maker=function(){return msgCard(row.message)};
+     return Promise.resolve().then(maker).then(function(blob){
+      var name='tx-'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)+'.png';
       return SB.storage.from('promo').upload(name,blob,{contentType:'image/png'}).then(function(up){
        if(up.error)throw new Error(up.error.message);
        return SB.storage.from('promo').getPublicUrl(up.data.path).data.publicUrl});
      }).then(function(u){return u},function(e){
-      try{alert('Bill #'+b.no+': the picture could not be attached, so only the text is being sent.\n\nReason: '+((e&&e.message)||e))}catch(x){}
+      try{alert('The picture could not be attached, so only the text is being sent.\n\nReason: '+((e&&e.message)||e))}catch(x){}
       return ''}).then(function(u){
-      if(u)list[0].media_url=u;
+      if(u)row.media_url=u;
       return oldAdd(list)});
     }
    }
@@ -5417,7 +5442,7 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  var oldH=awHtml;
  awHtml=function(){
   var h=oldH(),on=PS().billPic!==0;
-  return h+'<div class="setrow"><div class="t"><b>Send bill picture with new bills</b><span class="mu">When a new sale bill is saved, its picture goes with the message. Needs the master switch and Sale bill switch above.</span></div>'+sw(on,"PS().billPic=this.checked?1:0;save();awPaint()",!PS().autoWA)+'</div>';
+  return h+'<div class="setrow"><div class="t"><b>Send a picture with every message</b><span class="mu">Bills, payments, returns, estimates, orders, challans, dispatch updates and statements go with a picture. Reminders stay text only. Needs the master switch above.</span></div>'+sw(on,"PS().billPic=this.checked?1:0;save();awPaint()",!PS().autoWA)+'</div>';
  };
 })();
 </script>
