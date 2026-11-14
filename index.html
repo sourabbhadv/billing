@@ -693,7 +693,8 @@ function mItems(t,a){modal('<b>'+t+'</b>'+a.map(function(x){return '<button clas
 function tbl2(h,rows,act){return '<div style="overflow-x:auto"><table class="tbl"><tr>'+h.map(function(x){return '<th>'+x+'</th>'}).join('')+(act?'<th></th>':'')+'</tr>'+rows.map(function(r){var a=Array.isArray(r)?{c:r}:r;return '<tr'+(a.n!=null?' data-n="'+esc(String(a.n).toLowerCase())+'"':'')+(a.k?' style="cursor:pointer" onclick="'+a.k+'"':'')+'>'+a.c.map(function(x){return '<td>'+x+'</td>'}).join('')+(act?'<td style="white-space:nowrap" onclick="event.stopPropagation()">'+(a.a||'')+'</td>':'')+'</tr>'}).join('')+'</table>'+(rows.length?'':'<p class="mu" style="padding:8px">Nothing to show</p>')+'</div>'}
 function csvOut(name,h,rows){var s=[h].concat(rows).map(function(r){return r.map(function(c){return '"'+plain(c).replace(/"/g,'""')+'"'}).join(',')}).join('\r\n');saveFile(name+'.csv',new Blob(['﻿'+s],{type:'text/csv'}))}
 function csvCur(){if(RCUR)csvOut(RCUR.name,RCUR.h,RCUR.r)}
-function printHtml(title,body){var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;padding:24px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.r{text-align:right}.m{color:#666;font-size:12px}</style></head><body>'+body+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},400)}
+function printHtml(title,body){var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;padding:24px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.r{text-align:right}.m{color:#666;font-size:12px}</style></head><body>'+body+'
+</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},400)}
 function saleStatus(b){var pd=paidOn(b);return b.x?'Cancelled':(b.total-pd<=0.009?'Paid':pd>0?'Partly paid':'Unpaid')}
 function stH(s){var c=(s==='Paid'||s==='Received'||s==='Returned'||s==='Converted')?'grn':(s==='Cancelled'||s==='Open')?'mu':s==='Partly paid'?'':'red';return '<span class="'+c+'"'+(s==='Partly paid'?' style="color:#c77700;font-weight:600"':'')+'>'+s+'</span>'}
 function paidDoc(d){var s=0;D.pays.forEach(function(x){if(x.dn===d.id&&!x.x)s+=x.amt});return s}
@@ -5764,4 +5765,58 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 .bwpn{font-size:12.5px;color:#7b8194;margin-top:8px}
 }
 </style>
+
+<style id="variable-size-feature-style">
+.vsbtn{margin:7px 0 0;padding:8px 12px;border:1px solid var(--ac);border-radius:8px;background:var(--ac2);color:var(--ac);font:inherit;font-weight:700;cursor:pointer}
+.vsmodal{position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px}.vsbox{background:var(--bg);color:var(--fg);width:min(760px,100%);max-height:90vh;overflow:auto;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:18px}.vstop{display:flex;justify-content:space-between;gap:12px;align-items:center}.vstop h3{margin:0;font-size:20px}.vsgrid{display:grid;grid-template-columns:1fr 1fr 1fr 42px;gap:8px;align-items:center;margin-top:8px}.vsgrid input{margin:0}.vstotal{margin-top:14px;padding:12px;border-radius:10px;background:var(--ac2);display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.vstotal b{display:block;font-size:18px}.vsactions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}@media(max-width:600px){.vsbox{padding:14px}.vsgrid{grid-template-columns:1fr 1fr 1fr 38px;gap:6px}.vstotal{grid-template-columns:1fr 1fr}.vsactions{position:sticky;bottom:0;background:var(--bg);padding-top:10px}.vsactions button{flex:1}.vsbtn{width:100%}}
+</style>
+<script id="variable-size-feature-script">
+(function(){
+  var baseItemForm=vItemForm, baseSaveItem=saveItem, baseDocFill=docFill, baseAddDocLine=addDocLine;
+  window.vsRows=[]; window.vsItem=null; window.vsRate=0;
+  function vsItem(name){return findI(name||'')}
+  function closeVS(){var m=document.getElementById('vsmodal');if(m)m.remove()}
+  vItemForm=function(){
+    var html=baseItemForm.apply(this,arguments), i=iform&&iform.id?I(iform.id):null, on=!!(i&&i.measureMode==='variable');
+    var block='<div class="card" style="margin-top:10px;padding:12px"><div class="row"><div><b>📐 Variable Size / Slab Product</b><div class="mu" style="margin-top:3px">Enable only for granite, marble or sheets with different dimensions.</div></div><label class="sw"><input id="svm" type="checkbox" '+(on?'checked':'')+'><i></i></label></div></div>';
+    return html.replace('<div class="row" style="margin-top:6px">',block+'<div class="row" style="margin-top:6px">');
+  };
+  saveItem=function(){
+    var n=((document.getElementById('sn')||{}).value||'').trim();
+    var variable=!!((document.getElementById('svm')||{}).checked);
+    var out=baseSaveItem.apply(this,arguments);
+    var i=vsItem(n); if(i){i.measureMode=variable?'variable':'standard';save();}
+    return out;
+  };
+  function addVSButton(i){
+    var input=document.getElementById('dit'), old=document.getElementById('vsbtn'); if(old)old.remove();
+    if(!input||!i||i.measureMode!=='variable')return;
+    var b=document.createElement('button');b.type='button';b.id='vsbtn';b.className='vsbtn';b.textContent='📐 Enter different slab sizes';
+    b.onclick=function(){vsItem=i;vsRate=+(document.getElementById('drt')||{}).value||+i.rate||0;vsRows=[{l:'',w:''}];renderVS()};
+    input.insertAdjacentElement('afterend',b);
+  }
+  docFill=function(v){var out=baseDocFill.apply(this,arguments);addVSButton(vsItem(v));return out};
+  addDocLine=function(){
+    var i=vsItem((document.getElementById('dit')||{}).value||'');
+    if(i&&i.measureMode==='variable'){var b=document.getElementById('vsbtn');if(b)b.click();else {vsItem=i;vsRate=+(document.getElementById('drt')||{}).value||+i.rate||0;vsRows=[{l:'',w:''}];renderVS()}return;}
+    return baseAddDocLine.apply(this,arguments);
+  };
+  window.renderVS=function(){
+    closeVS(); if(!vsItem)return;
+    var valid=vsRows.filter(function(x){return +x.l>0&&+x.w>0});
+    var area=valid.reduce(function(t,x){return t+(+x.l*+x.w/144)},0), amount=area*vsRate;
+    var rows=vsRows.map(function(x,k){var a=(+x.l||0)*(+x.w||0)/144;return '<div class="vsgrid"><input type="number" inputmode="decimal" placeholder="Length (in)" value="'+(x.l||'')+'" oninput="vsRows['+k+'].l=this.value;renderVS()"><input type="number" inputmode="decimal" placeholder="Width (in)" value="'+(x.w||'')+'" oninput="vsRows['+k+'].w=this.value;renderVS()"><div><b>'+a.toFixed(2)+'</b> <span class="mu">sq ft</span></div><button class="s" onclick="vsRows.splice('+k+',1);if(!vsRows.length)vsRows=[{l:\'\',w:\'\'}];renderVS()">✕</button></div>'}).join('');
+    var m=document.createElement('div');m.id='vsmodal';m.className='vsmodal';
+    m.innerHTML='<div class="vsbox"><div class="vstop"><div><h3>📐 '+esc(vsItem.name)+'</h3><div class="mu">Enter each slab in inches. Different sizes will be combined into ONE invoice line.</div></div><button class="s" onclick="closeVS()">✕</button></div><div class="vsgrid" style="font-weight:700;margin-top:16px"><span>Length</span><span>Width</span><span>Area</span><span></span></div>'+rows+'<button class="s" style="margin-top:10px" onclick="vsRows.push({l:\'\',w:\'\'});renderVS()">+ Add another slab</button><div class="vstotal"><div><span class="mu">Slabs</span><b>'+valid.length+'</b></div><div><span class="mu">Total area</span><b>'+area.toFixed(2)+' sq ft</b></div><div><span class="mu">Rate / sq ft</span><b>'+money(vsRate)+'</b></div><div><span class="mu">Amount</span><b>'+money(amount)+'</b></div></div><div class="vsactions"><button class="s" onclick="closeVS()">Cancel</button><button class="b" onclick="applyVS()">Add as ONE invoice item</button></div></div>';
+    document.body.appendChild(m);
+  };
+  window.closeVS=closeVS;
+  window.applyVS=function(){
+    var valid=vsRows.filter(function(x){return +x.l>0&&+x.w>0});if(!valid.length)return alert('Enter at least one slab size.');
+    var area=valid.reduce(function(t,x){return t+(+x.l*+x.w/144)},0), sizes=valid.map(function(x){return {length:+x.l,width:+x.w,sqft:+((+x.l*+x.w/144).toFixed(4))}});
+    ddraft.lines.push({name:vsItem.name,unit:'sq ft',qty:+area.toFixed(4),rate:+vsRate||0,amt:+(area*vsRate).toFixed(2),slabs:sizes,measureMode:'variable',sizeSummary:valid.length+' slab'+(valid.length===1?'':'s')+' · '+area.toFixed(2)+' sq ft'});
+    closeVS();vsRows=[];render();setTimeout(function(){var e=document.getElementById('dit');if(e)e.focus()},0);
+  };
+})();
+</script>
 </body></html>
