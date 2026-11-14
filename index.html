@@ -5493,6 +5493,77 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  vSettings=function(){if(sTab==='promo')return home();return prevSettings.apply(this,arguments)};
 })();
 </script>
+<script id="wa-link">
+/* ---------- LINK WHATSAPP FROM THE APP (QR / code) — shown at the top of the Outbox page ---------- */
+(function(){
+ var WL={row:null,err:'',phone:'',drawn:'',html:'',T:null,busy:false};
+ var SQL="create table if not exists wa_link (\n  owner uuid primary key default auth.uid(),\n  device text,\n  status text default 'logged_out',\n  qr text,\n  code text,\n  phone text,\n  request text,\n  paused boolean default true,\n  error text,\n  updated_at timestamptz default now()\n);\nalter table wa_link enable row level security;\ndrop policy if exists \"wa_link own\" on wa_link;\ncreate policy \"wa_link own\" on wa_link for all to authenticated\n  using (owner = auth.uid()) with check (owner = auth.uid());";
+ function ago(t){var s=Math.round((Date.now()-new Date(t).getTime())/1000);return s}
+ function fetchRow(){
+  if(typeof obOk!=='function'||!obOk())return Promise.resolve();
+  return Promise.resolve(SB.from('wa_link').select('*').maybeSingle()).then(function(r){
+   if(r&&r.error){WL.err=r.error.message||'error';WL.row=null}else{WL.err='';WL.row=(r&&r.data)||null}
+  }).catch(function(e){WL.err=String(e&&e.message||e)})}
+ function html(){
+  if(WL.err)return '<div class="card"><b>📱 Link WhatsApp from this app</b><p class="mu">One-time setup is needed. Press Copy, open Supabase &gt; SQL Editor, paste, press Run. You do this only once.</p><button class="s" onclick="wlCopy()">Copy setup text</button></div>';
+  var r=WL.row,h='<div class="card"><b>📱 WhatsApp link</b>';
+  if(!r||ago(r.updated_at)>120){
+   return h+'<p class="red" style="margin:6px 0"><b>The sender program is not running.</b></p><p class="mu">Start it on the Google Cloud server first (pm2 start sender). Then you can link your number here.</p></div>'}
+  var st=r.status;
+  if(st==='connected'){
+   h+='<p class="grn" style="margin:6px 0"><b>✅ WhatsApp is linked</b></p>';
+   h+=r.paused!==false?
+    '<p class="mu">Sending is <b>PAUSED</b>. Waiting messages will not go out until you press Start. Check the Waiting list below first.</p><button class="b" onclick="wlAct(\'resume\')">▶ Start sending</button> ':
+    '<p class="mu">Sending is <b>ON</b>.</p><button class="s" onclick="wlAct(\'pause\')">⏸ Pause sending</button> ';
+   h+='<button class="s" onclick="wlAct(\'unlink\')">Unlink this number</button>'}
+  else if(st==='qr'){
+   h+='<p class="mu" style="margin:6px 0">On <b>another phone or a laptop</b> open this page and scan this QR with your WhatsApp: Linked devices → Link a device. (You cannot scan a QR on the same phone. Use the code option for that.)</p><div id="wl_qr" style="background:#fff;padding:10px;display:inline-block;border-radius:8px"></div><div><button class="s" style="margin-top:8px" onclick="wlAct(\'cancel\')">Cancel</button></div>'}
+  else if(st==='code'){
+   h+='<p class="mu" style="margin:6px 0">On your phone: WhatsApp → Linked devices → Link a device → <b>Link with phone number instead</b>. Type this code:</p><div style="font-size:30px;letter-spacing:4px;font-weight:700;margin:8px 0">'+esc(r.code||'')+'</div><button class="s" onclick="wlAct(\'cancel\')">Cancel</button>'}
+  else if(st==='preparing'||st==='starting'){
+   h+='<p class="mu" style="margin:6px 0">'+(st==='starting'?'Connecting to WhatsApp...':'Getting ready... this takes a few seconds.')+'</p>'}
+  else{
+   h+='<p class="red" style="margin:6px 0"><b>Not linked</b></p>'+(r.error?'<p class="red" style="font-size:13px">'+esc(r.error)+'</p>':'')+
+    '<p class="mu">Link only after WhatsApp has lifted any restriction on your number.</p>'+
+    '<div style="margin:8px 0"><button class="b" onclick="wlAct(\'qr\')">Show QR code</button></div>'+
+    '<div class="mu">Or on the same phone, use a code:</div><input id="wl_ph" inputmode="numeric" placeholder="Your WhatsApp number (10 digits)" value="'+esc(WL.phone)+'" oninput="WL.phone=this.value" style="margin:6px 0"><button class="s" onclick="wlAct(\'code\')">Get link code</button>'}
+  return h+'</div>'}
+ window.WL=WL;
+ function paint(){
+  var e=document.getElementById('walink');if(!e)return;
+  var a=document.activeElement;if(a&&a.id==='wl_ph')return;
+  var h=html();if(h!==WL.html){e.innerHTML=h;WL.html=h;WL.drawn=''}
+  var r=WL.row;
+  if(r&&r.status==='qr'&&r.qr&&WL.drawn!==r.qr){
+   var box=document.getElementById('wl_qr');if(!box)return;
+   loadQr(function(){box.innerHTML='';try{new QRCode(box,{text:r.qr,width:220,height:220});WL.drawn=r.qr}catch(x){box.textContent='Could not draw the QR'}})}}
+ function loadQr(cb){
+  if(window.QRCode)return cb();
+  var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  s.onload=cb;s.onerror=function(){var b=document.getElementById('wl_qr');if(b)b.textContent='Could not load the QR drawing. Use the link code option instead.'};
+  document.head.appendChild(s)}
+ function tick(){if(pg!=='out'){clearInterval(WL.T);WL.T=null;return}fetchRow().then(paint)}
+ window.wlCopy=function(){function prt(){prompt('Copy this text:',SQL)}try{navigator.clipboard.writeText(SQL).then(function(){obToast('Copied. Now paste it in Supabase > SQL Editor and press Run')},prt)}catch(e){prt()}};
+ window.wlAct=function(a){
+  if(!obOk())return alert('Not connected to the cloud yet.');
+  var f;
+  if(a==='qr')f={request:'qr',error:null};
+  else if(a==='code'){var d=String(WL.phone||'').replace(/\D/g,'');if(d.length<10)return alert('Type your 10 digit WhatsApp number first.');f={request:'code',phone:d,error:null}}
+  else if(a==='unlink'){if(!confirm('Unlink this WhatsApp number from the sender? Waiting messages will stop going out.'))return;f={request:'unlink'}}
+  else if(a==='cancel')f={request:'unlink'};
+  else if(a==='pause')f={paused:true};
+  else if(a==='resume'){var n=(window.OB&&OB.rows||[]).filter(function(m){return m.status==='pending'}).length;if(!confirm(n?(n+' messages are waiting and will start going out, one by one. Continue?'):'Start sending?'))return;f={paused:false}}
+  else return;
+  Promise.resolve(SB.from('wa_link').update(f).not('owner','is',null)).then(function(r){
+   if(r&&r.error)return alert('Could not do that: '+r.error.message);
+   if(WL.row)for(var k in f)WL.row[k]=f[k];paint();setTimeout(tick,1500)})};
+ var prev=vOutbox;
+ vOutbox=function(){
+  var h=prev.apply(this,arguments);
+  setTimeout(function(){WL.html='';fetchRow().then(paint);if(!WL.T)WL.T=setInterval(tick,4000)},0);
+  return h.replace('<div style="max-width:700px"><div id="obx">','<div id="walink" style="max-width:700px"></div><div style="max-width:700px"><div id="obx">')};
+})();
+</script>
 
 
 <script id="bill-photo-auto">
