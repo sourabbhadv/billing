@@ -5677,6 +5677,18 @@ nav{padding-bottom:70px!important}
 .rpf select.pp,.rpf .pp{max-width:130px}
 .rpf .dr input{width:128px!important;font-size:13.5px}
 .rpf .dr{gap:2px}
+.rpm table td:last-child,.rpm table th:last-child{white-space:nowrap}
+.rpm table td:last-child{font-variant-numeric:tabular-nums}
+/* sale / purchase form item table: wide ITEM, smaller DESCRIPTION */
+table:has(#bds2) th:nth-child(3){width:120px!important}
+table:has(#bds2) th:nth-child(4){width:90px!important}
+table:has(#bds2) th:nth-child(5){width:90px!important}
+table:has(#bds2) th:nth-child(6),table:has(#bds2) th:nth-child(7){width:120px!important}
+table:has(#bds2) th:nth-child(8){width:155px!important}
+table:has(#bds2) th:nth-child(2){width:auto!important}
+table:has(#bds2) td input{min-width:0}
+table:has(#bds2) td:nth-child(8) input#bs{width:95px!important}
+
 .rpm .rpt td,.rpm .rpt th{padding:10px 6px}
 .rpm .rpt td:nth-child(4){min-width:150px}
 .rpm .rpt{font-size:13.5px}
