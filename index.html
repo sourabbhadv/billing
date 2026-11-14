@@ -2784,7 +2784,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 14-Nov-K';
+var APPV='App version 14-Nov-L';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -5105,24 +5105,33 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
 .pr-mode{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
 .pr-mode button{padding:12px 8px;font-size:15px}
 .pr-mode button.on{background:#1a73e8;color:#fff}
+.pr-cmp{border:1px solid #e4e8f0;border-radius:8px;padding:10px;margin:8px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pr-cmp img{width:56px;height:56px;object-fit:cover;border-radius:6px}
 </style>
 <script id="promo-module">
-/* ---------- PROMOTION MESSAGES v3 (Settings > Messages > Promotions) ---------- */
+/* ---------- PROMOTION CAMPAIGNS v4 (Settings > Messages > Promotions) ----------
+   Every campaign keeps its own message, photo, chosen parties, speed, and sent/waiting list.
+   Everything stays saved until the user presses "End this campaign". */
 (function(){
- var PR={img:null,prev:'',busy:false,q:'',f:'all',own:false};
+ var PR={cur:null,tab:'setup',q:'',f:'all',own:false,busy:false,lk:[]};
  var DEFMSG='Namaste {name},\n\n🎉 Special offer at {shop}!\n\n(Write your offer here)\n\nThank you 🙏';
  var STOPLINE='\n\nTo stop offers reply STOP / ऑफर बंद करने के लिए STOP लिखें';
  var SQL="alter table outbox add column if not exists send_after timestamptz;\n"+
   "alter table outbox add column if not exists media_url text;\n"+
   "alter table outbox add column if not exists campaign text;\n"+
   "insert into storage.buckets (id,name,public) values ('promo','promo',true) on conflict (id) do nothing;\n"+
+  "drop policy if exists \"promo upload\" on storage.objects;\n"+
   "create policy \"promo upload\" on storage.objects for insert to anon, authenticated with check (bucket_id='promo');\n"+
-  "create policy \"promo read\" on storage.objects for select to anon, authenticated using (bucket_id='promo');";
+  "drop policy if exists \"promo read\" on storage.objects;\n"+
+  "create policy \"promo read\" on storage.objects for select to anon, authenticated using (bucket_id='promo');\n"+
+  "drop policy if exists \"promo delete\" on storage.objects;\n"+
+  "create policy \"promo delete\" on storage.objects for delete to anon, authenticated using (bucket_id='promo');";
  var SPEED={
   safe:{min:30,max:60,batch:15,rest:10,cap:150,t:'Safe (best)',d:'Waits 30 to 60 seconds between messages. Takes a 10 minute break after every 15 messages. Sends at most 150 in one day.'},
   extra:{min:60,max:90,batch:10,rest:15,cap:100,t:'Extra safe',d:'Waits 60 to 90 seconds between messages. Takes a 15 minute break after every 10 messages. Sends at most 100 in one day. Slowest, but the safest.'},
   custom:{t:'My own',d:'Set the numbers yourself.'}};
  var SHOW=60;
+ var FIELDS=['msg','stop','mode','sel','skip','bsize','speed','min','max','batch','rest','cap','from','to'];
 
  /* saving: wait a moment while typing, so the app stays fast */
  var ST=null;
@@ -5132,17 +5141,29 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  document.addEventListener('visibilitychange',function(){if(document.hidden)flush()});
 
  function pp(){var p=PS();p.promo=p.promo||{};return p.promo}
+ function CS(){var p=pp();p.camps=p.camps||{};return p.camps}
+ function cc(){return PR.cur?(CS()[PR.cur]||null):null}
  function num(v,d){v=parseFloat(v);return isFinite(v)?v:d}
- function cfg(){var c=pp(),sp=SPEED[c.speed]?c.speed:'safe',b=sp==='custom'?{min:num(c.min,30),max:num(c.max,60),batch:num(c.batch,15),rest:num(c.rest,10),cap:num(c.cap,150)}:SPEED[sp];
-  return{speed:sp,min:b.min,max:b.max,batch:b.batch,rest:b.rest,cap:b.cap,from:num(c.from,10),to:num(c.to,20),stop:c.stop==null?1:+c.stop,msg:c.msg==null?DEFMSG:c.msg,name:c.cname||'',skip:c.skip||{},sel:c.sel||{},mode:c.mode==='all'?'all':'pick',bsize:Math.max(0,Math.floor(num(c.bsize,0)))}}
- function ckey(c){return String(c.name||'').trim().toLowerCase()}
- function camp(c){var k=ckey(c),cs=pp().camps||{};return k&&cs[k]?cs[k]:null}
- function sentMap(c){var x=camp(c);return x?x.phones:{}}
+ function enc(k){return encodeURIComponent(k).replace(/'/g,'%27')}
+ function dt(t){return new Date(t||Date.now()).toLocaleDateString('en-IN')}
+ function cfg(){var x=cc()||{},sp=SPEED[x.speed]?x.speed:'safe',b=sp==='custom'?{min:num(x.min,30),max:num(x.max,60),batch:num(x.batch,15),rest:num(x.rest,10),cap:num(x.cap,150)}:SPEED[sp];
+  return{speed:sp,min:b.min,max:b.max,batch:b.batch,rest:b.rest,cap:b.cap,from:num(x.from,10),to:num(x.to,20),stop:x.stop==null?1:+x.stop,msg:x.msg==null?DEFMSG:x.msg,name:x.name||'',skip:x.skip||{},sel:x.sel||{},mode:x.mode==='all'?'all':'pick',bsize:Math.max(0,Math.floor(num(x.bsize,0)))}}
+ function sv(){return (cc()||{}).media||''}
+ function sentMap(){return (cc()||{}).phones||{}}
+
+ /* the old single "draft" (before campaigns) becomes a campaign once, so nothing is lost */
+ function migrate(){
+  var p=pp();if(!p.cname||!String(p.cname).trim())return;
+  var nm=String(p.cname).trim(),k=nm.toLowerCase(),cs=CS(),x=cs[k];
+  if(!x)x=cs[k]={name:nm,date:Date.now(),phones:{}};
+  FIELDS.forEach(function(f){if(x[f]==null&&p[f]!=null)x[f]=p[f]});
+  delete p.cname;FIELDS.forEach(function(f){delete p[f]});save()}
+
  var AU=null;
  function bust(){AU=null}
  function aud(){if(AU)return AU;var seen={},L=[];D.parties.forEach(function(p){if(p.x)return;var n=phone(p);if(n.length<10||seen[n])return;seen[n]=1;L.push(p)});
   AU=L.sort(function(a,b){return String(a.name).localeCompare(String(b.name))});return AU}
- function isSent(c,p){return !!sentMap(c)[phone(p)]}
+ function isSent(c,p){return !!sentMap()[phone(p)]}
  function isOn(c,p){return c.mode==='all'?!c.skip[p.id]:!!c.sel[p.id]}
  function elig(c){return aud().filter(function(p){return isOn(c,p)&&!isSent(c,p)})}
  function pick(c){var L=elig(c);return c.bsize>0?L.slice(0,c.bsize):L}
@@ -5176,12 +5197,11 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  function goText(){var c=cfg(),n=pick(c).length,E=elig(c).length;return 'Send to '+parties(n)+(E>n?' (next group)':'')}
  function sumHtml(){
   var c=cfg(),all=aud(),E=elig(c),L=pick(c),n=L.length,skipped=all.filter(function(p){return isOn(c,p)&&isSent(c,p)}).length,h='';
-  if(!c.name.trim())h+='<div class="pr-warn">Write an offer name in Step 1. The app uses it to remember who already got this offer.</div>';
   if(c.mode==='pick'&&!E.length)h+='<div class="pr-warn">No party is chosen yet. In Step 3, search a party and tap its box.</div>';
   h+='<div class="pr-box"><b>'+n+'</b> '+(n===1?'party':'parties')+' will get this message now.';
   if(n){h+='<div style="margin-top:8px"><b>Selected parties:</b><div class="pr-fl" style="margin-top:6px">'+L.map(function(p){return '<span class="pr-chip">'+esc(p.name)+'</span>'}).join('')+'</div></div>'}
   if(E.length>n)h+='<br>📦 <b>'+(E.length-n)+'</b> more are waiting for the next group. When this group is sent, press the send button again.';
-  if(skipped)h+='<br>✓ <b>'+skipped+'</b> already got "'+esc(c.name.trim())+'" earlier and will be skipped.';
+  if(skipped)h+='<br>✓ <b>'+skipped+'</b> already got "'+esc(c.name)+'" earlier and will be skipped.';
   if(n){var t=plan(n,c,Date.now()+30000,function(){return .5}),last=t[n-1];h+='<br>This group takes about <b>'+dur(last-Date.now())+'</b>. Last message goes around <b>'+fmt(last)+'</b>.'}
   h+='</div>';
   if(!(c.from>=0&&c.to<=24&&c.from<c.to))h+='<div class="pr-warn">The start time must be earlier than the end time (Step 5). Until you fix it, messages can go at any time of the day.</div>';
@@ -5189,8 +5209,8 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   if(c.cap>200||c.cap<=0)h+='<div class="pr-warn">⚠️ More than about 200 messages a day is risky for the number.</div>';
   if(!/\{name\}/.test(c.msg))h+='<div class="pr-warn">Tip: add {name} in the message so each person sees their own name. The same text for everyone looks like spam.</div>';
   return h}
- function bubHtml(){var c=cfg(),p=pick(c)[0]||aud()[0],t=fill(c.msg,p)+(c.stop?STOPLINE:'');
-  return '<div class="pr-bub">'+(PR.prev?'<img src="'+PR.prev+'">':'')+esc(t)+'</div>'}
+ function bubHtml(){var c=cfg(),p=pick(c)[0]||aud()[0],t=fill(c.msg,p)+(c.stop?STOPLINE:''),u=sv();
+  return '<div class="pr-bub">'+(u?'<img src="'+esc(u)+'">':'')+esc(t)+'</div>'}
 
  function rowHtml(c,p){var s=isSent(c,p);
   return '<label><input type="checkbox" '+(s?'disabled ':(isOn(c,p)?'checked ':''))+'onchange="prTog(\''+p.id+'\',this.checked)"><span style="flex:1">'+esc(p.name)+'</span>'+(s?'<span class="pr-tag">✓ already sent</span>':'<span class="mu">'+esc(phone(p).slice(-10))+'</span>')+'</label>'}
@@ -5211,7 +5231,7 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  function whoHtml(){var c=cfg(),pk=c.mode==='pick';
   return '<div class="pr-h"><span class="pr-n">3</span>Who gets it</div>'+
    '<div class="pr-mode"><button class="s'+(pk?' on':'')+'" onclick="prMode(\'pick\')">Only parties I choose</button><button class="s'+(!pk?' on':'')+'" onclick="prMode(\'all\')">All parties</button></div>'+
-   '<div class="mu">'+(pk?'Search a party, tap its box. You can search again and choose more. Your choice stays saved until the message is sent.':'Everyone gets the message. Untick the ones you want to skip.')+'</div>'+
+   '<div class="mu">'+(pk?'Search a party, tap its box. You can search again and choose more. Your choice stays saved in this campaign.':'Everyone gets the message. Untick the ones you want to skip.')+'</div>'+
    '<div id="pr_sel">'+selHtml()+'</div>'+
    '<input class="pr-srch" placeholder="🔍 Search party name or number" value="'+esc(PR.q)+'" oninput="prFind(this.value)">'+
    '<div class="pr-fl">'+[['all','All'],['new','Not sent yet'],['sent','Already sent']].concat(pk?[['chosen','Chosen']]:[]).map(function(f){return '<button class="s'+(PR.f===f[0]?' on':'')+'" onclick="prFilt(\''+f[0]+'\')">'+f[1]+'</button>'}).join('')+'</div>'+
@@ -5232,14 +5252,13 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
    '<div class="mu" style="margin-top:10px"><b>Time of day.</b> Messages go only between these two times. Outside this time the app waits, and sends later.</div>'+
    '<div class="pr-g"><div><label class="mu">From</label>'+hourSel('from',c.from,1)+'</div><div><label class="mu">Until</label>'+hourSel('to',c.to,0)+'</div></div>'}
  function hourSel(k,v,isFrom){var o='';for(var h=isFrom?0:1;h<=(isFrom?23:24);h++)o+='<option value="'+h+'"'+(h===v?' selected':'')+'>'+hl(h)+'</option>';return '<select onchange="prSet(\''+k+'\',this.value)">'+o+'</select>'}
- function recsHtml(){
-  var cs=pp().camps||{},ks=Object.keys(cs).sort(function(a,b){return cs[b].date-cs[a].date});
-  if(!ks.length)return '<div class="mu">No offer sent yet. Sent offers are remembered here so nobody gets the same offer twice.</div>';
-  return ks.map(function(k){var x=cs[k],n=Object.keys(x.phones).length;
-   return '<div class="row" style="padding:8px 0;border-bottom:1px solid #eef0f5;flex-wrap:wrap"><div><b>'+esc(x.name)+'</b><div class="mu">'+n+' parties · '+new Date(x.date).toLocaleDateString('en-IN')+'</div></div><span style="display:flex;gap:6px"><button class="s" onclick="prUse(\''+encodeURIComponent(k)+'\')">Open</button><button class="s dlb" onclick="prDel(\''+encodeURIComponent(k)+'\')">Delete record</button></span></div>'}).join('')}
- function chipsHtml(){var cs=pp().camps||{},ks=Object.keys(cs).sort(function(a,b){return cs[b].date-cs[a].date}).slice(0,4);
-  return ks.length?'<div class="mu" style="margin-top:4px">Continue an earlier offer (to send the next group):</div><div class="pr-fl">'+ks.map(function(k){return '<button class="s" onclick="prUse(\''+encodeURIComponent(k)+'\')">'+esc(cs[k].name)+'</button>'}).join('')+'</div>':''}
  function numIn(k,lb,v){return '<div><label class="mu">'+lb+'</label><input type="number" inputmode="numeric" value="'+v+'" oninput="prSet(\''+k+'\',this.value)"></div>'}
+ function photoHtml(){var u=sv();
+  return '<div class="pr-h"><span class="pr-n">2</span>Photo (optional)</div>'+
+   '<div class="mu">The photo is saved the moment you choose it. It stays in this campaign, even if you close the app, until you end the campaign.</div>'+
+   '<input id="pr_file" type="file" accept="image/*" onchange="prImg(this)" style="margin-top:6px"><div id="pr_imst" class="mu"></div>'+
+   (u?'<div style="margin:8px 0"><img src="'+esc(u)+'" style="max-width:220px;max-height:220px;border-radius:8px;display:block"><span class="pr-tag" style="display:inline-block;margin-top:6px">✓ Photo saved</span></div><button class="s" onclick="prNoImg()">Remove photo</button>':'')}
+ function setupHtml(){return '<details class="card pr-step"><summary><b>One-time setup (do this once)</b></summary><div class="mu" style="margin-top:6px">Needed for the photo, the timing and the record. Press Copy, open Supabase &gt; SQL Editor, paste, press Run. It is safe to run again.</div><button class="s" style="margin-top:6px" onclick="prCopySql()">Copy setup text</button></details>'}
 
  function paint(){var a=$('#pr_sum'),b=$('#pr_bub'),g=$('#pr_go');if(a)a.innerHTML=sumHtml();if(b)b.innerHTML=bubHtml();if(g&&!PR.busy)g.textContent=goText()}
  function paintSel(){var a=$('#pr_sel');if(a)a.innerHTML=selHtml()}
@@ -5247,100 +5266,202 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  function paintWho(){var a=$('#pr_who');if(a)a.innerHTML=whoHtml();paint()}
  function paintBatch(){var a=$('#pr_batch');if(a)a.innerHTML=batchHtml();paint()}
  function paintSpeed(){var a=$('#pr_speed');if(a)a.innerHTML=speedHtml();paint()}
- function paintRecs(){var a=$('#pr_recs');if(a)a.innerHTML=recsHtml()}
- function paintAll(){bust();paintWho();paintBatch();paintRecs()}
+ function paintPhoto(){var a=$('#pr_photo');if(a)a.innerHTML=photoHtml()}
+ function paintAll(){bust();paintWho();paintBatch();paintPhoto();paint()}
 
- window.prSet=function(k,v){var c=pp();c[k]=(k==='msg')?v:num(v,0);psave();paint()};
- window.prName=function(v){pp().cname=v;psave();paintList()};
- window.prTog=function(id,on){var c=pp();if(cfg().mode==='all'){c.skip=c.skip||{};if(on)delete c.skip[id];else c.skip[id]=1}else{c.sel=c.sel||{};if(on)c.sel[id]=1;else delete c.sel[id]}psave();paintSel();paint();var b=$('#pr_batch');if(b)b.innerHTML=batchHtml()};
- window.prRem=function(id){var c=pp();c.sel=c.sel||{};delete c.sel[id];psave();paintList();paintBatch()};
- window.prClear=function(){var c=pp(),n=elig(cfg()).length;if(!n)return;if(!confirm('Remove all '+n+' chosen parties?'))return;c.sel={};psave();paintList();paintBatch()};
- window.prAll=function(on){var c=pp(),cf=cfg(),M=matches(cf);
+ /* ---- settings of the open campaign (saved inside the campaign) ---- */
+ function X(){var x=cc();return x&&!x.ended?x:null}
+ window.prSet=function(k,v){var x=X();if(!x)return;x[k]=(k==='msg')?v:num(v,0);psave();paint()};
+ window.prTog=function(id,on){var x=X();if(!x)return;if(cfg().mode==='all'){x.skip=x.skip||{};if(on)delete x.skip[id];else x.skip[id]=1}else{x.sel=x.sel||{};if(on)x.sel[id]=1;else delete x.sel[id]}psave();paintSel();paint();var b=$('#pr_batch');if(b)b.innerHTML=batchHtml()};
+ window.prRem=function(id){var x=X();if(!x)return;x.sel=x.sel||{};delete x.sel[id];psave();paintList();paintBatch()};
+ window.prClear=function(){var x=X();if(!x)return;var n=elig(cfg()).length;if(!n)return;if(!confirm('Remove all '+n+' chosen parties?'))return;x.sel={};psave();paintList();paintBatch()};
+ window.prAll=function(on){var x=X();if(!x)return;var cf=cfg(),M=matches(cf);
   if(on&&M.length>50&&!confirm((cf.mode==='pick'?'Choose':'Tick')+' all '+M.length+' parties shown?'))return;
-  if(cf.mode==='all'){c.skip=c.skip||{};M.forEach(function(p){if(on)delete c.skip[p.id];else c.skip[p.id]=1})}
-  else{c.sel=c.sel||{};M.forEach(function(p){if(isSent(cf,p))return;if(on)c.sel[p.id]=1;else delete c.sel[p.id]})}
+  if(cf.mode==='all'){x.skip=x.skip||{};M.forEach(function(p){if(on)delete x.skip[p.id];else x.skip[p.id]=1})}
+  else{x.sel=x.sel||{};M.forEach(function(p){if(isSent(cf,p))return;if(on)x.sel[p.id]=1;else delete x.sel[p.id]})}
   psave();paintList();paintBatch()};
- window.prMode=function(m){var c=pp();c.mode=m;if(m==='all'&&PR.f==='chosen')PR.f='all';psave();paintWho();paintBatch()};
+ window.prMode=function(m){var x=X();if(!x)return;x.mode=m;if(m==='all'&&PR.f==='chosen')PR.f='all';psave();paintWho();paintBatch()};
  window.prFind=function(v){PR.q=v||'';var a=$('#pr_list'),t=$('#pr_tools');if(a)a.innerHTML=listHtml();if(t)t.innerHTML=toolsHtml()};
  window.prFilt=function(f){PR.f=f;paintWho()};
- window.prStop=function(on){pp().stop=on?1:0;psave();paint()};
- window.prBatch=function(v){var c=pp(),cur=cfg().bsize;if(v==='own'){PR.own=true;c.bsize=(cur>0&&[25,50,100].indexOf(cur)<0)?cur:10}else{PR.own=false;c.bsize=v}psave();paintBatch()};
- window.prSpeed=function(k){var c=pp(),cur=cfg();if(k==='custom'){c.min=cur.min;c.max=cur.max;c.batch=cur.batch;c.rest=cur.rest;c.cap=cur.cap}c.speed=k;psave();paintSpeed()};
- window.prUse=function(k){k=decodeURIComponent(k);var x=(pp().camps||{})[k];if(!x)return;var c=pp();c.cname=x.name;c.msg=x.msg;psave();render();window.scrollTo(0,0)};
- window.prDel=function(k){k=decodeURIComponent(k);var cs=pp().camps||{},x=cs[k];if(!x)return;
-  if(!confirm('Delete the record of "'+x.name+'"?\n\nThe app will forget who got this offer and could send it to them again. Messages already sent are not affected.'))return;
-  delete cs[k];save();paintList();paintRecs();paintBatch()};
+ window.prStop=function(on){var x=X();if(!x)return;x.stop=on?1:0;psave();paint()};
+ window.prBatch=function(v){var x=X();if(!x)return;var cur=cfg().bsize;if(v==='own'){PR.own=true;x.bsize=(cur>0&&[25,50,100].indexOf(cur)<0)?cur:10}else{PR.own=false;x.bsize=v}psave();paintBatch()};
+ window.prSpeed=function(k){var x=X();if(!x)return;var cur=cfg();if(k==='custom'){x.min=cur.min;x.max=cur.max;x.batch=cur.batch;x.rest=cur.rest;x.cap=cur.cap}x.speed=k;psave();paintSpeed()};
  window.prCopySql=function(){function prt(){prompt('Copy this text:',SQL)}try{navigator.clipboard.writeText(SQL).then(function(){obToast('Copied. Now paste it in Supabase > SQL Editor and press Run')},prt)}catch(e){prt()}};
+
+ /* ---- photo: uploaded and saved into the campaign the moment it is chosen ---- */
  window.prImg=function(inp){
-  var f=inp.files&&inp.files[0];if(!f)return;if(!/^image\//.test(f.type))return alert('Please choose a photo');
+  var x=X(),f=inp.files&&inp.files[0];if(!x||!f)return;if(!/^image\//.test(f.type))return alert('Please choose a photo');
+  if(!obOk())return alert('The app is not connected to the cloud yet. Open the app again and try.');
+  var st=$('#pr_imst');if(st)st.textContent='Saving photo...';
   var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){
    var s=Math.min(1,1280/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);
-   var x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);x.drawImage(im,0,0,cv.width,cv.height);
-   cv.toBlob(function(b){PR.img=b;PR.prev=cv.toDataURL('image/jpeg',.82);var e=$('#pr_imgx');if(e)e.style.display='block';paint()},'image/jpeg',.82)};
-   im.onerror=function(){alert('Could not read this photo')};im.src=r.result};
+   var g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(im,0,0,cv.width,cv.height);
+   cv.toBlob(function(b){
+    var nm='camp-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
+    Promise.resolve(SB.storage.from('promo').upload(nm,b,{contentType:'image/jpeg'})).then(function(u){
+     if(u&&u.error)throw new Error(u.error.message+' (is the one-time setup at the bottom done?)');
+     var url=SB.storage.from('promo').getPublicUrl(u.data.path).data.publicUrl;
+     if(x.media){x.trash=x.trash||[];x.trash.push(x.media)}
+     x.media=url;x.last=Date.now();save();
+     if(cc()===x){paintPhoto();paint()}
+    }).catch(function(e){var s=$('#pr_imst');if(s)s.textContent='';alert('The photo could not be saved: '+((e&&e.message)||e))})
+   },'image/jpeg',.82)};
+   im.onerror=function(){var s=$('#pr_imst');if(s)s.textContent='';alert('Could not read this photo')};im.src=r.result};
   r.readAsDataURL(f)};
- window.prNoImg=function(){PR.img=null;PR.prev='';var e=$('#pr_file');if(e)e.value='';var x=$('#pr_imgx');if(x)x.style.display='none';paint()};
- /* waiting count + take failed messages out of the record so they can be sent again */
- window.prPend=function(){
-  if(!obOk())return;
-  Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').eq('status','pending')).then(function(r){
-   var e=$('#pr_pend');if(e)e.textContent=(r&&!r.error&&r.count!=null)?('Offer messages waiting to be sent: '+r.count):''}).catch(function(){});
-  Promise.resolve(SB.from('outbox').select('phone,campaign,created_at').eq('kind','promo').eq('status','failed').limit(500)).then(function(r){
-   if(!r||r.error||!r.data)return;var cs=pp().camps||{},ch=0;
-   r.data.forEach(function(m){var x=m.campaign&&cs[m.campaign],ts=x&&x.phones[m.phone];if(ts&&Math.abs(Date.parse(m.created_at)-ts)<600000){delete x.phones[m.phone];ch++}});
-   if(ch){save();paintList();paintRecs();paintBatch();obToast(ch+' message(s) failed earlier. They can be sent again.')}}).catch(function(){})};
- window.prCancel=function(){
-  if(!obOk())return;
-  if(!confirm('Cancel ALL offer messages that are still waiting?\nMessages already sent are not affected. Those parties can be sent the offer again later.'))return;
-  Promise.resolve(SB.from('outbox').select('phone,campaign').eq('kind','promo').eq('status','pending').limit(2000)).then(function(r){
+ window.prNoImg=function(){var x=X();if(!x||!x.media)return;x.trash=x.trash||[];x.trash.push(x.media);delete x.media;save();paintPhoto();paint()};
+
+ /* ---- cloud helpers ---- */
+ function fname(u){return decodeURIComponent(String(u||'').split('/promo/')[1]||'')}
+ function pendN(k){return Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').eq('campaign',k).in('status',['pending','sending'])).then(function(r){
+  if(!r||r.error)throw new Error((r&&r.error&&r.error.message)||'no answer');return r.count||0})}
+ function cancelPending(k){
+  return Promise.resolve(SB.from('outbox').select('phone').eq('kind','promo').eq('campaign',k).eq('status','pending').limit(2000)).then(function(r){
    if(r&&r.error)throw r.error;var rows=(r&&r.data)||[];
-   return Promise.resolve(SB.from('outbox').delete().eq('kind','promo').eq('status','pending')).then(function(d){
-    if(d&&d.error)throw d.error;
-    var cs=pp().camps||{};rows.forEach(function(m){var x=m.campaign&&cs[m.campaign];if(x)delete x.phones[m.phone]});
-    save();paintList();paintRecs();paintBatch();obToast('Waiting messages cancelled');prPend();if(typeof obLoad==='function')obLoad()})
-  }).catch(function(e){alert('Could not cancel: '+((e&&e.message)||e))})};
+   return Promise.resolve(SB.from('outbox').delete().eq('kind','promo').eq('campaign',k).eq('status','pending')).then(function(d){
+    if(d&&d.error)throw d.error;var x=CS()[k];if(x&&x.phones)rows.forEach(function(m){delete x.phones[m.phone]});save();return rows.length})})}
+ /* removes old photos (replaced ones, and the photo of ended campaigns) once nothing is waiting that uses them */
+ function tidy(){
+  if(typeof obOk!=='function'||!obOk())return;
+  var cs=CS();Object.keys(cs).forEach(function(k){
+   var x=cs[k],names=(x.trash||[]).slice();if(x.ended&&x.media)names.push(x.media);
+   if(!names.length)return;
+   pendN(k).then(function(n){
+    if(n)return;var nm=names.map(fname).filter(Boolean);
+    if(!nm.length){x.trash=[];if(x.ended)delete x.media;save();return}
+    return Promise.resolve(SB.storage.from('promo').remove(nm)).then(function(r){
+     if(r&&r.error)return;x.trash=[];if(x.ended)delete x.media;save()})
+   }).catch(function(){})})}
+
+ /* ---- waiting count, failed messages go back to "can send again" ---- */
+ window.prPend=function(){
+  var k=PR.cur;if(!k||!obOk())return;
+  Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').eq('campaign',k).eq('status','pending')).then(function(r){
+   var e=$('#pr_pend');if(e)e.textContent=(r&&!r.error&&r.count!=null)?('Messages of this campaign waiting to be sent: '+r.count):''}).catch(function(){});
+  Promise.resolve(SB.from('outbox').select('phone,created_at').eq('kind','promo').eq('campaign',k).eq('status','failed').limit(500)).then(function(r){
+   if(!r||r.error||!r.data)return;var x=CS()[k],ch=0;if(!x||!x.phones)return;
+   r.data.forEach(function(m){var ts=x.phones[m.phone];if(ts&&Math.abs(Date.parse(m.created_at)-ts)<600000){delete x.phones[m.phone];ch++}});
+   if(ch){save();if(PR.cur===k){paintList();paintBatch()}obToast(ch+' message(s) failed earlier. They can be sent again.')}}).catch(function(){})};
+ window.prCancel=function(){
+  var k=PR.cur,x=cc();if(!k||!x||!obOk())return;
+  if(!confirm('Cancel all messages of "'+x.name+'" that are still waiting?\nMessages already sent are not affected. Those parties can be sent this offer again later.'))return;
+  cancelPending(k).then(function(){if(PR.cur===k){paintAll();prPend();prTrLoad()}obToast('Waiting messages cancelled');if(typeof obLoad==='function')obLoad()})
+  .catch(function(e){alert('Could not cancel: '+((e&&e.message)||e))})};
+
+ /* ---- send ---- */
  window.prQueue=function(){
   if(PR.busy)return;
   flush();
-  var c=cfg(),L=pick(c),E=elig(c).length,key=ckey(c);
+  var x=cc();if(!x)return;if(x.ended)return alert('This campaign has ended. Reopen it first.');
+  var c=cfg(),L=pick(c),E=elig(c).length,key=PR.cur;
   if(!obOk())return alert('The app is not connected to the cloud yet. Open the app again and try.');
-  if(!key)return alert('Write an offer name in Step 1 (example: Diwali Sale).');
   if(!c.msg.trim())return alert('Write the message first.');
   if(!L.length)return alert(c.mode==='pick'?'No party is chosen. In Step 3, search a party and tap its box.':'Nobody left to send. Everyone selected already got this offer, or no party is selected.');
   var t=plan(L.length,c,Date.now()+30000,Math.random),last=t[t.length-1];
   var names=L.map(function(p){return p.name}).join(', ');
-  if(!confirm('Send "'+c.name.trim()+'" to '+parties(L.length)+'?\n\nSelected: '+names+(E>L.length?'\n\n('+(E-L.length)+' more will wait for the next group.)':'')+'\n\nOne by one, about '+c.min+' to '+c.max+' seconds apart.\nLast message goes around '+fmt(last)+'.'+(PR.img?'\nThe photo will go with it.':'')))return;
+  if(!confirm('Send "'+c.name+'" to '+parties(L.length)+'?\n\nSelected: '+names+(E>L.length?'\n\n('+(E-L.length)+' more will wait for the next group.)':'')+'\n\nOne by one, about '+c.min+' to '+c.max+' seconds apart.\nLast message goes around '+fmt(last)+'.'+(sv()?'\nThe photo will go with it.':'')))return;
   PR.busy=true;var bt=$('#pr_go');if(bt){bt.disabled=true;bt.textContent='Please wait...'}
   function done(){PR.busy=false;var b=$('#pr_go');if(b){b.disabled=false;b.textContent=goText()}}
-  var up=PR.img?Promise.resolve(SB.storage.from('promo').upload('p'+Date.now()+'.jpg',PR.img,{contentType:'image/jpeg'})).then(function(r){
-    if(r&&r.error)throw new Error('Photo upload failed: '+r.error.message+' (is the one-time setup at the bottom done?)');
-    return SB.storage.from('promo').getPublicUrl(r.data.path).data.publicUrl}):Promise.resolve('');
-  up.then(function(url){
-   var rows=L.map(function(p,i){var o={phone:phone(p),party_name:p.name,kind:'promo',campaign:key,message:fill(c.msg,p)+(c.stop?STOPLINE:''),send_after:new Date(t[i]).toISOString()};if(url)o.media_url=url;return o}),i=0;
-   function next(){if(i>=rows.length)return Promise.resolve();var part=rows.slice(i,i+200);i+=200;
-    return obAdd(part).then(function(){
-     var cs=pp().camps=pp().camps||{},x=cs[key];if(!x)x=cs[key]={name:c.name.trim(),date:Date.now(),msg:c.msg,phones:{}};x.msg=c.msg;
-     var now=Date.now();part.forEach(function(o){x.phones[o.phone]=now});save()}).then(next)}
-   return next().then(function(){return rows.length})
-  }).then(function(n){
-    if(c.mode==='pick'){var s=pp().sel||{};L.forEach(function(p){delete s[p.id]});pp().sel=s;save()}
-    done();paintAll();prPend();if(typeof obLoad==='function')obLoad();
-    var left=elig(cfg()).length,e=$('#pr_ok');if(e){e.style.display='block';e.innerHTML='✅ <b>'+n+'</b> messages added. They will go out slowly, one by one, until about <b>'+fmt(last)+'</b>. You can close the app.'+(c.mode==='all'&&left?'<br>📦 <b>'+left+'</b> parties are still waiting for the next group.':'')}})
+  var url=sv();
+  var rows=L.map(function(p,i){var o={phone:phone(p),party_name:p.name,kind:'promo',campaign:key,message:fill(c.msg,p)+(c.stop?STOPLINE:''),send_after:new Date(t[i]).toISOString()};if(url)o.media_url=url;return o}),i=0;
+  function next(){if(i>=rows.length)return Promise.resolve();var part=rows.slice(i,i+200);i+=200;
+   return obAdd(part).then(function(){
+    x.phones=x.phones||{};x.msg=c.msg;x.last=Date.now();
+    var now=Date.now();part.forEach(function(o){x.phones[o.phone]=now});save()}).then(next)}
+  Promise.resolve().then(next).then(function(){
+    if(c.mode==='pick'){x.sel=x.sel||{};L.forEach(function(p){delete x.sel[p.id]});save()}
+    done();if(PR.cur!==key)return;
+    paintAll();prPend();if(typeof obLoad==='function')obLoad();
+    var left=elig(cfg()).length,e=$('#pr_ok');if(e){e.style.display='block';e.innerHTML='✅ <b>'+rows.length+'</b> messages added. They will go out slowly, one by one, until about <b>'+fmt(last)+'</b>. You can close the app. See the "Sent &amp; waiting" tab to follow them.'+(c.mode==='all'&&left?'<br>📦 <b>'+left+'</b> parties are still waiting for the next group.':'')}})
   .catch(function(e){done();paintAll();var m=(e&&e.message)||String(e);
    if(/send_after|media_url|campaign/.test(m))m='The one-time setup is not done yet. Do the "One-time setup" step at the bottom of this page first.\n\n('+m+')';
    alert('Could not add: '+m)})};
 
- function home(){
-  bust();
-  var c=cfg(),h='<h2 style="font-size:20px;margin:6px 0">📢 Send an offer to customers</h2><button class="s" onclick="sTab=\'msg\';render()">← Back to Messages</button>'+
-   '<div class="mu" style="margin:8px 0">Follow the 6 steps. Messages go out slowly, one by one, and the app remembers who already got each offer.</div>';
-  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">1</span>Offer name and message</div>'+
-   '<label class="mu">Offer name (only for you, example: Diwali Sale)</label><input placeholder="Offer name" value="'+esc(c.name)+'" oninput="prName(this.value)">'+chipsHtml()+
+ /* ---- campaign list: open / new / end / reopen / delete ---- */
+ window.prBack=function(){PR.cur=null;PR.q='';PR.f='all';render();window.scrollTo(0,0)};
+ window.pcOpen=function(k){k=decodeURIComponent(k);var x=CS()[k];if(!x)return;PR.cur=k;PR.tab=x.ended?'hist':'setup';PR.q='';PR.f='all';PR.own=false;T=null;render();window.scrollTo(0,0)};
+ window.prTab=function(t){PR.tab=t;T=null;render();window.scrollTo(0,0)};
+ window.prNew=function(){
+  var el=$('#pr_newname'),nm=((el&&el.value)||'').trim();
+  if(!nm)return alert('Write a name for the campaign (example: Diwali Sale).');
+  var k=nm.toLowerCase(),cs=CS();
+  if(cs[k]){if(cs[k].ended)return alert('A campaign with this name has ended. Open it in "Ended campaigns" and press Reopen, or use a different name.');return pcOpen(enc(k))}
+  cs[k]={name:nm,date:Date.now(),msg:DEFMSG,mode:'pick',sel:{},skip:{},phones:{}};save();
+  PR.cur=k;PR.tab='setup';PR.q='';PR.f='all';PR.own=false;T=null;render();window.scrollTo(0,0)};
+ window.prEnd=function(){
+  var k=PR.cur,x=cc();if(!k||!x||x.ended)return;if(!obOk())return alert('The app is not connected to the cloud yet. Open the app again and try.');
+  pendN(k).then(function(n){
+   if(!confirm('End "'+x.name+'"?\n\n'+(n?n+' message(s) are still waiting. They will be cancelled.\n\n':'')+'The photo of this campaign will be removed. The list of who already got this offer is kept under "Ended campaigns".'))return;
+   return (n?cancelPending(k):Promise.resolve()).then(function(){
+    x.ended=Date.now();save();PR.cur=null;render();window.scrollTo(0,0);obToast('Campaign ended');tidy()})
+  }).catch(function(e){alert('Could not end the campaign: '+((e&&e.message)||e))})};
+ window.prReopen=function(k){k=decodeURIComponent(k);var x=CS()[k];if(!x)return;delete x.ended;save();PR.cur=k;PR.tab='setup';T=null;render();window.scrollTo(0,0)};
+ window.prDel=function(k){k=decodeURIComponent(k);var cs=CS(),x=cs[k];if(!x)return;
+  if(!confirm('Delete the record of "'+x.name+'"?\n\nThe app will forget who got this offer and could send it to them again. Messages already sent are not affected.'))return;
+  pendN(k).then(function(n){
+   if(n)return alert('Some messages of this campaign are still waiting. Open the campaign and press End first.');
+   var nm=(x.trash||[]).concat(x.media?[x.media]:[]).map(fname).filter(Boolean);
+   if(nm.length)try{Promise.resolve(SB.storage.from('promo').remove(nm)).catch(function(){})}catch(e){}
+   delete cs[k];save();render()
+  }).catch(function(e){alert('Could not delete: '+((e&&e.message)||e))})};
+ window.prListCounts=function(){
+  if(typeof obOk!=='function'||!obOk())return;
+  (PR.lk||[]).forEach(function(k,i){
+   function c(st){return Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').eq('campaign',k).in('status',st)).then(function(r){return (r&&r.count)||0})}
+   Promise.all([c(['sent']),c(['pending','sending']),c(['failed'])]).then(function(v){
+    var e=document.getElementById('prc'+i);if(e)e.textContent='✅ Sent '+v[0]+'  ·  ⏳ Waiting '+v[1]+(v[2]?'  ·  ❌ Failed '+v[2]:'')}).catch(function(){})})};
+
+ /* ---- history of the open campaign: waiting / sent / failed ---- */
+ var T=null,TAB='wait',LIM=300,busy=0;
+ function trRow(m,k){
+  var when=k==='wait'?(m.send_after?'goes around '+ft(m.send_after):'goes next'):k==='sent'?'sent '+ft(m.sent_at||m.created_at):(m.error?String(m.error).slice(0,60):'failed');
+  return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #eef0f6"><div><b>'+esc(m.party_name||'Customer')+'</b><div class="mu">'+esc(m.phone||'')+'</div></div><div class="mu" style="text-align:right;white-space:nowrap">'+esc(when)+'</div></div>'}
+ function ft(t){if(!t)return '';var d=new Date(t);return isNaN(d)?'':d.toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}
+ function trPaint(){
+  var a=document.getElementById('pr_track');if(!a)return;var x=cc();
+  var head='<div class="pr-h">📋 Sent and waiting: '+esc(x?x.name:'')+'</div>';
+  if(!T){a.innerHTML=head+'<div class="mu">Loading...</div>';return}
+  var tabs=[['wait','Waiting',T.cw],['sent','Sent',T.cs],['fail','Failed',T.cf]];
+  var rows=T[TAB]||[],n=TAB==='wait'?T.cw:TAB==='sent'?T.cs:T.cf;
+  a.innerHTML=head+
+   '<div class="pr-sp">'+tabs.map(function(t){return '<button class="s'+(TAB===t[0]?' on':'')+'" onclick="prTrTab(\''+t[0]+'\')">'+t[1]+' ('+t[2]+')</button>'}).join('')+'<button class="s" onclick="prTrLoad()">Refresh</button></div>'+
+   '<div style="max-height:420px;overflow:auto;margin-top:6px">'+(rows.length?rows.map(function(m){return trRow(m,TAB)}).join(''):'<div class="mu" style="padding:10px 0">'+(TAB==='wait'?'Nothing is waiting.':TAB==='sent'?'Nothing sent yet.':'No failed messages.')+'</div>')+'</div>'+
+   (n>rows.length?'<div class="mu" style="margin-top:6px">Showing '+rows.length+' of '+n+'.</div>':'')+
+   (T.cw&&x&&!x.ended?'<div id="pr_pend" class="mu" style="margin-top:8px"></div><button class="s" style="margin-top:6px" onclick="prCancel()">Cancel waiting messages of this campaign</button>':'')}
+ function trQ(k,st,ord,asc){var f='id,phone,party_name,campaign,status,send_after,sent_at,created_at,error';
+  return Promise.resolve(SB.from('outbox').select(f).eq('kind','promo').eq('campaign',k).in('status',st).order(ord,{ascending:asc}).limit(LIM))}
+ function trCnt(k,st){return Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').eq('campaign',k).in('status',st)).then(function(r){return (r&&r.count)||0})}
+ window.prTrTab=function(t){TAB=t;trPaint()};
+ window.prTrLoad=function(){
+  var k=PR.cur;if(!k||!document.getElementById('pr_track')||busy||typeof obOk!=='function'||!obOk())return;
+  busy=1;
+  Promise.all([trQ(k,['pending','sending'],'send_after',true),trQ(k,['sent'],'sent_at',false),trQ(k,['failed'],'created_at',false),trCnt(k,['pending','sending']),trCnt(k,['sent']),trCnt(k,['failed'])]).then(function(r){
+   busy=0;if(PR.cur!==k)return;T={wait:(r[0]&&r[0].data)||[],sent:(r[1]&&r[1].data)||[],fail:(r[2]&&r[2].data)||[],cw:r[3],cs:r[4],cf:r[5]};trPaint();prPend()
+  }).catch(function(){busy=0})};
+ setInterval(function(){if(document.getElementById('pr_track')&&!document.hidden)window.prTrLoad()},30000);
+
+ /* ---- pages ---- */
+ function listPage(){
+  migrate();
+  var cs=CS(),ks=Object.keys(cs).sort(function(a,b){return (cs[b].date||0)-(cs[a].date||0)}),
+   act=ks.filter(function(k){return !cs[k].ended}),end=ks.filter(function(k){return cs[k].ended});
+  PR.lk=act;
+  var h='<h2 style="font-size:20px;margin:6px 0">📢 Offer campaigns</h2><button class="s" onclick="sTab=\'msg\';render()">← Back to Messages</button>'+
+   '<div class="mu" style="margin:8px 0">Make one campaign for each offer. Everything inside a campaign (message, photo, chosen parties, speed, and the sent and waiting list) stays saved until you press End on that campaign.</div>'+
+   '<div class="card pr-step"><div class="pr-h">➕ New campaign</div><input id="pr_newname" placeholder="Campaign name (example: Diwali Sale)"><button class="b" style="margin-top:8px" onclick="prNew()">Create campaign</button></div>'+
+   '<div class="card pr-step"><div class="pr-h">Running campaigns ('+act.length+')</div>'+(act.length?act.map(function(k,i){var x=cs[k];
+    return '<div class="pr-cmp">'+(x.media?'<img src="'+esc(x.media)+'">':'')+'<div style="flex:1;min-width:140px"><b>'+esc(x.name)+'</b><div class="mu">Started '+dt(x.date)+'</div><div class="mu" id="prc'+i+'">...</div></div><button class="b" onclick="pcOpen(\''+enc(k)+'\')">Open</button></div>'}).join(''):'<div class="mu">No campaign yet. Create your first one above.</div>')+'</div>';
+  if(end.length)h+='<details class="card pr-step"><summary><b>Ended campaigns ('+end.length+')</b></summary>'+end.map(function(k){var x=cs[k];
+   return '<div class="pr-cmp"><div style="flex:1;min-width:140px"><b>'+esc(x.name)+'</b><div class="mu">Ended '+dt(x.ended)+' · '+Object.keys(x.phones||{}).length+' parties got it</div></div><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="s" onclick="pcOpen(\''+enc(k)+'\')">History</button><button class="s" onclick="prReopen(\''+enc(k)+'\')">Reopen</button><button class="s dlb" onclick="prDel(\''+enc(k)+'\')">Delete record</button></span></div>'}).join('')+'</details>';
+  h+=setupHtml();
+  setTimeout(function(){prListCounts();tidy()},60);
+  return h}
+ function setupPage(){var c=cfg(),h='';
+  h+='<div class="mu" style="margin:8px 0">Everything here saves by itself inside this campaign.</div>';
+  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">1</span>Message</div>'+
    '<label class="mu">Message. {name} = party name, {shop} = your shop name</label>'+
    '<textarea rows="7" oninput="prSet(\'msg\',this.value)">'+esc(c.msg)+'</textarea>'+
    '<label style="display:flex;gap:10px;align-items:center;margin:6px 0"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(c.stop?'checked ':'')+'onchange="prStop(this.checked)"><span>Add "reply STOP to stop offers" (customers will not report you)</span></label></div>';
-  h+='<div class="card pr-step"><div class="pr-h"><span class="pr-n">2</span>Photo (optional)</div>'+
-   '<input id="pr_file" type="file" accept="image/*" onchange="prImg(this)"><div id="pr_imgx" style="display:'+(PR.prev?'block':'none')+'"><button class="s" onclick="prNoImg()">Remove photo</button></div></div>';
+  h+='<div class="card pr-step" id="pr_photo">'+photoHtml()+'</div>';
   h+='<div class="card pr-step" id="pr_who">'+whoHtml()+'</div>';
   h+='<div class="card pr-step" id="pr_batch">'+batchHtml()+'</div>';
   h+='<div class="card pr-step" id="pr_speed">'+speedHtml()+'</div>';
@@ -5349,11 +5470,24 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
    '<button id="pr_go" class="b pr-big" onclick="prQueue()">'+goText()+'</button>'+
    '<div id="pr_ok" class="ok" style="display:none;margin-top:8px"></div>'+
    '<div id="pr_pend" class="mu" style="margin-top:8px"></div>'+
-   '<button class="s" style="margin-top:6px" onclick="prCancel()">Cancel all waiting offer messages</button></div>';
-  h+='<div class="card pr-step"><div class="pr-h">📒 Offers already sent</div><div id="pr_recs">'+recsHtml()+'</div></div>';
-  h+='<details class="card pr-step"><summary><b>One-time setup (do this once)</b></summary><div class="mu" style="margin-top:6px">Needed for the photo, the timing and the record. Press Copy, open Supabase &gt; SQL Editor, paste, press Run. If it says a policy already exists, that part was done before. That is fine.</div><button class="s" style="margin-top:6px" onclick="prCopySql()">Copy setup text</button></details>';
+   '<button class="s" style="margin-top:6px" onclick="prCancel()">Cancel waiting messages of this campaign</button></div>';
+  h+=setupHtml();
   setTimeout(prPend,60);
   return h}
+ function histPage(){T=null;setTimeout(prTrLoad,60);return '<div class="card pr-step" id="pr_track"><div class="pr-h">📋 Sent and waiting</div><div class="mu">Loading...</div></div>'}
+ function campPage(){
+  var x=cc(),ended=!!x.ended;if(ended)PR.tab='hist';
+  var h='<button class="s" onclick="prBack()">← All campaigns</button><h2 style="font-size:20px;margin:8px 0">📢 '+esc(x.name)+(ended?' <span class="pr-tag" style="background:#eee;color:#555">Ended</span>':'')+'</h2>'+
+   '<div class="pr-sp"><button class="s'+(PR.tab==='setup'?' on':'')+'" onclick="prTab(\'setup\')"'+(ended?' disabled':'')+'>⚙️ Message &amp; settings</button><button class="s'+(PR.tab==='hist'?' on':'')+'" onclick="prTab(\'hist\')">📋 Sent &amp; waiting</button></div>';
+  h+=PR.tab==='hist'?histPage():setupPage();
+  h+=ended?
+   '<div class="card pr-step"><div class="pr-h">Campaign ended</div><div class="mu">This campaign is closed. Reopen it to send more messages.</div><button class="b" style="margin-top:8px" onclick="prReopen(\''+enc(PR.cur)+'\')">Reopen campaign</button></div>':
+   '<div class="card pr-step"><div class="pr-h">🏁 End this campaign</div><div class="mu">This campaign stays saved (message, photo, chosen parties, sent and waiting list) for as long as you need. Press End only when the offer is over. The photo is then removed.</div><button class="s dlb" style="margin-top:8px" onclick="prEnd()">End this campaign</button></div>';
+  return h}
+ function home(){
+  bust();migrate();
+  if(PR.cur&&!cc())PR.cur=null;
+  return PR.cur?campPage():listPage()}
 
  var prevSettings=vSettings;
  vSettings=function(){if(sTab==='promo')return home();return prevSettings.apply(this,arguments)};
@@ -5446,50 +5580,5 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
  };
 })();
 </script>
-<script id="promo-tracker">
-/* Promotions page: who the offer was sent to, who is waiting, and who failed */
-(function(){
- var TAB='wait',LIM=300,T=null,busy=0;
- function e(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
- function ft(t){if(!t)return '';var d=new Date(t);return isNaN(d)?'':d.toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}
- function row(m,k){
-  var when=k==='wait'?(m.send_after?'goes around '+ft(m.send_after):'goes next'):k==='sent'?'sent '+ft(m.sent_at||m.created_at):(m.error?String(m.error).slice(0,60):'failed');
-  return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #eef0f6"><div><b>'+e(m.party_name||'Customer')+'</b><div class="mu">'+e(m.phone||'')+(m.campaign?' \u00b7 '+e(m.campaign):'')+'</div></div><div class="mu" style="text-align:right;white-space:nowrap">'+e(when)+'</div></div>'}
- function paint(){
-  var a=document.getElementById('pr_track');if(!a)return;
-  if(!T){a.innerHTML='<div class="pr-h">\u27a4 Offer messages: sent and waiting</div><div class="mu">Loading...</div>';return}
-  var tabs=[['wait','Waiting',T.cw],['sent','Sent',T.cs],['fail','Failed',T.cf]];
-  var rows=T[TAB]||[],n=TAB==='wait'?T.cw:TAB==='sent'?T.cs:T.cf;
-  a.innerHTML='<div class="pr-h">\u27a4 Offer messages: sent and waiting</div>'+
-   '<div class="pr-sp">'+tabs.map(function(t){return '<button class="s'+(TAB===t[0]?' on':'')+'" onclick="prTrTab(\''+t[0]+'\')">'+t[1]+' ('+t[2]+')</button>'}).join('')+'<button class="s" onclick="prTrLoad()">Refresh</button></div>'+
-   '<div style="max-height:420px;overflow:auto;margin-top:6px">'+(rows.length?rows.map(function(m){return row(m,TAB)}).join(''):'<div class="mu" style="padding:10px 0">'+(TAB==='wait'?'Nothing is waiting.':TAB==='sent'?'Nothing sent yet.':'No failed messages.')+'</div>')+'</div>'+
-   (n>rows.length?'<div class="mu" style="margin-top:6px">Showing '+rows.length+' of '+n+'.</div>':'');
- }
- function q(st,sel,ord,asc){
-  return Promise.resolve(SB.from('outbox').select(sel).eq('kind','promo').in('status',st).order(ord,{ascending:asc}).limit(LIM));
- }
- function cnt(st){return Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').in('status',st)).then(function(r){return (r&&r.count)||0})}
- window.prTrTab=function(t){TAB=t;paint()};
- window.prTrLoad=function(){
-  if(!document.getElementById('pr_track')||busy||typeof obOk!=='function'||!obOk())return;
-  busy=1;var f='id,phone,party_name,campaign,status,send_after,sent_at,created_at,error';
-  Promise.all([q(['pending','sending'],f,'send_after',true),q(['sent'],f,'sent_at',false),q(['failed'],f,'created_at',false),cnt(['pending','sending']),cnt(['sent']),cnt(['failed'])]).then(function(r){
-   busy=0;T={wait:(r[0]&&r[0].data)||[],sent:(r[1]&&r[1].data)||[],fail:(r[2]&&r[2].data)||[],cw:r[3],cs:r[4],cf:r[5]};paint()
-  }).catch(function(){busy=0});
- };
- var oldPend=window.prPend;
- window.prPend=function(){
-  var r=oldPend&&oldPend.apply(this,arguments);
-  try{
-   var recs=document.getElementById('pr_recs');
-   if(recs&&!document.getElementById('pr_track')){
-    var card=recs.parentNode,d=document.createElement('div');d.className='card pr-step';d.id='pr_track';
-    card.parentNode.insertBefore(d,card);T=null;paint();
-   }
-   window.prTrLoad();
-  }catch(x){}
-  return r};
- setInterval(function(){if(document.getElementById('pr_track')&&!document.hidden)window.prTrLoad()},30000);
-})();
-</script>
+
 </body></html>
