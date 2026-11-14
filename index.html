@@ -693,8 +693,7 @@ function mItems(t,a){modal('<b>'+t+'</b>'+a.map(function(x){return '<button clas
 function tbl2(h,rows,act){return '<div style="overflow-x:auto"><table class="tbl"><tr>'+h.map(function(x){return '<th>'+x+'</th>'}).join('')+(act?'<th></th>':'')+'</tr>'+rows.map(function(r){var a=Array.isArray(r)?{c:r}:r;return '<tr'+(a.n!=null?' data-n="'+esc(String(a.n).toLowerCase())+'"':'')+(a.k?' style="cursor:pointer" onclick="'+a.k+'"':'')+'>'+a.c.map(function(x){return '<td>'+x+'</td>'}).join('')+(act?'<td style="white-space:nowrap" onclick="event.stopPropagation()">'+(a.a||'')+'</td>':'')+'</tr>'}).join('')+'</table>'+(rows.length?'':'<p class="mu" style="padding:8px">Nothing to show</p>')+'</div>'}
 function csvOut(name,h,rows){var s=[h].concat(rows).map(function(r){return r.map(function(c){return '"'+plain(c).replace(/"/g,'""')+'"'}).join(',')}).join('\r\n');saveFile(name+'.csv',new Blob(['﻿'+s],{type:'text/csv'}))}
 function csvCur(){if(RCUR)csvOut(RCUR.name,RCUR.h,RCUR.r)}
-function printHtml(title,body){var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;padding:24px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.r{text-align:right}.m{color:#666;font-size:12px}</style></head><body>'+body+'
-</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},400)}
+function printHtml(title,body){var w=window.open('','_blank');if(!w)return alert('Please allow pop-ups for this site, then press Print again.');w.document.write('<html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,sans-serif;padding:24px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.r{text-align:right}.m{color:#666;font-size:12px}</style></head><body>'+body+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},400)}
 function saleStatus(b){var pd=paidOn(b);return b.x?'Cancelled':(b.total-pd<=0.009?'Paid':pd>0?'Partly paid':'Unpaid')}
 function stH(s){var c=(s==='Paid'||s==='Received'||s==='Returned'||s==='Converted')?'grn':(s==='Cancelled'||s==='Open')?'mu':s==='Partly paid'?'':'red';return '<span class="'+c+'"'+(s==='Partly paid'?' style="color:#c77700;font-weight:600"':'')+'>'+s+'</span>'}
 function paidDoc(d){var s=0;D.pays.forEach(function(x){if(x.dn===d.id&&!x.x)s+=x.amt});return s}
@@ -843,7 +842,7 @@ function editDoc(id){var d=docById(id),p=P(d.pid);if(d.x)return alert('This is c
 function cancelDoc(id){var d=docById(id);if(!confirm('Cancel '+DT[d.t].s+' #'+d.no+'? Stock and balance are corrected. You can restore it later.'))return;d.x=1;stockFx(d,-1);D.pays.forEach(function(x){if(x.dn===id&&/^With purchase/.test(x.note||''))x.x=1});save();render()}
 function restoreDoc(id){var d=docById(id);d.x=0;stockFx(d,1);D.pays.forEach(function(x){if(x.dn===id&&/^With purchase/.test(x.note||''))x.x=0});save();render()}
 function payDoc(id){var d=docById(id),p=P(d.pid),due=Math.max(d.total-paidDoc(d),0),a=+prompt('Amount paid for purchase #'+d.no+' (balance '+money(due)+')',due);if(!(a>0))return;D.pays.push({id:uid(),pid:p.id,date:Date.now(),amt:a,out:1,note:'Against purchase #'+d.no,dn:id});save();render()}
-function convertDoc(id){var d=docById(id),p=P(d.pid);leave();draft={pid:p.id,name:p.name,phone:p.phone||'',lines:d.lines.map(function(l){return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt}}),fromDoc:id};form=true;pg='si';tab='bill';render()}
+function convertDoc(id){var d=docById(id),p=P(d.pid);leave();draft={pid:p.id,name:p.name,phone:p.phone||'',lines:d.lines.map(function(l){return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,sz:l.sz}}),fromDoc:id};form=true;pg='si';tab='bill';render()}
 /* ---- PARTIES ---- */
 function ledgerRows(p){var r=[];
  D.bills.forEach(function(b){if(b.pid===p.id)r.push({d:b.date,ty:'Sale',no:'#'+b.no,tot:b.total,e:b.x?0:b.total,st:saleStatus(b),k:"viewB="+b.no+";render()",a:'<button class="s" onclick="billMenu('+b.no+')">⋮</button>'})});
@@ -1196,7 +1195,7 @@ billHtml=function(b){var h=_bh3(b),x=((b.tn||b.vn)?'<p class="m">Transport: '+es
 /* ---------- STEP 2: bill picture in Vyapar layout ---------- */
 var SHOP_ADDR='Near Bhawani Mandir, Wadhu Chowk, Sindhi Colony, Gondia 441601',SHOP_PH='Ph: 7020645390',SHOP_TERMS='बिका हुआ माल वापस नहीं होगा';
 billImg=function(b,p){
- var L=b.lines,W=900,rh=46,AL=imgAddrLines(b,p),ofs=AL.length?AL.length*22+12:0,H=560+ofs+L.length*rh,c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
+ var L=b.lines,W=900,rh=46,AL=imgAddrLines(b,p),ofs=AL.length?AL.length*22+12:0,H=560+ofs+L.length*rh+L.reduce(function(a,l){return a+(window.szLines?szLines(l).length*20:0)},0),c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
  var pd=paidOn(b),sub=0;L.forEach(function(l){sub+=l.amt});var due=Math.max(b.total-pd,0);
  function T(t,X,Y,f,col,al){x.font=f;x.fillStyle=col||'#111';x.textAlign=al||'left';x.fillText(t,X,Y)}
  function LN(X1,Y1,X2,Y2){x.strokeStyle='#999';x.lineWidth=1;x.beginPath();x.moveTo(X1,Y1);x.lineTo(X2,Y2);x.stroke()}
@@ -1210,7 +1209,7 @@ billImg=function(b,p){
  LN(20,244+ofs,W-20,244+ofs);
  var y=278+ofs;x.fillStyle='#eef1f7';x.fillRect(21,250+ofs,W-42,40);
  T('#',36,y,'bold 18px sans-serif');T('Item name',72,y,'bold 18px sans-serif');T('Qty',560,y,'bold 18px sans-serif','#111','right');T('Price/unit',700,y,'bold 18px sans-serif','#111','right');T('Amount',W-36,y,'bold 18px sans-serif','#111','right');
- y=296+ofs;L.forEach(function(l,k){y+=rh;var n=l.name.length>34?l.name.slice(0,33)+'…':l.name;T(String(k+1),36,y-14,'18px sans-serif');T(n,72,y-14,'18px sans-serif');T(l.qty+' '+l.unit,560,y-14,'18px sans-serif','#111','right');T(String(l.rate),700,y-14,'18px sans-serif','#111','right');T(money(l.amt),W-36,y-14,'18px sans-serif','#111','right');LN(21,y,W-21,y)});
+ y=296+ofs;L.forEach(function(l,k){y+=rh;var n=l.name.length>34?l.name.slice(0,33)+'…':l.name;T(String(k+1),36,y-14,'18px sans-serif');T(n,72,y-14,'18px sans-serif');T(l.qty+' '+l.unit,560,y-14,'18px sans-serif','#111','right');T(String(l.rate),700,y-14,'18px sans-serif','#111','right');T(money(l.amt),W-36,y-14,'18px sans-serif','#111','right');var SX=window.szLines?szLines(l):[];SX.forEach(function(t,i){T(t,72,y+6+i*20,'15px sans-serif','#666')});y+=SX.length*20;LN(21,y,W-21,y)});
  y+=40;var R=W-40;
  function row(a,v,f,col){T(a,R-200,y,f||'20px sans-serif',col||'#111','right');T(v,R,y,f||'20px sans-serif',col||'#111','right');y+=34}
  row('Sub Total',money(sub));
@@ -2757,7 +2756,7 @@ mBar=function(){_mb2();if(!isM())return;
   if(top){top.innerHTML='<button onclick="goBack()">←</button><div class="mttl">Sale</div><button onclick="wa('+viewB+')">'+VIC.share.replace('<svg','<svg style="width:22px;height:22px;stroke:#2d3350;fill:none;stroke-width:1.8"')+'</button>';top.style.display=''}
   if(bar)bar.style.display='none';if(fab)fab.classList.remove('show')}};
 function dupBill(no){var b=bl(no);if(!b)return;var p=P(b.pid);leave();
- draft={pid:b.pid,name:p?p.name:'',phone:(p&&p.phone)||'',lines:b.lines.map(function(l){return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,loc:l.loc}})};form=true;pg='si';tab='bill';render()}
+ draft={pid:b.pid,name:p?p.name:'',phone:(p&&p.phone)||'',lines:b.lines.map(function(l){return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,loc:l.loc,sz:l.sz}})};form=true;pg='si';tab='bill';render()}
 function retBill(no){var b=bl(no);if(!b)return;var p=P(b.pid);leave();rdraft={name:p?p.name:'',lines:[]};pg='sret';sub='ret';render()}
 function payHist(no){var a=D.pays.filter(function(x){return !x.x&&(x.bn===no||x.note==='With bill #'+no)}),r=a.map(function(x){return [mDate(x.date)+'  ·  '+money(x.amt),'']});
  vSheet('Payment History',r.length?r:[['No payments yet','']])}
@@ -5765,58 +5764,178 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 .bwpn{font-size:12.5px;color:#7b8194;margin-top:8px}
 }
 </style>
-
-<style id="variable-size-feature-style">
-.vsbtn{margin:7px 0 0;padding:8px 12px;border:1px solid var(--ac);border-radius:8px;background:var(--ac2);color:var(--ac);font:inherit;font-weight:700;cursor:pointer}
-.vsmodal{position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px}.vsbox{background:var(--bg);color:var(--fg);width:min(760px,100%);max-height:90vh;overflow:auto;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:18px}.vstop{display:flex;justify-content:space-between;gap:12px;align-items:center}.vstop h3{margin:0;font-size:20px}.vsgrid{display:grid;grid-template-columns:1fr 1fr 1fr 42px;gap:8px;align-items:center;margin-top:8px}.vsgrid input{margin:0}.vstotal{margin-top:14px;padding:12px;border-radius:10px;background:var(--ac2);display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.vstotal b{display:block;font-size:18px}.vsactions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}@media(max-width:600px){.vsbox{padding:14px}.vsgrid{grid-template-columns:1fr 1fr 1fr 38px;gap:6px}.vstotal{grid-template-columns:1fr 1fr}.vsactions{position:sticky;bottom:0;background:var(--bg);padding-top:10px}.vsactions button{flex:1}.vsbtn{width:100%}}
-</style>
-<script id="variable-size-feature-script">
+<script>
+/* ===== SLAB SIZES (inches -> sq ft) : one invoice line, many slab sizes ===== */
 (function(){
-  var baseItemForm=vItemForm, baseSaveItem=saveItem, baseDocFill=docFill, baseAddDocLine=addDocLine;
-  window.vsRows=[]; window.vsItem=null; window.vsRate=0;
-  function vsItem(name){return findI(name||'')}
-  function closeVS(){var m=document.getElementById('vsmodal');if(m)m.remove()}
-  vItemForm=function(){
-    var html=baseItemForm.apply(this,arguments), i=iform&&iform.id?I(iform.id):null, on=!!(i&&i.measureMode==='variable');
-    var block='<div class="card" style="margin-top:10px;padding:12px"><div class="row"><div><b>📐 Variable Size / Slab Product</b><div class="mu" style="margin-top:3px">Enable only for granite, marble or sheets with different dimensions.</div></div><label class="sw"><input id="svm" type="checkbox" '+(on?'checked':'')+'><i></i></label></div></div>';
-    return html.replace('<div class="row" style="margin-top:6px">',block+'<div class="row" style="margin-top:6px">');
-  };
-  saveItem=function(){
-    var n=((document.getElementById('sn')||{}).value||'').trim();
-    var variable=!!((document.getElementById('svm')||{}).checked);
-    var out=baseSaveItem.apply(this,arguments);
-    var i=vsItem(n); if(i){i.measureMode=variable?'variable':'standard';save();}
-    return out;
-  };
-  function addVSButton(i){
-    var input=document.getElementById('dit'), old=document.getElementById('vsbtn'); if(old)old.remove();
-    if(!input||!i||i.measureMode!=='variable')return;
-    var b=document.createElement('button');b.type='button';b.id='vsbtn';b.className='vsbtn';b.textContent='📐 Enter different slab sizes';
-    b.onclick=function(){vsItem=i;vsRate=+(document.getElementById('drt')||{}).value||+i.rate||0;vsRows=[{l:'',w:''}];renderVS()};
-    input.insertAdjacentElement('afterend',b);
+ if(window.__szLoaded)return;window.__szLoaded=1;
+ var SZ={sale:null,doc:null},ST=null;
+ function r2(n){return Math.round(n*100)/100}
+ function sq(a){return r2((+a[0]||0)*(+a[1]||0)/144)}
+ function tot(rows){return r2(rows.reduce(function(s,x){return s+sq(x)},0))}
+ function pair(a){return (+a[0])+'\u00d7'+(+a[1])}
+ function szList(l){return l.sz.map(pair).join(', ')}
+ function DR(kind){return kind==='sale'?draft:(typeof ddraft!=='undefined'?ddraft:null)}
+ window.szText=function(l){return l&&l.sz&&l.sz.length?l.sz.length+(l.sz.length>1?' slabs':' slab')+' (inches): '+szList(l):''};
+ window.szLines=function(l){
+  if(!l||!l.sz||!l.sz.length)return [];
+  var out=[],cur='';
+  l.sz.map(pair).forEach(function(p){var t=cur?cur+', '+p:p;if(t.length>44&&cur){out.push(cur+',');cur=p}else cur=t});
+  out.push(cur);out[0]='Sizes: '+out[0];return out};
+ var css=document.createElement('style');
+ css.textContent='#szov{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}.szbox{background:#fff;color:#111;border-radius:12px;width:100%;max-width:440px;max-height:90vh;overflow:auto;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.3)}.szr{display:flex;align-items:center;gap:6px;margin:6px 0}.szr input{flex:1;min-width:0;margin:0;width:auto}.szr .szq{min-width:88px;text-align:right;font-size:13px;color:#555}.szn{font-size:12px;color:#5b6477;margin-top:2px;line-height:1.35}.szb{margin-top:4px;font-size:13px;padding:6px 10px;white-space:nowrap}';
+ document.head.appendChild(css);
+
+ function upd(){
+  var t=0;ST.rows.forEach(function(r,i){var q=sq(r),e=document.getElementById('szq'+i);t+=q;if(e)e.textContent=(+r[0]>0&&+r[1]>0)?q.toFixed(2)+' sq ft':''});
+  var n=ST.rows.filter(function(r){return +r[0]>0&&+r[1]>0}).length,e=document.getElementById('szt');
+  if(e)e.textContent=n+(n===1?' slab':' slabs')+' = '+r2(t).toFixed(2)+' sq ft'}
+ function draw(fr){
+  var o=document.getElementById('szov');if(o)o.remove();
+  o=document.createElement('div');o.id='szov';
+  var h='<div class="szbox"><b style="font-size:17px">Slab sizes (inches)</b><div style="margin:2px 0 8px;font-size:13px;color:#666">Type Length \u00d7 Width of each slab. Sq ft is worked out for you.</div>';
+  ST.rows.forEach(function(r,i){
+   h+='<div class="szr"><span style="width:20px;color:#888">'+(i+1)+'</span>'
+    +'<input type="number" inputmode="decimal" step="any" placeholder="Length" data-sz="'+i+'-0" value="'+(r[0]===''?'':esc(String(r[0])))+'" oninput="szIn('+i+',0,this.value)">'
+    +'<span>\u00d7</span>'
+    +'<input type="number" inputmode="decimal" step="any" placeholder="Width" data-sz="'+i+'-1" value="'+(r[1]===''?'':esc(String(r[1])))+'" oninput="szIn('+i+',1,this.value)" onkeydown="if(event.key===\'Enter\'){szAdd();return false}">'
+    +'<span class="szq" id="szq'+i+'"></span><button type="button" class="s" onclick="szDel('+i+')">\u2715</button></div>'});
+  h+='<button type="button" class="s" onclick="szAdd()">+ Add slab</button>'
+   +'<div style="display:flex;justify-content:space-between;margin:12px 2px 10px;font-size:16px"><b>Total</b><b id="szt"></b></div>'
+   +'<div style="display:flex;gap:8px"><button type="button" class="b" style="flex:1" onclick="szDone()">Done</button><button type="button" class="s" onclick="szClose()">Cancel</button></div></div>';
+  o.innerHTML=h;document.body.appendChild(o);upd();
+  setTimeout(function(){var e=o.querySelector('[data-sz="'+(fr==null?0:fr)+'-0"]');if(e)e.focus()},40)}
+ window.szIn=function(i,f,v){if(ST&&ST.rows[i]){ST.rows[i][f]=v;upd()}};
+ window.szAdd=function(){if(!ST)return;ST.rows.push(['','']);draw(ST.rows.length-1)};
+ window.szDel=function(i){if(!ST)return;if(ST.rows.length>1)ST.rows.splice(i,1);else ST.rows=[['','']];draw(0)};
+ window.szClose=function(){var o=document.getElementById('szov');if(o)o.remove();ST=null};
+ window.szOpen=function(kind,k){
+  var d=DR(kind),l=(k!=null&&d&&d.lines)?d.lines[k]:null,src=l&&l.sz?l.sz:(SZ[kind]||[]);
+  ST={kind:kind,k:k,rows:src.map(function(x){return [x[0],x[1]]})};
+  if(!ST.rows.length)ST.rows.push(['','']);draw(0)};
+ function setF(id,v){var e=document.getElementById(id);if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}))}
+ window.szDone=function(){
+  if(!ST)return;var bad=0,valid=[];
+  ST.rows.forEach(function(r,i){var a=+r[0]>0,b=+r[1]>0;if(a&&b)valid.push([+r[0],+r[1]]);else if(a||b)bad=bad||i+1});
+  if(bad)return alert('Slab '+bad+' is half filled. Enter both length and width, or remove that row.');
+  if(!valid.length)return alert('Enter length and width of at least one slab');
+  var total=tot(valid),kind=ST.kind,k=ST.k;
+  if(k==null){
+   SZ[kind]=valid;var f=kind==='sale'?['bq','bu','br']:['dqt','dut','drt'];
+   setF(f[0],total);setF(f[1],'sq ft');szClose();inject();
+   var r=document.getElementById(f[2]);if(r&&r.value==='')r.focus();
+  }else{
+   var d=DR(kind),ef=kind==='sale'?editLn:editDLn,l=d&&d.lines[k];szClose();if(!l)return;
+   ef(k,'qty',String(total));l=d.lines[k];if(l&&l.unit!=='sq ft')ef(k,'unit','sq ft');
+   l=d.lines[k];if(l){l.sz=valid;}render();
   }
-  docFill=function(v){var out=baseDocFill.apply(this,arguments);addVSButton(vsItem(v));return out};
-  addDocLine=function(){
-    var i=vsItem((document.getElementById('dit')||{}).value||'');
-    if(i&&i.measureMode==='variable'){var b=document.getElementById('vsbtn');if(b)b.click();else {vsItem=i;vsRate=+(document.getElementById('drt')||{}).value||+i.rate||0;vsRows=[{l:'',w:''}];renderVS()}return;}
-    return baseAddDocLine.apply(this,arguments);
-  };
-  window.renderVS=function(){
-    closeVS(); if(!vsItem)return;
-    var valid=vsRows.filter(function(x){return +x.l>0&&+x.w>0});
-    var area=valid.reduce(function(t,x){return t+(+x.l*+x.w/144)},0), amount=area*vsRate;
-    var rows=vsRows.map(function(x,k){var a=(+x.l||0)*(+x.w||0)/144;return '<div class="vsgrid"><input type="number" inputmode="decimal" placeholder="Length (in)" value="'+(x.l||'')+'" oninput="vsRows['+k+'].l=this.value;renderVS()"><input type="number" inputmode="decimal" placeholder="Width (in)" value="'+(x.w||'')+'" oninput="vsRows['+k+'].w=this.value;renderVS()"><div><b>'+a.toFixed(2)+'</b> <span class="mu">sq ft</span></div><button class="s" onclick="vsRows.splice('+k+',1);if(!vsRows.length)vsRows=[{l:\'\',w:\'\'}];renderVS()">✕</button></div>'}).join('');
-    var m=document.createElement('div');m.id='vsmodal';m.className='vsmodal';
-    m.innerHTML='<div class="vsbox"><div class="vstop"><div><h3>📐 '+esc(vsItem.name)+'</h3><div class="mu">Enter each slab in inches. Different sizes will be combined into ONE invoice line.</div></div><button class="s" onclick="closeVS()">✕</button></div><div class="vsgrid" style="font-weight:700;margin-top:16px"><span>Length</span><span>Width</span><span>Area</span><span></span></div>'+rows+'<button class="s" style="margin-top:10px" onclick="vsRows.push({l:\'\',w:\'\'});renderVS()">+ Add another slab</button><div class="vstotal"><div><span class="mu">Slabs</span><b>'+valid.length+'</b></div><div><span class="mu">Total area</span><b>'+area.toFixed(2)+' sq ft</b></div><div><span class="mu">Rate / sq ft</span><b>'+money(vsRate)+'</b></div><div><span class="mu">Amount</span><b>'+money(amount)+'</b></div></div><div class="vsactions"><button class="s" onclick="closeVS()">Cancel</button><button class="b" onclick="applyVS()">Add as ONE invoice item</button></div></div>';
-    document.body.appendChild(m);
-  };
-  window.closeVS=closeVS;
-  window.applyVS=function(){
-    var valid=vsRows.filter(function(x){return +x.l>0&&+x.w>0});if(!valid.length)return alert('Enter at least one slab size.');
-    var area=valid.reduce(function(t,x){return t+(+x.l*+x.w/144)},0), sizes=valid.map(function(x){return {length:+x.l,width:+x.w,sqft:+((+x.l*+x.w/144).toFixed(4))}});
-    ddraft.lines.push({name:vsItem.name,unit:'sq ft',qty:+area.toFixed(4),rate:+vsRate||0,amt:+(area*vsRate).toFixed(2),slabs:sizes,measureMode:'variable',sizeSummary:valid.length+' slab'+(valid.length===1?'':'s')+' · '+area.toFixed(2)+' sq ft'});
-    closeVS();vsRows=[];render();setTimeout(function(){var e=document.getElementById('dit');if(e)e.focus()},0);
-  };
+ };
+
+ /* keep sizes only while qty still equals the sizes' total */
+ var _eL=editLn;editLn=function(k,f,v){var l=draft.lines[k];if(l&&l.sz&&f==='qty'&&Math.abs((+v||0)-tot(l.sz))>=0.005)delete l.sz;return _eL.apply(this,arguments)};
+ if(typeof editDLn==='function'){var _eD=editDLn;editDLn=function(k,f,v){var d=typeof ddraft!=='undefined'?ddraft:null,l=d&&d.lines[k];if(l&&l.sz&&f==='qty'&&Math.abs((+v||0)-tot(l.sz))>=0.005)delete l.sz;return _eD.apply(this,arguments)}}
+
+ /* attach pending sizes to the line when it is added */
+ function hook(fn,kind,qid){
+  var o=window[fn];if(typeof o!=='function')return;
+  window[fn]=function(){
+   var qe=document.getElementById(qid),q=qe?+qe.value:0,p=SZ[kind],d=DR(kind),n=d&&d.lines?d.lines.length:0,r=o.apply(this,arguments);
+   d=DR(kind);
+   if(d&&d.lines&&d.lines.length>n){
+    var l=d.lines[d.lines.length-1];
+    if(p&&p.length&&Math.abs(tot(p)-q)<0.005)l.sz=p.map(function(x){return [x[0],x[1]]});
+    SZ[kind]=null;try{inject()}catch(e){}
+   }
+   return r}}
+ hook('addLine2','sale','bq');hook('flushPend','sale','bq');
+ hook('addDocLine','doc','dqt');hook('dkDocFlush','doc','dqt');
+
+ /* buttons + sizes shown under item names */
+ function isSz(n){var i=findI(n);return !!(i&&i.sizes)}
+ function note(kind,idx,l){
+  var x=document.createElement('div');x.className='szn';
+  var has=l.sz&&l.sz.length;
+  x.innerHTML='\ud83d\udcd0 '+(has?esc(szText(l))+' ':'Slab sizes not added ')+'<a href="#" onclick="event.stopPropagation();szOpen(\''+kind+'\','+idx+');return false" style="color:var(--ac)">'+(has?'edit':'add sizes')+'</a>';
+  return x}
+ function inject(){
+  [['sale','bq','bi'],['doc','dqt','dit']].forEach(function(p){
+   var q=document.getElementById(p[1]);if(!q||!q.parentNode)return;
+   var ne=document.getElementById(p[2]),on=!!(ne&&isSz(ne.value));
+   var b=q.parentNode.querySelector('.szb[data-k="'+p[0]+'"]'),s=SZ[p[0]];
+   if(!on&&s){SZ[p[0]]=null;s=null}
+   if(!b){if(!on)return;b=document.createElement('button');b.type='button';b.className='s szb';b.setAttribute('data-k',p[0]);b.onclick=function(){szOpen(p[0])};q.parentNode.appendChild(b)}
+   b.style.display=on?'':'none';
+   b.textContent=(s&&s.length)?('\ud83d\udcd0 '+s.length+(s.length>1?' slabs':' slab')+' \u00b7 '+tot(s).toFixed(2)+' sq ft'):'\ud83d\udcd0 Sizes'});
+  [].slice.call(document.querySelectorAll('.sfit[onclick]')).forEach(function(e){
+   var m=/lnEdit\('(\w+)',(\d+)\)/.exec(e.getAttribute('onclick')||'');if(!m||m[1]==='r')return;
+   var kind=m[1]==='b'?'sale':'doc',d=DR(kind),l=d&&d.lines&&d.lines[+m[2]],t=e.querySelector('.t'),old=e.querySelector('.szn');
+   if(old)old.remove();
+   if(l&&t&&((l.sz&&l.sz.length)||isSz(l.name)))t.parentNode.insertBefore(note(kind,+m[2],l),t.nextSibling)});
+  [].slice.call(document.querySelectorAll('input.eln[onchange]')).forEach(function(e){
+   var m=/^(editLn|editDLn)\((\d+),'name'/.exec(e.getAttribute('onchange')||'');if(!m)return;
+   var kind=m[1]==='editLn'?'sale':'doc',d=DR(kind),l=d&&d.lines&&d.lines[+m[2]],td=e.parentNode,old=td.querySelector('.szn');
+   if(old)old.remove();
+   if(l&&((l.sz&&l.sz.length)||isSz(l.name)))td.appendChild(note(kind,+m[2],l))});
+  /* item form: tick box */
+  var sn=document.getElementById('sn'),sg=document.getElementById('sg');
+  if(sn&&sg&&sg.parentNode&&!document.getElementById('szf')){
+   var it=(typeof iform!=='undefined'&&iform&&iform.id)?I(iform.id):null,w=document.createElement('label');
+   w.style.cssText='display:flex;align-items:flex-start;gap:10px;margin:12px 0 6px;font-size:14px;cursor:pointer';
+   w.innerHTML='<input type="checkbox" id="szf" style="width:20px;height:20px;margin:1px 0 0;flex:none"'+(it&&it.sizes?' checked':'')+'><span><b>Sold by slab sizes</b> (granite, marble etc.)<br><span style="color:#666;font-size:12px">Shows the \ud83d\udcd0 Sizes button when you bill this item</span></span>';
+   sg.parentNode.parentNode.insertBefore(w,sg.parentNode.nextSibling)}}
+ function viewInject(){
+  var root=document.getElementById('v');if(!root)return;
+  [].slice.call(root.querySelectorAll('.szn[data-v]')).forEach(function(e){e.remove()});
+  var src=null;
+  try{if(typeof viewB!=='undefined'&&viewB!=null)src=bl(viewB);if(!src&&typeof viewD!=='undefined'&&viewD!=null)src=docById(viewD)}catch(e){}
+  if(!src||!src.lines)return;
+  var els=[].slice.call(root.querySelectorAll('td,div,span,b,p,li')),pos=0;
+  src.lines.forEach(function(l){
+   if(!l.sz||!l.sz.length)return;
+   for(var i=pos;i<els.length;i++){
+    var e=els[i];if(e.classList.contains('szn')||e.querySelector('input,button'))continue;
+    var t='';for(var c=e.firstChild;c;c=c.nextSibling){if(c.nodeType===3)t+=c.nodeValue}
+    if(t.trim()===String(l.name).trim()){var x=document.createElement('div');x.className='szn';x.setAttribute('data-v','1');x.textContent='\ud83d\udcd0 '+szText(l);e.appendChild(x);pos=i+1;break}}})}
+ function dr2(c){return c==='b'?draft:c==='r'?rdraft:(typeof ddraft!=='undefined'?ddraft:null)}
+ if(typeof window.lnEdit==='function'){
+  var _le=window.lnEdit;window.lnEdit=function(c,k){
+   var r=_le.apply(this,arguments);
+   try{var o=document.getElementById('lne'),d=dr2(c),l=d&&d.lines&&d.lines[k],g=o&&o.querySelector('.lng');
+    if(g&&l&&c!=='r'&&(isSz(l.name)||(l.sz&&l.sz.length))&&!o.querySelector('.szb')){var bt=document.createElement('button');bt.type='button';bt.className='s szb';bt.style.width='100%';bt.style.margin='8px 0 0';
+     bt.textContent=l.sz&&l.sz.length?'\ud83d\udcd0 Slab sizes ('+l.sz.length+') \u00b7 edit':'\ud83d\udcd0 Add slab sizes';
+     bt.onclick=function(){closeLne();szOpen(c==='b'?'sale':'doc',k)};g.parentNode.insertBefore(bt,g.nextSibling)}}catch(e){}
+   return r};
+  var _ls=window.lneSave;window.lneSave=function(){
+   try{var o=document.getElementById('lne'),c=o&&o.dataset.c,k=o&&+o.dataset.k,d=dr2(c),l=d&&d.lines&&d.lines[k],q=+(document.getElementById('lne_q')||{}).value||0;
+    if(l&&l.sz&&Math.abs(q-tot(l.sz))>=0.005)delete l.sz}catch(e){}
+   return _ls.apply(this,arguments)}}
+ document.addEventListener('input',function(e){var t=e.target&&e.target.id;if(t==='bi'||t==='dit')try{inject()}catch(x){}},true);
+ document.addEventListener('change',function(e){var t=e.target&&e.target.id;if(t==='bi'||t==='dit')try{inject()}catch(x){}},true);
+ var _si=saveItem;saveItem=function(){var c=document.getElementById('szf'),v=c?c.checked:null,n=((document.getElementById('sn')||{}).value||'').trim(),r=_si.apply(this,arguments);
+  if(v!==null){var i=findI(n);if(i&&!!i.sizes!==v){i.sizes=v;save()}}return r};
+ addItem=saveItem;
+ var _r=render;render=function(){var r=_r.apply(this,arguments);try{inject();viewInject()}catch(e){try{console.error('sizes',e)}catch(_){}}return r};
+
+ /* printed bill / purchase bill: sizes under the item name */
+ function strInject(h,lines){
+  var i0=h.indexOf('</tr>'),pos=i0<0?0:i0+5;
+  (lines||[]).forEach(function(l){
+   if(!l.sz||!l.sz.length)return;
+   var s=esc(l.name),i=h.indexOf(s,pos);if(i<0)return;
+   var x='<div style="font-size:12px;color:#444;margin-top:2px">'+esc(szText(l))+'</div>',e=i+s.length;
+   h=h.slice(0,e)+x+h.slice(e);pos=e+x.length});
+  return h}
+ var _bh=billHtml;billHtml=function(b){var h=_bh.apply(this,arguments);try{return strInject(h,b.lines)}catch(e){return h}};
+ var _dh=docHtml;docHtml=function(d){var h=_dh.apply(this,arguments);try{return strInject(h,d.lines)}catch(e){return h}};
+
+ /* WhatsApp text: sizes next to the item name */
+ function withNames(lines,fn){
+  var bak=lines.map(function(l){return l.name});
+  lines.forEach(function(l){if(l.sz&&l.sz.length)l.name=l.name+' ('+szList(l)+' in)'});
+  try{return fn()}finally{lines.forEach(function(l,i){l.name=bak[i]})}}
+ var _wa=wa;wa=function(no){var b=bl(no),a=arguments,t=this;return b&&b.lines?withNames(b.lines,function(){return _wa.apply(t,a)}):_wa.apply(t,a)};
+ if(typeof docWA==='function'){var _dw=docWA;docWA=function(id){var d=docById(id),a=arguments,t=this;return d&&d.lines?withNames(d.lines,function(){return _dw.apply(t,a)}):_dw.apply(t,a)}}
+ try{render()}catch(e){}
 })();
+
 </script>
 </body></html>
