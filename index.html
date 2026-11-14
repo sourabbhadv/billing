@@ -956,7 +956,7 @@ function rep(k){var f=function(ts){return inPer('rep',ts)};
   var extra=k==='alltx'?'<select style="width:auto;margin:0" onchange="txk=this.value;render()">'+F.map(function(z){return '<option value="'+z[0]+'"'+(txk===z[0]?' selected':'')+'>'+z[1]+'</option>'}).join('')+'</select> <input placeholder="Search party or number" value="'+esc(txq)+'" oninput="txq=this.value" onkeydown="if(event.key===\'Enter\')render()" style="width:200px;margin:0">':'';
   return {per:1,x:extra,h:['Date','Type','No','Party','Amount','Status'],r:r3.map(function(x){return {k:x.k,c:[dt(x.d),x.ty,x.no,esc(x.n),money(x.a),x.x?stH('Cancelled'):'']}}),foot:r3.length+' transactions'}}
  if(k==='pl'){var A=profitOf(),net=A.sale-A.sret,cost=A.cogs-A.rcost,gp=net-cost;return {per:1,h:['Particulars','Amount'],r:[['Sale',money(A.sale)],['Less: Sale return','− '+money(A.sret)],['<b>Net sale</b>','<b>'+money(net)+'</b>'],['Cost of goods sold (at purchase price)','− '+money(cost)],['<b>Gross profit / (loss)</b>','<b class="'+(gp>=0?'grn':'red')+'">'+money(gp)+'</b>'],['<span class="mu">Purchases made in this period (for information)</span>','<span class="mu">'+money(A.pur-A.pret)+'</span>']].map(function(c){return {c:c}}),foot:missNote(A.miss)}}
- if(k==='bwp'){var tg=0,ts2=0,m={},r4=D.bills.filter(function(b){return !b.x&&f(b.date)}).sort(function(a,b){return b.no-a.no}).map(function(b){var p=P(b.pid),c=0;b.lines.forEach(function(l){c+=l.qty*itemBuy(l);if(!itemBuy(l))m[l.name]=1});var g=b.total-c;tg+=g;ts2+=b.total;return {c:[dt(b.date),bLink(b.no),esc(p?p.name:'?'),money(b.total),money(c),'<span class="'+(g>=0?'grn':'red')+'">'+money(g)+'</span>']}});return {per:1,h:['Date','Bill','Party','Sale','Cost','Profit / (Loss)'],r:r4,foot:'Total sale '+money(ts2)+' · Total profit '+money(tg)+missNote(m)}}
+ if(k==='bwp'){var tg=0,ts2=0,m={},r4=D.bills.filter(function(b){return !b.x&&f(b.date)}).sort(function(a,b){return b.no-a.no}).map(function(b){var p=P(b.pid),c=0;b.lines.forEach(function(l){c+=l.qty*itemBuy(l);if(!itemBuy(l))m[l.name]=1});var g=b.total-c;tg+=g;ts2+=b.total;return {c:[dt(b.date),bwLink(b.no),esc(p?p.name:'?'),money(b.total),money(c),'<span class="'+(g>=0?'grn':'red')+'">'+money(g)+'</span>']}});return {per:1,h:['Date','Bill','Party','Sale','Cost','Profit / (Loss)'],r:r4,foot:'Total sale '+money(ts2)+' · Total profit '+money(tg)+missNote(m)}}
  if(k==='pwp'){var M={},mm={};D.bills.forEach(function(b){if(b.x||!f(b.date))return;var o=M[b.pid]||(M[b.pid]={s:0,c:0});o.s+=b.total;b.lines.forEach(function(l){o.c+=l.qty*itemBuy(l);if(!itemBuy(l))mm[l.name]=1})});
   D.pays.forEach(function(x){if(x.x||!x.ret||!f(x.date))return;var o=M[x.pid]||(M[x.pid]={s:0,c:0});o.s-=x.amt;(x.lines||[]).forEach(function(l){o.c-=l.qty*itemBuy(l)})});
   var tg2=0,r5=Object.keys(M).map(function(id){var p=P(id),o=M[id];return {n:p?p.name:'?',s:o.s,c:o.c,g:o.s-o.c}}).sort(function(a,b){return b.g-a.g});r5.forEach(function(x){tg2+=x.g});
@@ -5708,4 +5708,42 @@ table:has(#bds2) td:nth-child(8) input#bs{width:95px!important}
 }
 </style>
 
+
+<script>
+/* Bill Wise Profit: click a bill number -> pop-up with each item's purchase price and sold price (desktop only) */
+function bwLink(no){
+ return '<a href="#" style="color:var(--ac);font-weight:600" onclick="if(window.innerWidth>=900){bwpShow('+no+')}else{tab=\'bill\';openB=null;viewB='+no+';render()}return false">'+no+'</a>';
+}
+function bwpClose(){var e=document.getElementById('bwpov');if(e)e.remove()}
+function bwpShow(no){
+ var b=D.bills.find(function(x){return x.no==no});if(!b)return;
+ var p=P(b.pid),tc=0,ts=0,rows='';
+ b.lines.forEach(function(l){
+  var it=l.iid?I(l.iid):findI(l.name),known=it&&(+it.buy||0)>0,bp=itemBuy(l),q=+l.qty||0,sp=+l.rate||0;
+  var cost=q*bp,sale=(+l.amt)||q*sp,g=sale-cost;tc+=cost;ts+=sale;
+  rows+='<tr><td>'+esc(l.name)+'</td><td class="r">'+q+(l.unit?' '+esc(l.unit):'')+'</td><td class="r">'+(known?'':'~ ')+money(bp)+'</td><td class="r">'+money(sp)+'</td><td class="r">'+money(cost)+'</td><td class="r">'+money(sale)+'</td><td class="r '+(g>=0?'grn':'red')+'">'+money(g)+'</td></tr>';
+ });
+ var tot=(+b.total)||ts,pr=tot-tc;
+ var h='<div id="bwpov" onclick="if(event.target===this)bwpClose()"><div class="bwpb"><div class="bwph"><b>Invoice #'+b.no+' - '+esc(p?p.name:'')+'</b><button onclick="bwpClose()" aria-label="Close">&times;</button></div>'
+ +'<div class="bwpt">Cost Calculation</div><div style="overflow-x:auto"><table class="bwpx"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Purchase price</th><th class="r">Sold price</th><th class="r">Total cost</th><th class="r">Total sold</th><th class="r">Profit</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+ +'<div class="bwps"><div><span>Sale Amount</span><b>'+money(tot)+'</b></div><div><span>Total Cost</span><b>'+money(tc)+'</b></div><div class="bwpp"><span>Profit (Sale Amount - Total Cost)</span><b class="'+(pr>=0?'grn':'red')+'">'+money(pr)+'</b></div></div>'
+ +'<div class="bwpn">~ means this item has no purchase price saved, so 10% profit is assumed.</div></div></div>';
+ bwpClose();document.body.insertAdjacentHTML('beforeend',h);
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()});
+</script>
+<style id="bwp-css">
+@media(min-width:900px){
+#bwpov{position:fixed;inset:0;z-index:99;background:rgba(20,24,50,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+.bwpb{background:#fff;border-radius:10px;width:100%;max-width:820px;max-height:88vh;overflow:auto;padding:20px 24px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.bwph{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.bwph b{font-size:19px;color:#2d3350}
+.bwph button{border:0;background:none;font-size:30px;line-height:1;color:#7b8194;cursor:pointer;width:auto;padding:0 6px}
+.bwpt{font-weight:600;margin:6px 0 8px;color:#2d3350}
+.bwpx{width:100%;border-collapse:collapse;font-size:14px}.bwpx th{background:#f3f5f9;color:#5d647a;font-weight:600;text-align:left;padding:10px 12px;white-space:nowrap}
+.bwpx td{padding:11px 12px;border-bottom:1px solid #eceff5}.bwpx .r{text-align:right;white-space:nowrap}
+.bwps{margin-top:14px;border-top:1px solid #e3e7ee}.bwps div{display:flex;justify-content:space-between;padding:10px 12px;font-size:15px;color:#3b4258}
+.bwps .bwpp{border-top:1px solid #e3e7ee;font-size:16px;font-weight:600;color:#2d3350}
+.bwpn{font-size:12.5px;color:#7b8194;margin-top:8px}
+}
+</style>
 </body></html>
