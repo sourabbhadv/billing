@@ -2784,7 +2784,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 14-Nov-J';
+var APPV='App version 14-Nov-K';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -5444,6 +5444,52 @@ PSYS += '\nMULTI-ITEM TRANSACTIONS: A single sale, purchase, return, estimate, o
   var h=oldH(),on=PS().billPic!==0;
   return h+'<div class="setrow"><div class="t"><b>Send a picture with every message</b><span class="mu">Bills, payments, returns, estimates, orders, challans, dispatch updates and statements go with a picture. Reminders stay text only. Needs the master switch above.</span></div>'+sw(on,"PS().billPic=this.checked?1:0;save();awPaint()",!PS().autoWA)+'</div>';
  };
+})();
+</script>
+<script id="promo-tracker">
+/* Promotions page: who the offer was sent to, who is waiting, and who failed */
+(function(){
+ var TAB='wait',LIM=300,T=null,busy=0;
+ function e(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+ function ft(t){if(!t)return '';var d=new Date(t);return isNaN(d)?'':d.toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}
+ function row(m,k){
+  var when=k==='wait'?(m.send_after?'goes around '+ft(m.send_after):'goes next'):k==='sent'?'sent '+ft(m.sent_at||m.created_at):(m.error?String(m.error).slice(0,60):'failed');
+  return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #eef0f6"><div><b>'+e(m.party_name||'Customer')+'</b><div class="mu">'+e(m.phone||'')+(m.campaign?' \u00b7 '+e(m.campaign):'')+'</div></div><div class="mu" style="text-align:right;white-space:nowrap">'+e(when)+'</div></div>'}
+ function paint(){
+  var a=document.getElementById('pr_track');if(!a)return;
+  if(!T){a.innerHTML='<div class="pr-h">\u27a4 Offer messages: sent and waiting</div><div class="mu">Loading...</div>';return}
+  var tabs=[['wait','Waiting',T.cw],['sent','Sent',T.cs],['fail','Failed',T.cf]];
+  var rows=T[TAB]||[],n=TAB==='wait'?T.cw:TAB==='sent'?T.cs:T.cf;
+  a.innerHTML='<div class="pr-h">\u27a4 Offer messages: sent and waiting</div>'+
+   '<div class="pr-sp">'+tabs.map(function(t){return '<button class="s'+(TAB===t[0]?' on':'')+'" onclick="prTrTab(\''+t[0]+'\')">'+t[1]+' ('+t[2]+')</button>'}).join('')+'<button class="s" onclick="prTrLoad()">Refresh</button></div>'+
+   '<div style="max-height:420px;overflow:auto;margin-top:6px">'+(rows.length?rows.map(function(m){return row(m,TAB)}).join(''):'<div class="mu" style="padding:10px 0">'+(TAB==='wait'?'Nothing is waiting.':TAB==='sent'?'Nothing sent yet.':'No failed messages.')+'</div>')+'</div>'+
+   (n>rows.length?'<div class="mu" style="margin-top:6px">Showing '+rows.length+' of '+n+'.</div>':'');
+ }
+ function q(st,sel,ord,asc){
+  return Promise.resolve(SB.from('outbox').select(sel).eq('kind','promo').in('status',st).order(ord,{ascending:asc}).limit(LIM));
+ }
+ function cnt(st){return Promise.resolve(SB.from('outbox').select('id',{count:'exact',head:true}).eq('kind','promo').in('status',st)).then(function(r){return (r&&r.count)||0})}
+ window.prTrTab=function(t){TAB=t;paint()};
+ window.prTrLoad=function(){
+  if(!document.getElementById('pr_track')||busy||typeof obOk!=='function'||!obOk())return;
+  busy=1;var f='id,phone,party_name,campaign,status,send_after,sent_at,created_at,error';
+  Promise.all([q(['pending','sending'],f,'send_after',true),q(['sent'],f,'sent_at',false),q(['failed'],f,'created_at',false),cnt(['pending','sending']),cnt(['sent']),cnt(['failed'])]).then(function(r){
+   busy=0;T={wait:(r[0]&&r[0].data)||[],sent:(r[1]&&r[1].data)||[],fail:(r[2]&&r[2].data)||[],cw:r[3],cs:r[4],cf:r[5]};paint()
+  }).catch(function(){busy=0});
+ };
+ var oldPend=window.prPend;
+ window.prPend=function(){
+  var r=oldPend&&oldPend.apply(this,arguments);
+  try{
+   var recs=document.getElementById('pr_recs');
+   if(recs&&!document.getElementById('pr_track')){
+    var card=recs.parentNode,d=document.createElement('div');d.className='card pr-step';d.id='pr_track';
+    card.parentNode.insertBefore(d,card);T=null;paint();
+   }
+   window.prTrLoad();
+  }catch(x){}
+  return r};
+ setInterval(function(){if(document.getElementById('pr_track')&&!document.hidden)window.prTrLoad()},30000);
 })();
 </script>
 </body></html>
