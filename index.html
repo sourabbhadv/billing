@@ -1166,22 +1166,22 @@ function impGo(x){
 var _vBk3=vBk;vBk=function(){return _vBk3()+'<div class="card"><b>Import from Vyapar</b><p class="mu">Press the button and choose your Vyapar backup file (<b>.vyb</b>) straight from Vyapar. No conversion needed. It brings in your parties, items, sale bills, purchases, payments, returns, orders and estimates.</p><button class="b" style="width:100%;max-width:420px;padding:12px" onclick="vybPick()">Choose Vyapar backup file</button></div>'};
 /* ================= VYAPAR BACKUP READER (.vyb / .vyp) ================= */
 /* Reads the Vyapar backup file directly: unzip -> read database -> convert -> same Import as before. */
-function vybConvert(Q){
+function vybConvert(Tb){
  var out={parties:[],items:[],bills:[],pays:[],docs:[],seq:1},r,i;
  function num(v){return +v||0}
  function rd(v){return Math.round(num(v)*100)/100}
  function ts(d,t){if(!d)return Date.now();var x=new Date(String(d).replace(' ','T')).getTime();if(isNaN(x))x=Date.now();return x+(num(t)%86400)*1000}
  function str(v){return v==null?'':String(v).trim()}
- var U={};Q('select unit_id,unit_name,unit_short_name from kb_item_units').forEach(function(u){U[u.unit_id]=str(u.unit_short_name)||str(u.unit_name)||'pcs'});
+ var U={};Tb('kb_item_units').forEach(function(u){U[u.unit_id]=str(u.unit_short_name)||str(u.unit_name)||'pcs'});
  /* ---- items ---- */
  var IT={};
- Q('select * from kb_items order by item_id').forEach(function(x){
+ Tb('kb_items').forEach(function(x){
   var it={id:'i'+x.item_id,name:str(x.item_name)||('Item '+x.item_id),unit:U[x.base_unit_id]||'pcs',rate:rd(x.item_sale_unit_price),buy:rd(x.item_purchase_unit_price),qty:rd(x.item_stock_quantity),low:rd(x.item_min_stock_quantity)};
   var loc=str(x.item_location);if(loc)it.loc=loc;
   IT[x.item_id]=it;out.items.push(it)});
  /* ---- parties ---- */
  var PT={},open={};
- Q('select * from kb_names order by name_id').forEach(function(x){
+ Tb('kb_names').forEach(function(x){
   var p={id:'p'+x.name_id,name:str(x.full_name)||('Party '+x.name_id),phone:str(x.phone_number),open:0};
   var ad=str(x.address);if(ad)p.addr=ad;var sh=str(x.name_shipping_address);if(sh)p.ship=sh;
   PT[x.name_id]=p;out.parties.push(p)});
@@ -1191,7 +1191,7 @@ function vybConvert(Q){
   return PT.walk}
  /* ---- transactions ---- */
  var L={};
- Q('select * from kb_lineitems order by lineitem_id').forEach(function(l){(L[l.lineitem_txn_id]=L[l.lineitem_txn_id]||[]).push(l)});
+ Tb('kb_lineitems').forEach(function(l){(L[l.lineitem_txn_id]=L[l.lineitem_txn_id]||[]).push(l)});
  function lines(t,sent){
   var a=(L[t.txn_id]||[]).map(function(l){
    var it=IT[l.item_id],x={name:it?it.name:'Item',unit:U[l.lineitem_unit_id]||(it?it.unit:'pcs'),rate:rd(l.priceperunit),qty:num(l.quantity),amt:rd(l.total_amount),iid:it?it.id:''};
@@ -1200,7 +1200,7 @@ function vybConvert(Q){
   var ship=num(t.txn_ac1_amount);
   if(ship>0)a.push({name:str(t.ac1_name)||'Shipping',unit:'',rate:rd(ship),qty:1,amt:rd(ship),iid:'',sent:sent?1:undefined});
   return a}
- var T=Q('select * from kb_transactions order by txn_date,txn_id');
+ var T=Tb('kb_transactions').sort(function(a,b){var x=String(a.txn_date||''),y=String(b.txn_date||'');return x<y?-1:x>y?1:a.txn_id-b.txn_id});
  var usedBill={},maxBill=0;
  T.forEach(function(t){if(t.txn_type===1){var n=parseInt(t.txn_ref_number_char,10);if(n>0&&!usedBill[n]){usedBill[n]=1;maxBill=Math.max(maxBill,n)}}});
  var billNo={},docNoBy={pur:0,pret:0,so:0,est:0,chal:0};
@@ -1230,13 +1230,13 @@ function vybConvert(Q){
   out.docs.push(dc);docTx[t.txn_id]=dc;
   if(k==='pur'&&paid>0)out.pays.push({id:'y'+t.txn_id+'p',pid:p.id,date:dc.date,amt:paid,out:1,note:'With purchase #'+dc.no,dn:dc.id})});
  /* orders converted into a sale: mark as converted */
- Q('select * from kb_linked_transactions').forEach(function(k){
+ Tb('kb_linked_transactions').forEach(function(k){
   var d=docTx[k.txn_source_id],b=billTx[k.txn_destination_id];
   if(!d||!b){d=docTx[k.txn_destination_id];b=billTx[k.txn_source_id]}
   if(d&&b){d.st='done';d.bn=b.no}});
  /* payments linked to invoices */
  var links={};
- Q('select * from kb_txn_links').forEach(function(k){
+ Tb('kb_txn_links').forEach(function(k){
   var pay,inv;
   if(k.txn_links_txn_1_type===3&&k.txn_links_txn_2_type===1){pay=k.txn_links_txn_1_id;inv=k.txn_links_txn_2_id}
   else if(k.txn_links_txn_1_type===1&&k.txn_links_txn_2_type===3){pay=k.txn_links_txn_2_id;inv=k.txn_links_txn_1_id}
@@ -1277,32 +1277,69 @@ function vybUnzip(u8){
  var lnl=dv.getUint16(best.lo+26,true),lel=dv.getUint16(best.lo+28,true),st=best.lo+30+lnl+lel,comp=u8.subarray(st,st+best.cs);
  if(best.m===0)return Promise.resolve(comp);
  if(typeof DecompressionStream==='function'){
-  return new Response(new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b){return new Uint8Array(b)})}
- return vybScript('https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',function(){return window.pako}).then(function(pk){return pk.inflateRaw(comp)})}
+  return new Response(new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b){return new Uint8Array(b)},function(){return viaPako()})}
+ return viaPako();
+ function viaPako(){return vybScript('https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',function(){return window.pako}).then(function(pk){return pk.inflateRaw(comp)})}}
 
 var VYB_SCRIPTS={};
 function vybScript(url,chk){
  if(VYB_SCRIPTS[url])return VYB_SCRIPTS[url];
  return VYB_SCRIPTS[url]=new Promise(function(res,rej){
-  if(chk()&&true)return res(chk());
+  if(chk())return res(chk());
   var s=document.createElement('script');s.src=url;s.onload=function(){chk()?res(chk()):rej(new Error('load'))};s.onerror=function(){delete VYB_SCRIPTS[url];rej(new Error('Could not load '+url+'. Please check the internet.'))};document.head.appendChild(s)})}
-function vybSqlJs(){
- var bases=['https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/','https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/'],k=0;
- function go(){
-  var b=bases[k];
-  return vybScript(b+'sql-wasm.js',function(){return window.initSqlJs}).then(function(init){return init({locateFile:function(f){return b+f}})}).then(null,function(e){
-   if(++k<bases.length){delete VYB_SCRIPTS[bases[k-1]+'sql-wasm.js'];return go()}throw e})}
- return go()}
+
+/* ---- tiny built-in SQLite reader (no WebAssembly, no internet needed) ---- */
+function vybDb(u8){
+ var dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength),ps=dv.getUint16(16),utf=dv.getUint32(56);
+ if(ps===1)ps=65536;var U=ps-u8[20],dec=new TextDecoder(utf===1||!utf?'utf-8':'utf-16le');
+ function vi(p,z){z=z||u8;var v=0,i=0,c;for(;i<8;i++){c=z[p+i];v=v*128+(c&127);if(c<128)return [v,i+1]}c=z[p+8];return [v*256+c,9]}
+ function rec(a){
+  var h=vi(0,a),hs=h[0],p=h[1],ty=[],o=[],q;
+  while(p<hs){q=vi(p,a);ty.push(q[0]);p+=q[1]}
+  p=hs;var d=new DataView(a.buffer,a.byteOffset,a.byteLength);
+  ty.forEach(function(t){var v=null;
+   if(t===0)v=null;else if(t===1){v=d.getInt8(p);p+=1}else if(t===2){v=d.getInt16(p);p+=2}
+   else if(t===3){v=(a[p]<<16|a[p+1]<<8|a[p+2]);if(v&0x800000)v-=0x1000000;p+=3}
+   else if(t===4){v=d.getInt32(p);p+=4}
+   else if(t===5){v=d.getInt16(p)*4294967296+d.getUint32(p+2);p+=6}
+   else if(t===6){v=Number(d.getBigInt64(p));p+=8}
+   else if(t===7){v=d.getFloat64(p);p+=8}else if(t===8)v=0;else if(t===9)v=1;
+   else if(t>=12){var n=t%2?(t-13)/2:(t-12)/2;v=t%2?dec.decode(a.subarray(p,p+n)):a.slice(p,p+n);p+=n}
+   o.push(v)});
+  return o}
+ function payload(p,tot){
+  var X=U-35;if(tot<=X)return u8.subarray(p,p+tot);
+  var M=Math.floor((U-12)*32/255)-23,K=M+((tot-M)%(U-4)),loc=K<=X?K:M,out=new Uint8Array(tot);
+  out.set(u8.subarray(p,p+loc),0);var got=loc,ov=dv.getUint32(p+loc);
+  while(ov&&got<tot){var b=(ov-1)*ps,n=Math.min(U-4,tot-got);out.set(u8.subarray(b+4,b+4+n),got);got+=n;ov=dv.getUint32(b)}
+  return out}
+ function walk(pg,cb){
+  var b=(pg-1)*ps,h=pg===1?b+100:b,t=u8[h],n=dv.getUint16(h+3),hl=t===5?12:8,i,c;
+  if(t===13){for(i=0;i<n;i++){c=b+dv.getUint16(h+hl+i*2);var a=vi(c),r=vi(c+a[1]);cb(r[0],payload(c+a[1]+r[1],a[0]))}}
+  else if(t===5){for(i=0;i<n;i++){c=b+dv.getUint16(h+hl+i*2);walk(dv.getUint32(c),cb)}walk(dv.getUint32(h+8),cb)}
+  else throw new Error('Unsupported database page')}
+ var cat={};
+ walk(1,function(id,a){var r=rec(a);if(r[0]==='table')cat[r[1]]={root:r[3],sql:r[4]}});
+ function cols(sql){
+  var i=sql.indexOf('('),dp=0,cur='',parts=[],j,ch;
+  for(j=i+1;j<sql.length;j++){ch=sql[j];if(ch==='(')dp++;if(ch===')'){if(dp===0)break;dp--}
+   if(ch===','&&dp===0){parts.push(cur);cur=''}else cur+=ch}
+  parts.push(cur);var o=[];
+  parts.forEach(function(x){x=x.trim();if(!x||/^(primary|unique|foreign|check|constraint)\b/i.test(x))return;
+   var m=x.match(/^(?:"([^"]+)"|\[([^\]]+)\]|`([^`]+)`|([^\s]+))/);
+   o.push({n:m[1]||m[2]||m[3]||m[4],ipk:/integer\s+primary\s+key/i.test(x)})});
+  return o}
+ return function(name){
+  var t=cat[name];if(!t)return [];var cs=cols(t.sql),rows=[];
+  walk(t.root,function(id,a){var r=rec(a),o={};cs.forEach(function(c,i){o[c.n]=c.ipk&&r[i]==null?id:(r[i]===undefined?null:r[i])});rows.push(o)});
+  return rows}}
 
 function vybFromBytes(u8){
  var head=String.fromCharCode.apply(null,u8.subarray(0,16));
  var pr=head.slice(0,2)==='PK'?vybUnzip(u8):Promise.resolve(u8);
  return pr.then(function(db){
   if(String.fromCharCode.apply(null,db.subarray(0,15))!=='SQLite format 3')throw new Error('This file is not a Vyapar backup.');
-  return vybSqlJs().then(function(SQL){
-   var d=new SQL.Database(db);
-   function Q(sql){var r=d.exec(sql);if(!r.length)return [];var c=r[0].columns,o=[];r[0].values.forEach(function(v){var x={};for(var i=0;i<c.length;i++)x[c[i]]=v[i];o.push(x)});return o}
-   try{return vybConvert(Q)}finally{d.close()}})})}
+  return vybConvert(vybDb(db))})}
 
 /* ---- file picker that works on phone and laptop (made fresh, so a page refresh can never remove it) ---- */
 function vybHandle(f){
