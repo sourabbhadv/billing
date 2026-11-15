@@ -3170,7 +3170,7 @@ function dkSale(){
  if(draft.ino===undefined)draft.ino=nx;if(draft.mode===undefined)draft.mode='credit';
  draft.lines.forEach(function(l,k){sub+=l.amt;qt+=+l.qty||0;rows+='<tr><td class="rn"><span class="no">'+(k+1)+'</span><button type="button" class="tr" title="Click delete icon to delete row" onclick="draft.lines.splice('+k+',1);render()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v7M14 10v7"/></svg></button></td><td>'+elnIn(k,'name',l.name,'text')+'</td><td style="width:200px"><input value="'+esc(l.desc||'')+'" onchange="dkDesc('+k+',this.value)"></td><td style="width:100px">'+elnIn(k,'qty',l.qty,'number')+'</td><td style="width:110px">'+elnIn(k,'unit',l.unit,'text')+'</td><td style="width:130px">'+elnIn(k,'rate',l.rate,'number')+'</td><td class="n" style="width:130px;padding-right:12px">'+money(l.amt)+'</td><td style="width:150px">'+sentCell(l,k)+'</td><td></td></tr>'});
  if(last){var lb=D.bills.find(function(x){return x.no===last});if(lb)h+='<div class="ok" style="margin:10px 24px">Bill #'+lb.no+' saved. <button class="b" onclick="wa('+lb.no+')">Send text</button> <button class="b" onclick="shareBill('+lb.no+')">Send bill picture</button> <button class="s" onclick="printHtml(\'Bill '+lb.no+'\',billHtml(bl('+lb.no+')))">Print</button></div>'}
- if(eb)h+='<div class="ok" style="margin:10px 24px">Editing bill #'+eb.no+' <button class="s" onclick="draft={pid:\'\',name:\'\',phone:\'\',lines:[]};viewB='+eb.no+';render()">Cancel edit</button></div>';
+ if(eb)h+='<div class="ok" style="margin:10px 24px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>Saved bill #'+eb.no+' - change anything and press Save changes.</span><span style="flex:1"></span><button class="s" onclick="wa('+eb.no+')">WhatsApp</button><button class="s" onclick="cancelBill('+eb.no+');var q=bl('+eb.no+');if(q&&q.x)leaveForm()">Cancel bill</button><button class="s" style="color:#d93025" onclick="delBill('+eb.no+')">Delete</button><button class="s" onclick="leaveForm()">Close</button></div>';
  var nm=(draft.name||'').trim();
  h='<div class="dks">'+dkTabStrip()
  +'<div class="dkh"><h2>'+(eb?'Edit Sale':'Sale')+'</h2>'+dkTog()+'<span class="firm"><i></i>'+esc(PS().name||D.shop)+'</span></div>'+h
@@ -6272,5 +6272,30 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 '.dkg td:nth-child(4) input,.dkg td:nth-child(6) input{text-align:right!important;padding-right:0!important;-moz-appearance:textfield;appearance:textfield}'+
 '.dkg td:nth-child(4) input::-webkit-outer-spin-button,.dkg td:nth-child(4) input::-webkit-inner-spin-button,.dkg td:nth-child(6) input::-webkit-outer-spin-button,.dkg td:nth-child(6) input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}'+
 '}';document.head.appendChild(st)})();
+</script>
+<script>
+/* ---------- DESKTOP ONLY: a saved bill opens in the same bill-making screen ---------- */
+(function(){
+ var hold=0,_r=render;
+ render=function(){
+  if(!isM()&&viewB&&!openB&&!hold){
+   var b=bl(viewB);
+   if(b&&!b.x){
+    var n=viewB;viewB=null;
+    var ti=-1;try{ti=DKT.findIndex(function(d){return d&&d.edit===n})}catch(e){}
+    if(ti>=0){draft=DKT[ti];DKA=ti;form=true;tab='bill';last=null;return _r.apply(this,arguments)}
+    editBill(n);return
+   }
+  }
+  return _r.apply(this,arguments)};
+ /* after "Save changes": show the same screen as after a new bill (saved message, ready for the next) */
+ var _se=saveEdit;
+ saveEdit=function(){
+  if(isM())return _se.apply(this,arguments);
+  var no=draft&&draft.edit;hold=1;
+  try{_se.apply(this,arguments)}finally{hold=0}
+  if(no!=null&&viewB===no){viewB=null;form=true;tab='bill';last=no;render()}
+ };
+})();
 </script>
 </body></html>
