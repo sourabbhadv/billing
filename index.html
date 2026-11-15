@@ -1163,7 +1163,169 @@ function impGo(x){
    return ch}).then(function(){IMPORTING=0;impMsg('');render();alert('Done! All your Vyapar data is now in the app and saved in the cloud.')})
   .catch(function(e){IMPORTING=0;impMsg('');render();alert('Saving stopped ('+((e&&e.message)||e)+'). Nothing is lost. Please press Import again and choose the same file.')});
  },80)}
-var _vBk3=vBk;vBk=function(){return _vBk3()+'<div class="card"><b>Import from Vyapar</b><p class="mu">Choose the file <b>vyapar_data.json</b> here. It brings in your parties, items, sale bills, purchases, payments, returns, orders and estimates.</p><input type="file" accept=".json" onchange="impFile(this)"></div>'};
+var _vBk3=vBk;vBk=function(){return _vBk3()+'<div class="card"><b>Import from Vyapar</b><p class="mu">Press the button and choose your Vyapar backup file (<b>.vyb</b>) straight from Vyapar. No conversion needed. It brings in your parties, items, sale bills, purchases, payments, returns, orders and estimates.</p><button class="b" style="width:100%;max-width:420px;padding:12px" onclick="vybPick()">Choose Vyapar backup file</button></div>'};
+/* ================= VYAPAR BACKUP READER (.vyb / .vyp) ================= */
+/* Reads the Vyapar backup file directly: unzip -> read database -> convert -> same Import as before. */
+function vybConvert(Q){
+ var out={parties:[],items:[],bills:[],pays:[],docs:[],seq:1},r,i;
+ function num(v){return +v||0}
+ function rd(v){return Math.round(num(v)*100)/100}
+ function ts(d,t){if(!d)return Date.now();var x=new Date(String(d).replace(' ','T')).getTime();if(isNaN(x))x=Date.now();return x+(num(t)%86400)*1000}
+ function str(v){return v==null?'':String(v).trim()}
+ var U={};Q('select unit_id,unit_name,unit_short_name from kb_item_units').forEach(function(u){U[u.unit_id]=str(u.unit_short_name)||str(u.unit_name)||'pcs'});
+ /* ---- items ---- */
+ var IT={};
+ Q('select * from kb_items order by item_id').forEach(function(x){
+  var it={id:'i'+x.item_id,name:str(x.item_name)||('Item '+x.item_id),unit:U[x.base_unit_id]||'pcs',rate:rd(x.item_sale_unit_price),buy:rd(x.item_purchase_unit_price),qty:rd(x.item_stock_quantity),low:rd(x.item_min_stock_quantity)};
+  var loc=str(x.item_location);if(loc)it.loc=loc;
+  IT[x.item_id]=it;out.items.push(it)});
+ /* ---- parties ---- */
+ var PT={},open={};
+ Q('select * from kb_names order by name_id').forEach(function(x){
+  var p={id:'p'+x.name_id,name:str(x.full_name)||('Party '+x.name_id),phone:str(x.phone_number),open:0};
+  var ad=str(x.address);if(ad)p.addr=ad;var sh=str(x.name_shipping_address);if(sh)p.ship=sh;
+  PT[x.name_id]=p;out.parties.push(p)});
+ function party(id){
+  if(PT[id])return PT[id];
+  if(!PT.walk){PT.walk={id:'pwalk',name:'Walk-in Customer',phone:'',open:0};out.parties.push(PT.walk)}
+  return PT.walk}
+ /* ---- transactions ---- */
+ var L={};
+ Q('select * from kb_lineitems order by lineitem_id').forEach(function(l){(L[l.lineitem_txn_id]=L[l.lineitem_txn_id]||[]).push(l)});
+ function lines(t,sent){
+  var a=(L[t.txn_id]||[]).map(function(l){
+   var it=IT[l.item_id],x={name:it?it.name:'Item',unit:U[l.lineitem_unit_id]||(it?it.unit:'pcs'),rate:rd(l.priceperunit),qty:num(l.quantity),amt:rd(l.total_amount),iid:it?it.id:''};
+   var ds=str(l.lineitem_description);if(ds)x.desc=ds;
+   if(sent)x.sent=1;return x});
+  var ship=num(t.txn_ac1_amount);
+  if(ship>0)a.push({name:str(t.ac1_name)||'Shipping',unit:'',rate:rd(ship),qty:1,amt:rd(ship),iid:'',sent:sent?1:undefined});
+  return a}
+ var T=Q('select * from kb_transactions order by txn_date,txn_id');
+ var usedBill={},maxBill=0;
+ T.forEach(function(t){if(t.txn_type===1){var n=parseInt(t.txn_ref_number_char,10);if(n>0&&!usedBill[n]){usedBill[n]=1;maxBill=Math.max(maxBill,n)}}});
+ var billNo={},docNoBy={pur:0,pret:0,so:0,est:0,chal:0};
+ var DTYPE={2:'pur',23:'pret',24:'so',27:'est',28:'chal'};
+ var billTx={},docTx={},bn;
+ /* pass 1: sale bills first (so links can point to them) */
+ var seenB={};
+ T.forEach(function(t){
+  var ty=t.txn_type,p=party(t.txn_name_id),total=rd(num(t.txn_cash_amount)+num(t.txn_balance_amount)),paid=rd(t.txn_cash_amount);
+  if(ty===5)open[p.id]=(open[p.id]||0)+rd(num(t.txn_balance_amount)+num(t.txn_cash_amount));
+  else if(ty===6)open[p.id]=(open[p.id]||0)-rd(num(t.txn_balance_amount)+num(t.txn_cash_amount));
+  else if(ty===1){
+   var n=parseInt(t.txn_ref_number_char,10);if(!(n>0)||seenB[n]){n=++maxBill}seenB[n]=1;
+   var b={id:'b'+t.txn_id,no:n,pid:p.id,date:ts(t.txn_date,t.txn_time),lines:lines(t,true),total:total,paid:paid};
+   var d=rd(t.txn_discount_amount);if(d>0)b.disc=d;
+   try{var cf=JSON.parse(t.txn_custom_field||'{}'),tr=(cf.transportation_details||[])[0];if(tr&&str(tr.value))b.tn=str(tr.value)}catch(e){}
+   var ba=str(t.txn_billing_address);if(ba&&!/^[\d\s+]+$/.test(ba))b.addr=ba;
+   out.bills.push(b);billTx[t.txn_id]=b;
+   if(paid>0)out.pays.push({id:'y'+t.txn_id+'w',pid:p.id,date:b.date,amt:paid,note:'With bill #'+n})}
+ });
+ /* pass 2: purchases, orders, estimates, challans, returns */
+ T.forEach(function(t){
+  var ty=t.txn_type,k=DTYPE[ty];if(!k)return;
+  var p=party(t.txn_name_id),total=rd(num(t.txn_cash_amount)+num(t.txn_balance_amount)),paid=rd(t.txn_cash_amount),n=parseInt(t.txn_ref_number_char,10);
+  docNoBy[k]=(n>0&&n>docNoBy[k])?n:docNoBy[k]+1;
+  var dc={id:'d'+t.txn_id,t:k,no:docNoBy[k],pid:p.id,date:ts(t.txn_date,t.txn_time),lines:lines(t,false),total:total,st:'open',gd:''};
+  out.docs.push(dc);docTx[t.txn_id]=dc;
+  if(k==='pur'&&paid>0)out.pays.push({id:'y'+t.txn_id+'p',pid:p.id,date:dc.date,amt:paid,out:1,note:'With purchase #'+dc.no,dn:dc.id})});
+ /* orders converted into a sale: mark as converted */
+ Q('select * from kb_linked_transactions').forEach(function(k){
+  var d=docTx[k.txn_source_id],b=billTx[k.txn_destination_id];
+  if(!d||!b){d=docTx[k.txn_destination_id];b=billTx[k.txn_source_id]}
+  if(d&&b){d.st='done';d.bn=b.no}});
+ /* payments linked to invoices */
+ var links={};
+ Q('select * from kb_txn_links').forEach(function(k){
+  var pay,inv;
+  if(k.txn_links_txn_1_type===3&&k.txn_links_txn_2_type===1){pay=k.txn_links_txn_1_id;inv=k.txn_links_txn_2_id}
+  else if(k.txn_links_txn_1_type===1&&k.txn_links_txn_2_type===3){pay=k.txn_links_txn_2_id;inv=k.txn_links_txn_1_id}
+  else return;
+  (links[pay]=links[pay]||[]).push({inv:inv,amt:num(k.txn_links_amount)})});
+ /* pass 3: payments in/out and sale returns */
+ T.forEach(function(t){
+  var ty=t.txn_type,p,cash=rd(t.txn_cash_amount),dte=ts(t.txn_date,t.txn_time),note=str(t.txn_description);
+  if(ty===3){
+   p=party(t.txn_name_id);var left=cash;
+   (links[t.txn_id]||[]).forEach(function(k){var b=billTx[k.inv];if(!b||!(k.amt>0))return;
+    var a=Math.min(rd(k.amt),left);if(a<=0)return;left=rd(left-a);
+    out.pays.push({id:'y'+t.txn_id+'-'+k.inv,pid:p.id,date:dte,amt:a,note:'Against bill #'+b.no,bn:b.no})});
+   if(left>0.004)out.pays.push({id:'y'+t.txn_id,pid:p.id,date:dte,amt:left,note:note})}
+  else if(ty===4){
+   p=party(t.txn_name_id);if(cash>0)out.pays.push({id:'y'+t.txn_id,pid:p.id,date:dte,amt:cash,out:1,note:note})}
+  else if(ty===21){
+   p=party(t.txn_name_id);var tot=rd(num(t.txn_cash_amount)+num(t.txn_balance_amount));
+   out.pays.push({id:'y'+t.txn_id,pid:p.id,date:dte,amt:tot,note:'Sale return',ret:1,lines:lines(t,false)});
+   if(cash>0)out.pays.push({id:'y'+t.txn_id+'r',pid:p.id,date:dte,amt:cash,out:1,note:'Refund with sale return'})}
+ });
+ out.parties.forEach(function(p){p.open=rd(open[p.id]||0)});
+ out.seq=maxBill+1;
+ return out}
+
+/* ---- unzip (the .vyb is a zip holding one .vyp database) ---- */
+function vybUnzip(u8){
+ var dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength),e=-1,i;
+ for(i=u8.length-22;i>=Math.max(0,u8.length-70000);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}
+ if(e<0)return Promise.reject(new Error('This is not a Vyapar backup (zip not found).'));
+ var n=dv.getUint16(e+10,true),p=dv.getUint32(e+16,true),best=null;
+ for(i=0;i<n;i++){
+  if(dv.getUint32(p,true)!==0x02014b50)break;
+  var m=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),us=dv.getUint32(p+24,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+  if(!best||us>best.us)best={m:m,cs:cs,us:us,lo:lo};
+  p+=46+nl+el+cl}
+ if(!best)return Promise.reject(new Error('The Vyapar backup is empty.'));
+ var lnl=dv.getUint16(best.lo+26,true),lel=dv.getUint16(best.lo+28,true),st=best.lo+30+lnl+lel,comp=u8.subarray(st,st+best.cs);
+ if(best.m===0)return Promise.resolve(comp);
+ if(typeof DecompressionStream==='function'){
+  return new Response(new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function(b){return new Uint8Array(b)})}
+ return vybScript('https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',function(){return window.pako}).then(function(pk){return pk.inflateRaw(comp)})}
+
+var VYB_SCRIPTS={};
+function vybScript(url,chk){
+ if(VYB_SCRIPTS[url])return VYB_SCRIPTS[url];
+ return VYB_SCRIPTS[url]=new Promise(function(res,rej){
+  if(chk()&&true)return res(chk());
+  var s=document.createElement('script');s.src=url;s.onload=function(){chk()?res(chk()):rej(new Error('load'))};s.onerror=function(){delete VYB_SCRIPTS[url];rej(new Error('Could not load '+url+'. Please check the internet.'))};document.head.appendChild(s)})}
+function vybSqlJs(){
+ var bases=['https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/','https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/'],k=0;
+ function go(){
+  var b=bases[k];
+  return vybScript(b+'sql-wasm.js',function(){return window.initSqlJs}).then(function(init){return init({locateFile:function(f){return b+f}})}).then(null,function(e){
+   if(++k<bases.length){delete VYB_SCRIPTS[bases[k-1]+'sql-wasm.js'];return go()}throw e})}
+ return go()}
+
+function vybFromBytes(u8){
+ var head=String.fromCharCode.apply(null,u8.subarray(0,16));
+ var pr=head.slice(0,2)==='PK'?vybUnzip(u8):Promise.resolve(u8);
+ return pr.then(function(db){
+  if(String.fromCharCode.apply(null,db.subarray(0,15))!=='SQLite format 3')throw new Error('This file is not a Vyapar backup.');
+  return vybSqlJs().then(function(SQL){
+   var d=new SQL.Database(db);
+   function Q(sql){var r=d.exec(sql);if(!r.length)return [];var c=r[0].columns,o=[];r[0].values.forEach(function(v){var x={};for(var i=0;i<c.length;i++)x[c[i]]=v[i];o.push(x)});return o}
+   try{return vybConvert(Q)}finally{d.close()}})})}
+
+/* ---- file picker that works on phone and laptop (made fresh, so a page refresh can never remove it) ---- */
+function vybHandle(f){
+ if(!f)return;
+ impMsg('Reading "'+f.name+'" ... please wait');
+ var rdr=new FileReader();
+ rdr.onerror=function(){impMsg('');alert('Could not read this file.')};
+ rdr.onload=function(){
+  var u8=new Uint8Array(rdr.result),c=u8[0];
+  if(c===0x7b||c===0x5b||(c===0xef&&u8[1]===0xbb)){ /* JSON text */
+   var x;try{x=JSON.parse(new TextDecoder().decode(u8))}catch(e){impMsg('');return alert('This file is not a Vyapar backup and not a backup of this app.')}
+   impMsg('');if(!x||!x.parties||!x.items||!x.bills||!x.pays)return alert('This JSON file is not a backup of this app.');return impGo(x)}
+  setTimeout(function(){
+   vybFromBytes(u8).then(function(x){impMsg('');impGo(x)},function(e){impMsg('');alert('Could not read the Vyapar file.\n\n'+((e&&e.message)||e))})},30)};
+ rdr.readAsArrayBuffer(f)}
+function vybPick(){
+ var i=document.createElement('input');i.type='file';
+ i.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
+ i.onchange=function(){var f=i.files&&i.files[0];setTimeout(function(){i.remove()},120000);vybHandle(f)};
+ document.body.appendChild(i);i.click()}
+impFile=function(inp){var f=inp&&inp.files&&inp.files[0];if(inp)try{inp.value=''}catch(e){}vybHandle(f)};
+
+
 
 /* ---------- STEP 1: transport, vehicle, discount on sale bill ---------- */
 function subTot(){var s=0;draft.lines.forEach(function(l){s+=l.amt});return s}
@@ -3953,6 +4115,7 @@ function call(parts,sys,json,opt){opt=opt||{};var c=cfg();if(c.p==='own')return 
  return next()}
 function fmt(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')}
 var MIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+var ORB='<span class="orb"><i></i><i></i><i></i></span>';
 var VL=[['en-IN','English'],['hi-IN','हिन्दी'],['mr-IN','मराठी']],SR=window.SpeechRecognition||window.webkitSpeechRecognition,V={rec:null,mr:null,st:'idle',tgt:'',o:null,fin:'',last:'',cancel:0};
 var CMD=/\b(bill|invoice|estimate|quotation|quote|challan|order|payment|received|receive|paid|jama|banao|bana|banaiye|banado|likho|create|make|add|entry|mile|mila|mili|diye|diya|liye|liya|bheje|bheja|udhar|credit|debit)\b|बिल|बना|बनवा|लिखो|जमा|मिले|मिला|दिए|दिये|पेमेंट|कोटेशन|ऑर्डर|तयार|करा/i;
 var PSYS='You turn a spoken request from an Indian shop owner into JSON. The speech may be English, Hindi or Marathi or a mix, written in Latin or Devanagari letters, and speech-to-text can make mistakes.\nChoose "action": "sale" (sale bill or invoice to a customer), "purchase" (purchase bill from a supplier), "estimate", "sale_order", "challan" (delivery challan), "sale_return" (customer returns goods), "purchase_return" (goods returned to supplier), "payment_in" (money received from a party), "payment_out" (money paid to a party), or "question" (anything else, such as asking about sales, profit, stock or balances).\nReturn ONLY one valid JSON object. No explanation, no markdown, no Hindi sentence outside JSON, and no code fences. Use exactly this schema: {"action":"","party":"","items":[{"name":"","qty":0,"unit":"","rate":0}],"paid":0,"amount":0,"note":""}. Missing values must be empty string, 0, or an empty array; NEVER invent values.\nRules: party is the customer or supplier name. items only for bills. rate is 0 if it was not said. paid is money received or paid together with the bill (else 0). amount is only for payments. Turn spoken numbers (das, paanch, दस, पाँच, "10 thousand") into digits. A time-like number such as 5:55 spoken as a price means 555. NEVER guess or invent anything. Write party and item names ONLY exactly as spoken by the owner. CRITICAL: NEVER complete, expand, guess, or select a longer party/item name from the shop database. If the owner says "Raju", output party="Raju" even if saved names include "Raju Tidke" or "Raju Traders". If the owner says "cement", output item name="cement" even if saved items include several cement products. The APP, not Gemini, will match spoken words against the saved list and will ask the owner when there is more than one match. If the quantity or rate was not clearly said, use 0. Write names in Latin letters. IMPORTANT FOR NATURAL HINDI/HINGLISH: understand everyday shop speech, not only formal commands. Examples: \"Raju ka maal vapsi aaya hai\" means action=sale_return, party=Raju; \"Raju ke 5000 rupaye aaye hain\" means action=payment_in, party=Raju, amount=5000; \"Raju ko 2000 rupaye diye\" means action=payment_out, party=Raju, amount=2000. For a return, words like maal/samaan together with wapas/vapsi/return mean a return even if the sentence also contains aaya/aayi/aaye. Never classify a return as a payment merely because it says aaya. Ask through missing fields later; do not invent item or quantity.\n';
@@ -4431,15 +4594,15 @@ window.vcSend=function(){var v=AI.vc;if(!v||v.st==='work'||v.conf)return;var e=g
  if(!ready())return vcSetup();v.q=q;v.txt='';v.ans='';v.msg='';v.st='work';vcDraw();
  run(q).then(function(r){if(AI.vc!==v)return;v.st='idle';if(r.k==='cmd'){v.conf=r.conf;if(vsay())speak(cmdLine(r.conf))}else if(r.k==='answer'){v.ans=r.t;if(vsay())speak(r.t)}else v.msg=r.t;vcDraw()})};
 function capHtml(v){var h='';
- if(!ready())return '<div class="red" style="margin:8px 0">Add your free AI key first, then you can talk to the app.</div><div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSetup()">Open Setup</button></div>';
- h+='<div class="aivl"><span class="mu">Speak in</span>'+chips()+engUI()+'</div>';
+ if(!ready())return '<div class="vfx"><button class="vfx-x" onclick="vcClose()" aria-label="Close">&times;</button><div class="vfx-mid"><div class="aivs red">Add your free AI key first, then you can talk to the app.</div></div><div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSetup()">Open Setup</button></div></div>';
+ h+='<div class="vfx"><button class="vfx-x" onclick="vcClose()" aria-label="Close">&times;</button><div class="aivl vfx-top"><span class="mu">Speak in</span>'+chips()+engUI()+'</div>';
  if(v.q&&!v.conf)h+='<div class="aib u" style="margin:4px 0 6px;align-self:flex-end;margin-left:auto">'+esc(v.q)+'</div>';
  if(v.ans)h+='<div class="aib a" style="margin:4px 0 8px;max-width:100%">'+fmt(v.ans)+'</div>';
- h+='<div class="aivm"><button type="button" class="aimic big'+(v.st==='listen'?' on':'')+'" id="aivmic" onclick="vcMic()" aria-label="Speak">'+MIC+'</button><div class="aivs'+(v.msg?' red':'')+'" id="aivs">'+esc(v.msg||(v.st==='work'?'Understanding... · समझ रहा हूँ':'Tap the mic and speak · माइक दबाकर बोलिए'))+'</div></div>';
+ h+='<div class="aivm vfx-mid"><button type="button" class="vorb'+(v.st==='listen'?' on':'')+'" id="aivmic" onclick="vcMic()" aria-label="Speak">'+ORB+'</button><div class="aivs'+(v.msg?' red':'')+'" id="aivs">'+esc(v.msg||(v.st==='work'?'Understanding... · समझ रहा हूँ':'Tap the mic and speak · माइक दबाकर बोलिए'))+'</div></div>';
  h+='<textarea id="vct" rows="3" placeholder="...or type here. Example: '+esc(VEX[0])+'" oninput="AI.vc.txt=this.value" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();vcSend()}">'+esc(v.txt)+'</textarea>';
  h+='<div class="aiex">'+VEX.map(function(x){return '<button onclick="var t=gid(\'vct\');t.value=this.textContent;AI.vc.txt=t.value">'+esc(x)+'</button>'}).join('')+'</div>';
  h+='<label class="mu aisay" style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto;margin:0"'+(vsay()?' checked':'')+' onchange="vcSay(this.checked)"> Read answers aloud</label>';
- h+='<div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSend()">Send</button></div>';
+ h+='<div class="aibt"><button class="s" onclick="vcClose()">Close</button><button class="b" onclick="vcSend()">Send</button></div></div>';
  return h}
 function pinfo(n){var p=findP(n);if(p)return 'Existing party. Balance '+money(bal(p));return (n||'').trim()?'New party, will be created when you save the bill':''}
 function ctot(c){var s=0;c.rows.forEach(function(r){s+=(+r.q||0)*(+r.r||0)});return s}
@@ -4473,13 +4636,13 @@ window.sugPh=ph;
 function vcErr(){var e=gid('vce');if(e)e.textContent=AI.vc.err}
 function vcDraw(){var v=AI.vc,o=gid('aivc');if(!v){if(o)o.remove();return}
  if(!o){o=document.createElement('div');o.id='aivc';o.onclick=function(e){if(e.target===o)vcClose()};document.body.appendChild(o)}
- o.innerHTML='<div class="aibox aivbox"><div class="aih"><b>'+(v.conf?TT[v.conf.a][0]:'Voice assistant · वॉइस असिस्टेंट')+(!v.conf&&!isM()?' <small class="aikbd">Alt+V</small>':'')+'</b><span onclick="vcClose()">&times;</span></div>'+(v.conf?confHtml(v):capHtml(v))+'</div>';
+ o.className=v.conf?'':'full';o.innerHTML='<div class="aibox aivbox"><div class="aih"><b>'+(v.conf?TT[v.conf.a][0]:'Voice assistant · वॉइस असिस्टेंट')+(!v.conf&&!isM()?' <small class="aikbd">Alt+V</small>':'')+'</b><span onclick="vcClose()">&times;</span></div>'+(v.conf?confHtml(v):capHtml(v))+'</div>';
  try{if(v.conf){sgList('ilx',D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join(''),D.items.length+'|'+D.items.reduce(function(n,i){return n+String(i.name).length},0));sugUp()}}catch(e){}
  if(!v.conf){var t=gid('vct');if(t&&!isM())t.focus()}}
 /* floating mic (mobile) and Voice button in the top bar (desktop) */
-function fabSync(){var f=gid('aifab');if(!f){f=document.createElement('button');f.id='aifab';f.className='aifab';f.setAttribute('aria-label','Voice');f.innerHTML=MIC;f.onclick=function(){vcOpen(true)};document.body.appendChild(f)}
+function fabSync(){var f=gid('aifab');if(!f){f=document.createElement('button');f.id='aifab';f.className='aifab';f.setAttribute('aria-label','Voice');f.innerHTML=ORB;f.onclick=function(){vcOpen(true)};document.body.appendChild(f)}
  var hide=false;try{hide=!!(form||sub||viewB||openB||viewD||pg==='ai'||AI.vc||AI.scan)}catch(e){}f.classList.toggle('show',!hide)}
-function topBtn(){var t=gid('top');if(!t||t.querySelector('.aitop'))return;var b=document.createElement('button');b.className='aitop';b.title='Speak a command (Alt+V)';b.onclick=function(){vcOpen(true)};b.innerHTML=MIC+'<span>Voice</span>';t.appendChild(b)}
+function topBtn(){var t=gid('top');if(!t||t.querySelector('.aitop'))return;var b=document.createElement('button');b.className='aitop';b.title='Speak a command (Alt+V)';b.onclick=function(){vcOpen(true)};b.innerHTML=ORB+'<span>Voice</span>';t.appendChild(b)}
 document.addEventListener('keydown',function(e){if(e.altKey&&e.code==='KeyV'&&!isM()){e.preventDefault();if(AI.vc)vcMic();else vcOpen(true)}else if(e.key==='Escape'&&AI.vc)vcClose();else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&AI.vc&&AI.vc.conf)vcGo()});
 var _rAi=render;render=function(){_rAi.apply(this,arguments);try{fabSync();topBtn()}catch(e){}};
 var st2=document.createElement('style');st2.textContent='.aimic{flex:0 0 auto;width:46px;height:46px;border-radius:50%;border:1.5px solid #c9cde0;background:#fff;color:#1a73e8;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}.aimic svg{width:22px;height:22px}.aimic.on{background:#e8213a;border-color:#e8213a;color:#fff;animation:aipulse 1.2s infinite}@keyframes aipulse{0%{box-shadow:0 0 0 0 rgba(232,33,58,.5)}100%{box-shadow:0 0 0 16px rgba(232,33,58,0)}}'
@@ -4491,7 +4654,8 @@ var st2=document.createElement('style');st2.textContent='.aimic{flex:0 0 auto;wi
 +'.aitop{display:flex;align-items:center;gap:6px;border:1.5px solid #c9cde0;background:#fff;color:#1a73e8;border-radius:10px;padding:8px 14px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}.aitop svg{width:18px;height:18px}.aitop:hover{background:#eef4ff}'
 +'@media(max-width:899px){.aifab.show{display:flex}.aimic{width:50px;height:50px}.aivm{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;margin:10px 0}.aimic.big{width:92px;height:92px}.aivbox{padding-top:10px!important;max-height:94vh!important}#aivc .b,#aivc .s{min-height:46px}.vr{grid-template-columns:1fr 1fr 1fr 44px;grid-template-areas:"n n n n" "q u r x" "a a a a"}.aichip{padding:8px 14px;font-size:14px}.aisay{margin-left:0;width:100%}}'
 +'@media(min-width:900px){.aibox.aivbox{max-width:760px;border-radius:16px;padding:8px 24px 20px}.aivm{display:flex;flex-direction:row;align-items:center;gap:16px;margin:8px 0}.aimic.big{width:60px;height:60px}.aimic.big svg{width:28px;height:28px}.aivbox .aibt{justify-content:flex-end}.aivbox .aibt button{flex:0 0 auto;min-width:130px;padding:11px 18px;font-size:15px}.vr,.vrh{grid-template-columns:minmax(0,1fr) 84px 84px 104px 110px 36px;grid-template-areas:"n q u r a x"}.vrh{display:grid;font-size:12px;color:#7b8194;padding:6px 0 0;grid-template-areas:none}.vr .x{height:34px}.aiin .aimic{width:44px;height:44px}}';
-document.head.appendChild(st2);try{fabSync();topBtn()}catch(e){}
+document.head.appendChild(st2);var st3=document.createElement('style');st3.textContent="\n.orb{--o:46px;position:relative;display:inline-block;width:var(--o);height:var(--o);border-radius:50%;background:#0e0d14;overflow:hidden;flex:0 0 auto;isolation:isolate}\n.orb i{position:absolute;width:62%;height:62%;border-radius:50%;filter:blur(calc(var(--o)*.06));mix-blend-mode:screen}\n.orb i:nth-child(1){left:6%;top:12%;background:radial-gradient(circle at 35% 35%,#c9c4ff,#7F77DD 55%,rgba(127,119,221,0) 72%);animation:orbA 4s ease-in-out infinite}\n.orb i:nth-child(2){right:6%;top:12%;background:radial-gradient(circle at 60% 40%,#a8f0d8,#1D9E75 55%,rgba(29,158,117,0) 72%);animation:orbB 5s ease-in-out infinite}\n.orb i:nth-child(3){left:19%;bottom:4%;background:radial-gradient(circle at 50% 40%,#ffc2a8,#D85A30 55%,rgba(216,90,48,0) 72%);animation:orbC 4.6s ease-in-out infinite}\n@keyframes orbA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(18%,10%) scale(1.15)}}\n@keyframes orbB{0%,100%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-16%,14%) scale(.9)}}\n@keyframes orbC{0%,100%{transform:translate(0,0) scale(.95)}50%{transform:translate(10%,-16%) scale(1.15)}}\n@keyframes orbBreath{0%,100%{transform:scale(.94)}50%{transform:scale(1.07)}}\n.vorb{border:0;background:none;padding:0;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}\n.vorb .orb{--o:150px;box-shadow:0 0 40px rgba(127,119,221,.45),0 0 90px rgba(29,158,117,.25)}\n.vorb.on .orb{animation:orbBreath 1.6s ease-in-out infinite;box-shadow:0 0 56px rgba(127,119,221,.75),0 0 120px rgba(216,90,48,.4)}\n.vorb.on .orb i{animation-duration:1.3s}\n.aifab{background:#0e0d14!important;box-shadow:0 4px 18px rgba(127,119,221,.6)!important}.aifab .orb{--o:46px}\n.aitop{background:#0e0d14!important;color:#fff!important;border-color:#0e0d14!important;padding:6px 14px 6px 8px!important}.aitop:hover{background:#1c1a2b!important}.aitop .orb{--o:26px}\n#aivc.full{background:#0b0a12;align-items:stretch;justify-content:center}\n#aivc.full .aibox{background:transparent;color:#e9e8f5;max-width:720px;width:100%;max-height:none;height:100%;border-radius:0;padding:max(14px,env(safe-area-inset-top,0px)) 18px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;overflow-y:auto}\n#aivc.full .aih{display:none}\n#aivc .vfx{display:flex;flex-direction:column;flex:1;min-height:0}\n#aivc .vfx-x{align-self:flex-end;border:0;background:rgba(255,255,255,.1);color:#e9e8f5;width:42px;height:42px;border-radius:50%;font-size:26px;line-height:1;cursor:pointer;padding:0}\n#aivc .vfx-top{justify-content:center}\n#aivc .vfx-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;margin:8px 0;text-align:center}\n#aivc.full .aivs{color:#a9a7c8;font-size:15px;text-align:center;max-width:520px}#aivc.full .aivs.red{color:#ff9a9a}\n#aivc.full textarea#vct{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:14px;font-size:18px;text-align:center;padding:12px}\n#aivc.full textarea#vct::placeholder{color:#7d7b9c}\n#aivc.full .mu{color:#a9a7c8}\n#aivc.full .aichip{background:transparent;color:#cfcde8;border-color:#3a3850}\n#aivc.full .aichip.on{background:#7F77DD;border-color:#7F77DD;color:#fff}\n#aivc.full .aiex button{background:rgba(255,255,255,.07);color:#d8d6ee;border-color:rgba(255,255,255,.16)}\n#aivc.full .aib{background:rgba(255,255,255,.09)!important;color:#f1f0fb!important;border:0!important}\n#aivc.full .aibt .s{background:rgba(255,255,255,.1);color:#fff;border-color:transparent}\n#aivc.full .aibt .b{background:#7F77DD;border-color:#7F77DD;color:#fff}\n@media(min-width:900px){#aivc.full{background:rgba(11,10,18,.96)}#aivc.full .aibox{border-radius:0}}\n@media(prefers-reduced-motion:reduce){.orb i,.vorb.on .orb{animation:none!important}}\n";document.head.appendChild(st3);
+try{fabSync();topBtn()}catch(e){}
 try{buildNav()}catch(e){}
 })();
 
@@ -6578,7 +6742,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   var fOn=LS('bkFile')!=='0',mOn=LS('bkMail')==='1',em=LS('bkEmail')||'';
   return '<div class="card" style="max-width:760px"><b style="font-size:16px">Offline backup (this computer)</b>'+
    '<p class="mu" style="margin:4px 0 8px">A copy of all your data is saved inside this browser once a day, and the last '+KEEP+' days are kept. It works with no internet.</p>'+
-   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="bkNow()">Backup now</button><button class="s" onclick="bkFileNow()">Save backup file now</button><label class="s" style="cursor:pointer">Restore from file<input type="file" accept=".json,application/json" style="display:none" onchange="bkLoadFile(this)"></label></div>'+
+   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="bkNow()">Backup now</button><button class="s" onclick="bkFileNow()">Save backup file now</button><button class="s" onclick="vybPick()">Restore from file</button></div>'+
    '<div id="bkSt" class="mu" style="margin:6px 0">Last copy in this browser: <b>'+ago(+LS('bkLocalAt'))+'</b></div>'+
    '<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto;margin:0" '+(fOn?'checked ':'')+'onchange="bkOpt(\'bkFile\',this.checked?\'1\':\'0\')"> Also save a backup file automatically every day</label>'+
    '<div class="mu" style="margin-left:26px">'+(fOn?'Last file: <b>'+(LS('bkFileDay')||'never')+'</b>. ':'')+'<span id="bkDirSt"></span> <button class="s" onclick="bkPickDir()">Choose backup folder</button> <button class="s" id="bkDirX" style="display:none" onclick="bkClearDir()">Use Downloads instead</button></div>'+
