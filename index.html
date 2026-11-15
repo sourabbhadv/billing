@@ -6214,4 +6214,53 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 })();
 
 </script>
+<script>
+/* ---------- SELF-HEAL: cloud save recovers by itself (no refresh needed) ---------- */
+(function(){
+ var failed={},retryT=null,tries=0,BAD=/failed|stopped|paused|lost|not reachable|reconnecting|sign in/i;
+ function say(t){try{setMsg(t)}catch(e){}}
+ function cur(){var e=document.getElementById('sy');return e?e.textContent:''}
+ function allOk(){return !Object.keys(failed).length}
+ function markOk(){tries=0;if(allOk()&&BAD.test(cur()))say('Synced ✓')}
+ function again(){
+  if(retryT)return;
+  var w=Math.min(4000*Math.pow(2,tries),60000);tries++;
+  retryT=setTimeout(function(){retryT=null;heal()},w)}
+ function heal(){
+  try{
+   if(!window.SB||!DB||!synced)return;
+   /* wake the login first (refreshes an expired token), then resend whatever failed */
+   Promise.resolve(SB.auth.getSession()).then(function(r){
+     if(r&&r.data&&r.data.session)return;
+     return SB.auth.refreshSession()
+   }).catch(function(){}).then(function(){
+     if(!allOk())say('Cloud save paused. Retrying…');
+     save();
+     setTimeout(function(){if(!allOk())again()},8000)
+   })
+  }catch(e){again()}}
+ /* a failed write no longer stays failed: keep it, retry it */
+ fail=function(k){return function(e){
+  if(e&&e.code==='invalid_argument'){delete SM[k];say('View-only account: not saved to cloud');return}
+  failed[k]=1;delete SM[k];say('Cloud save paused. Retrying…');again()}};
+ /* hook into the cloud object when sync starts */
+ var _ss2=startSync;
+ startSync=function(db){
+  var d0=db.doc,c0=db.collection;
+  db.doc=function(p){var o=d0(p),s0=o.set;
+   o.set=function(d){return s0(d).then(function(r){delete failed[p];markOk();return r})};
+   return o};
+  db.collection=function(c){var o=c0(c),s0=o.onSnapshot;
+   o.onSnapshot=function(cb,err){return s0(function(x){markOk();cb(x)},function(e){if(err)err(e);say('Cloud connection lost. Retrying…');again()})};
+   return o};
+  return _ss2(db)};
+ /* wake-ups: laptop sleep, window brought back, internet returns */
+ function wake(){if(window.sbLive)heal()}
+ window.addEventListener('online',wake);
+ window.addEventListener('focus',wake);
+ document.addEventListener('visibilitychange',function(){if(!document.hidden)wake()});
+ /* quiet watchdog: if anything is still unsaved, try again every minute */
+ setInterval(function(){if(window.sbLive&&!document.hidden&&!allOk())heal()},60000);
+})();
+</script>
 </body></html>
