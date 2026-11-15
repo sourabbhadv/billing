@@ -5770,15 +5770,17 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  if(window.__szLoaded)return;window.__szLoaded=1;
  var SZ={sale:null,doc:null},SZU={sale:null,doc:null},ST=null;
  function r2(n){return Math.round(n*100)/100}
- function sq(a){return r2((+a[0]||0)*(+a[1]||0)/144)}
+ function nz(a){var n=Math.round(+a[2]);return n>1?n:1}
+ function cnt(arr){return arr.reduce(function(s,x){return s+nz(x)},0)}
+ function sq(a){return r2(r2((+a[0]||0)*(+a[1]||0)/144)*nz(a))}
  function tot(rows){return r2(rows.reduce(function(s,x){return s+sq(x)},0))}
  function fi(x){x=+x||0;var f=Math.floor(x/12+1e-9),i=r2(x-f*12);if(i>=12){f++;i=0}return f+"'"+i+'"'}
- function pair(a,u){return u==='ft'?fi(a[0])+'\u00d7'+fi(a[1]):(+a[0])+'\u00d7'+(+a[1])}
+ function pair(a,u){return (u==='ft'?fi(a[0])+'\u00d7'+fi(a[1]):(+a[0])+'\u00d7'+(+a[1]))+(nz(a)>1?' ('+nz(a)+' nos)':'')}
  function szList(l){return l.sz.map(function(a){return pair(a,l.szu)}).join(', ')}
  function defMode(){try{return PS().szUnit==='ft'?'ft':'in'}catch(e){return 'in'}}
  function isSqft(u){return ['sqft','sqfeet','sqfoot','squarefeet','squarefoot','sqf','sft'].indexOf(String(u||'').toLowerCase().replace(/[^a-z]/g,''))>=0}
  function DR(kind){return kind==='sale'?draft:(typeof ddraft!=='undefined'?ddraft:null)}
- window.szText=function(l){return l&&l.sz&&l.sz.length?l.sz.length+(l.sz.length>1?' slabs':' slab')+(l.szu==='ft'?' (feet & inches): ':' (inches): ')+szList(l):''};
+ window.szText=function(l){return l&&l.sz&&l.sz.length?cnt(l.sz)+(cnt(l.sz)>1?' slabs':' slab')+(l.szu==='ft'?' (feet & inches): ':' (inches): ')+szList(l):''};
  window.szLines=function(l){
   if(!l||!l.sz||!l.sz.length)return [];
   var out=[],cur='';
@@ -5788,32 +5790,35 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  css.textContent='#szov{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}.szbox{background:#fff;color:#111;border-radius:12px;width:100%;max-width:440px;max-height:90vh;overflow:auto;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.3)}.szr{display:flex;align-items:center;gap:6px;margin:6px 0}.szr input{flex:1;min-width:0;margin:0;width:auto}.szr .szq{min-width:88px;text-align:right;font-size:13px;color:#555}.szn{font-size:12px;color:#5b6477;margin-top:2px;line-height:1.35}.szb{margin-top:4px;font-size:13px;padding:6px 10px;white-space:nowrap}';
  document.head.appendChild(css);
 
- function blank(){return {l:'',w:'',lf:'',li:'',wf:'',wi:''}}
+ function blank(){return {l:'',w:'',lf:'',li:'',wf:'',wi:'',n:''}}
+ function rn(r){var n=Math.round(+r.n);return n>1?n:1}
  function val(r,w){return ST.m==='ft'?(+r[w+'f']||0)*12+(+r[w+'i']||0):(+r[w]||0)}
  function toRow(a,m){
-  var o=blank(),L=+a[0]||0,W=+a[1]||0;
+  var o=blank(),L=+a[0]||0,W=+a[1]||0;if(nz(a)>1)o.n=String(nz(a));
   if(m==='ft'){[['l',L],['w',W]].forEach(function(p){if(p[1]>0){var f=Math.floor(p[1]/12+1e-9),n=r2(p[1]-f*12);if(n>=12){f++;n=0}o[p[0]+'f']=String(f);o[p[0]+'i']=String(n)}})}
   else{if(L>0)o.l=String(L);if(W>0)o.w=String(W)}
   return o}
  function upd(){
-  var t=0,n=0;ST.rows.forEach(function(r,i){var L=val(r,'l'),W=val(r,'w'),ok=L>0&&W>0,q=ok?r2(L*W/144):0,e=document.getElementById('szq'+i);if(ok){t+=q;n++}if(e)e.textContent=ok?q.toFixed(2)+' sq ft':''});
+  var t=0,n=0;ST.rows.forEach(function(r,i){var L=val(r,'l'),W=val(r,'w'),ok=L>0&&W>0,one=ok?r2(L*W/144):0,k=rn(r),q=r2(one*k),e=document.getElementById('szq'+i);if(ok){t+=q;n+=k}if(e)e.textContent=ok?(k>1?one.toFixed(2)+' \u00d7 '+k+' = ':'')+q.toFixed(2)+' sq ft':''});
   var e=document.getElementById('szt');if(e)e.textContent=n+(n===1?' slab':' slabs')+' = '+r2(t).toFixed(2)+' sq ft'}
  function inp(i,f,ph,v,last){return '<input type="number" inputmode="decimal" step="any" min="0" placeholder="'+ph+'" data-sz="'+i+'-'+f+'" value="'+esc(String(v))+'" oninput="szIn('+i+',\''+f+'\',this.value)"'+(last?' onkeydown="if(event.key===\'Enter\'){szAdd();return false}"':'')+'>'}
+ function nosInp(i,v,wide){return '<input type="number" inputmode="numeric" min="1" step="1" placeholder="Nos" data-sz="'+i+'-n" value="'+esc(String(v))+'" oninput="szIn('+i+',\'n\',this.value)" onkeydown="if(event.key===\'Enter\'){szAdd();return false}" style="flex:none;width:'+(wide?'90':'64')+'px">'}
  function draw(fr){
   var o=document.getElementById('szov');if(o)o.remove();
   o=document.createElement('div');o.id='szov';var ft=ST.m==='ft';
   var h='<div class="szbox"><b style="font-size:17px">Slab sizes</b>'
    +'<div style="display:flex;gap:6px;margin:8px 0 6px"><button type="button" class="'+(ft?'s':'b')+'" style="flex:1;margin:0" onclick="szMode(\'in\')">Inches</button><button type="button" class="'+(ft?'b':'s')+'" style="flex:1;margin:0" onclick="szMode(\'ft\')">Feet &amp; inches</button></div>'
-   +'<div style="margin:0 0 8px;font-size:13px;color:#666">'+(ft?'Type feet and inches for Length and Width, e.g. 8 ft 6 in \u00d7 4 ft 1 in.':'Type Length \u00d7 Width of each slab in inches.')+' Sq ft is worked out for you.</div>';
+   +'<div style="margin:0 0 8px;font-size:13px;color:#666">'+(ft?'Type feet and inches for Length and Width, e.g. 8 ft 6 in \u00d7 4 ft 1 in.':'Type Length \u00d7 Width of each slab in inches.')+' Same size more than once? Put the count in Nos. Sq ft is worked out for you.</div>';
   ST.rows.forEach(function(r,i){
+   var qline='<div class="szq" id="szq'+i+'" style="text-align:right;font-size:13px;color:#555;min-height:16px"></div>';
    if(!ft){
-    h+='<div class="szr"><span style="width:20px;color:#888">'+(i+1)+'</span>'+inp(i,'l','Length',r.l)+'<span>\u00d7</span>'+inp(i,'w','Width',r.w,1)
-     +'<span class="szq" id="szq'+i+'"></span><button type="button" class="s" onclick="szDel('+i+')">\u2715</button></div>'}
+    h+='<div style="border-top:1px solid #e3e6ec;padding:6px 0 2px;margin-top:4px"><div class="szr"><span style="width:20px;color:#888">'+(i+1)+'</span>'+inp(i,'l','Length',r.l)+'<span>\u00d7</span>'+inp(i,'w','Width',r.w)+nosInp(i,r.n)
+     +'<button type="button" class="s" onclick="szDel('+i+')">\u2715</button></div>'+qline+'</div>'}
     else{
     h+='<div style="border-top:1px solid #e3e6ec;padding:6px 0 2px;margin-top:4px">'
      +'<div class="szr"><span style="width:20px;color:#888">'+(i+1)+'</span><span style="width:50px;font-size:13px">Length</span>'+inp(i,'lf','ft',r.lf)+'<span>ft</span>'+inp(i,'li','in',r.li)+'<span>in</span><button type="button" class="s" onclick="szDel('+i+')">\u2715</button></div>'
-     +'<div class="szr"><span style="width:20px"></span><span style="width:50px;font-size:13px">Width</span>'+inp(i,'wf','ft',r.wf)+'<span>ft</span>'+inp(i,'wi','in',r.wi,1)+'<span>in</span></div>'
-     +'<div class="szq" id="szq'+i+'" style="text-align:right;font-size:13px;color:#555;min-height:16px"></div></div>'}});
+     +'<div class="szr"><span style="width:20px"></span><span style="width:50px;font-size:13px">Width</span>'+inp(i,'wf','ft',r.wf)+'<span>ft</span>'+inp(i,'wi','in',r.wi)+'<span>in</span></div>'
+     +'<div class="szr"><span style="width:20px"></span><span style="width:50px;font-size:13px">Nos</span>'+nosInp(i,r.n,1)+'<span style="flex:1"></span></div>'+qline+'</div>'}});
   h+='<button type="button" class="s" onclick="szAdd()">+ Add slab</button>'
    +'<div style="display:flex;justify-content:space-between;margin:12px 2px 10px;font-size:16px"><b>Total</b><b id="szt"></b></div>'
    +'<div style="display:flex;gap:8px"><button type="button" class="b" style="flex:1" onclick="szDone()">Done</button><button type="button" class="s" onclick="szClose()">Cancel</button></div></div>';
@@ -5822,7 +5827,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  window.szIn=function(i,f,v){if(ST&&ST.rows[i]){ST.rows[i][f]=v;upd()}};
  window.szAdd=function(){if(!ST)return;ST.rows.push(blank());draw(ST.rows.length-1)};
  window.szDel=function(i){if(!ST)return;if(ST.rows.length>1)ST.rows.splice(i,1);else ST.rows=[blank()];draw(0)};
- window.szMode=function(m){if(!ST||ST.m===m)return;var cur=ST.rows.map(function(r){return [val(r,'l'),val(r,'w')]});ST.m=m;ST.rows=cur.map(function(a){return toRow(a,m)});draw(0)};
+ window.szMode=function(m){if(!ST||ST.m===m)return;var cur=ST.rows.map(function(r){return [val(r,'l'),val(r,'w'),rn(r)]});ST.m=m;ST.rows=cur.map(function(a){return toRow(a,m)});draw(0)};
  window.szClose=function(){var o=document.getElementById('szov');if(o)o.remove();ST=null};
  window.szOpen=function(kind,k){
   var d=DR(kind),l=(k!=null&&d&&d.lines)?d.lines[k]:null,src,m;
@@ -5834,7 +5839,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  function setF(id,v){var e=document.getElementById(id);if(!e)return;e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}))}
  window.szDone=function(){
   if(!ST)return;var bad=0,valid=[];
-  ST.rows.forEach(function(r,i){var L=val(r,'l'),W=val(r,'w');if(L>0&&W>0)valid.push([Math.round(L*1e4)/1e4,Math.round(W*1e4)/1e4]);else if(L>0||W>0)bad=bad||i+1});
+  ST.rows.forEach(function(r,i){var L=val(r,'l'),W=val(r,'w');if(L>0&&W>0){var kk=rn(r),en=[Math.round(L*1e4)/1e4,Math.round(W*1e4)/1e4];if(kk>1)en.push(kk);valid.push(en)}else if(L>0||W>0)bad=bad||i+1});
   if(bad)return alert('Slab '+bad+' is half filled. Enter both length and width, or remove that row.');
   if(!valid.length)return alert('Enter length and width of at least one slab');
   var total=tot(valid),kind=ST.kind,k=ST.k,m=ST.m;
@@ -5861,7 +5866,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    d=DR(kind);
    if(d&&d.lines&&d.lines.length>n){
     var l=d.lines[d.lines.length-1];
-    if(p&&p.length&&Math.abs(tot(p)-q)<0.005){l.sz=p.map(function(x){return [x[0],x[1]]});if(pu==='ft')l.szu='ft';else delete l.szu}
+    if(p&&p.length&&Math.abs(tot(p)-q)<0.005){l.sz=p.map(function(x){return x.slice()});if(pu==='ft')l.szu='ft';else delete l.szu}
     SZ[kind]=null;SZU[kind]=null;try{inject()}catch(e){}
    }
    return r}}
@@ -5883,7 +5888,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    if(!on&&s){SZ[p[0]]=null;s=null}
    if(!b){if(!on)return;b=document.createElement('button');b.type='button';b.className='s szb';b.setAttribute('data-k',p[0]);b.onclick=function(){szOpen(p[0])};q.parentNode.appendChild(b)}
    b.style.display=on?'':'none';
-   b.textContent=(s&&s.length)?('\ud83d\udcd0 '+s.length+(s.length>1?' slabs':' slab')+' \u00b7 '+tot(s).toFixed(2)+' sq ft'):'\ud83d\udcd0 Sizes'});
+   b.textContent=(s&&s.length)?('\ud83d\udcd0 '+cnt(s)+(cnt(s)>1?' slabs':' slab')+' \u00b7 '+tot(s).toFixed(2)+' sq ft'):'\ud83d\udcd0 Sizes'});
   [].slice.call(document.querySelectorAll('.sfit[onclick]')).forEach(function(e){
    var m=/lnEdit\('(\w+)',(\d+)\)/.exec(e.getAttribute('onclick')||'');if(!m||m[1]==='r')return;
    var kind=m[1]==='b'?'sale':'doc',d=DR(kind),l=d&&d.lines&&d.lines[+m[2]],t=e.querySelector('.t'),old=e.querySelector('.szn');
@@ -5920,7 +5925,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    var r=_le.apply(this,arguments);
    try{var o=document.getElementById('lne'),d=dr2(c),l=d&&d.lines&&d.lines[k],g=o&&o.querySelector('.lng');
     if(g&&l&&c!=='r'&&(isSz(l.name)||(l.sz&&l.sz.length))&&!o.querySelector('.szb')){var bt=document.createElement('button');bt.type='button';bt.className='s szb';bt.style.width='100%';bt.style.margin='8px 0 0';
-     bt.textContent=l.sz&&l.sz.length?'\ud83d\udcd0 Slab sizes ('+l.sz.length+') \u00b7 edit':'\ud83d\udcd0 Add slab sizes';
+     bt.textContent=l.sz&&l.sz.length?'\ud83d\udcd0 Slab sizes ('+cnt(l.sz)+') \u00b7 edit':'\ud83d\udcd0 Add slab sizes';
      bt.onclick=function(){closeLne();szOpen(c==='b'?'sale':'doc',k)};g.parentNode.insertBefore(bt,g.nextSibling)}}catch(e){}
    return r};
   var _ls=window.lneSave;window.lneSave=function(){
