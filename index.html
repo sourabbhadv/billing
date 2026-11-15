@@ -6600,4 +6600,177 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  vBk=function(){setTimeout(paint,0);return card()+_vBk()};
 })();
 </script>
+<script id="gdrive-backup">
+/* =====================================================================
+   GOOGLE DRIVE DAILY BACKUP
+   Phone and laptop each get their own design. Backup file = same format
+   as vyapar_data.json, so the existing "Import from Vyapar" can read it.
+   ===================================================================== */
+(function(){
+ var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
+ var isP=function(){return window.innerWidth<900};
+ var pad=function(n){return (n<10?'0':'')+n};
+ var today=function(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+ var KEEP=30,FOLDER='Ashirwad Billing Backup',SCOPE='https://www.googleapis.com/auth/drive.file',NAME=/^vyapar_data-\d{4}-\d\d-\d\d\.json$/;
+ var tok=null,tokExp=0,busy=false,files=null,lastTry=0;
+ var cid=function(){return (LS('gdCid')||'').trim()},em=function(){return (LS('gdEmail')||'').trim()};
+ function hasData(){return !!D&&((D.bills||[]).length+(D.parties||[]).length+(D.items||[]).length)>0}
+ function fname(day){return 'vyapar_data-'+(day||today())+'.json'}
+ function build(){var o={};Object.keys(D).forEach(function(k){o[k]=D[k]});o._app='Stock & Billing';o._format='vyapar_data';o._saved=new Date().toISOString();return JSON.stringify(o)}
+ function say(id,t){var e=document.getElementById(id);if(e)e.textContent=t}
+ function ago(t){if(!t)return 'never';var m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':new Date(t).toLocaleDateString('en-IN')}
+
+ /* ---------- Google sign-in (token only lives in memory) ---------- */
+ function loadGsi(){return new Promise(function(res,rej){
+  if(window.google&&google.accounts&&google.accounts.oauth2)return res();
+  var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;
+  s.onload=function(){res()};s.onerror=function(){rej(new Error('Cannot reach Google. Check the internet.'))};document.head.appendChild(s)})}
+ function getTok(ask){
+  if(tok&&Date.now()<tokExp-60000)return Promise.resolve(tok);
+  if(!cid())return Promise.reject(new Error('First paste your Google Client ID (open One-time setup).'));
+  return loadGsi().then(function(){return new Promise(function(res,rej){
+   var c=google.accounts.oauth2.initTokenClient({client_id:cid(),scope:SCOPE,login_hint:em()||undefined,
+    callback:function(r){if(r&&r.access_token){tok=r.access_token;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');res(tok)}else rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'))},
+    error_callback:function(e){rej(new Error(e&&e.type==='popup_blocked_by_browser'?'The browser blocked the Google window. Press Back up now.':'Google sign-in was closed.'))}});
+   c.requestAccessToken({prompt:(ask&&LS('gdLinked')!=='1')?'consent':''})})})}
+
+ /* ---------- Google Drive calls ---------- */
+ function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
+  return fetch(url,opt).then(function(r){if(r.ok)return r;
+   return r.text().then(function(tx){var m='';try{m=JSON.parse(tx).error.message}catch(e){}
+    if(r.status===401)tok=null;
+    var er=new Error(r.status===403&&/not been used|disabled/i.test(m)?'Turn on "Google Drive API" in your Google project (One-time setup, step 2).':(m||('Google Drive error '+r.status)));er.status=r.status;throw er})})}
+ function folderId(t){
+  var f=LS('gdFolder');if(f)return Promise.resolve(f);
+  var q=encodeURIComponent("name='"+FOLDER+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+  return api('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)&spaces=drive',{},t).then(function(r){return r.json()}).then(function(j){
+   if(j.files&&j.files.length){LS('gdFolder',j.files[0].id);return j.files[0].id}
+   return api('https://www.googleapis.com/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER,mimeType:'application/vnd.google-apps.folder'})},t)
+    .then(function(r){return r.json()}).then(function(j){LS('gdFolder',j.id);return j.id})})}
+ function listFiles(t,fid){return api('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+fid+"' in parents and trashed=false")+'&orderBy=name%20desc&pageSize=100&fields=files(id,name,size,modifiedTime)',{},t)
+  .then(function(r){return r.json()}).then(function(j){return (j.files||[]).filter(function(f){return NAME.test(f.name)})})}
+ function upload(t,fid,name,json,ex){
+  var b='sbbk'+Date.now(),meta={name:name,mimeType:'application/json'};if(!ex)meta.parents=[fid];
+  var body='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+json+'\r\n--'+b+'--';
+  return api('https://www.googleapis.com/upload/drive/v3/files'+(ex?'/'+ex.id:'')+'?uploadType=multipart&fields=id',{method:ex?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:body},t)}
+
+ /* ---------- one backup run ---------- */
+ function run(ask){
+  if(busy)return Promise.resolve(false);
+  if(!hasData())return Promise.reject(new Error('There is no data to back up yet.'));
+  busy=true;lastTry=Date.now();say('gdSt','Backing up to Google Drive...');
+  return getTok(ask).then(function(t){return folderId(t).then(function(fid){return listFiles(t,fid).then(function(fl){
+    var name=fname(),ex=fl.filter(function(f){return f.name===name})[0];
+    return upload(t,fid,name,build(),ex).then(function(){
+     var old=fl.filter(function(f){return f.name!==name}).sort(function(a,b){return a.name<b.name?1:-1}).slice(KEEP-1);
+     return Promise.all(old.map(function(o){return api('https://www.googleapis.com/drive/v3/files/'+o.id,{method:'DELETE'},t).catch(function(){})}))})
+    .then(function(){return listFiles(t,fid).then(function(l){files=l},function(){files=null})})})})})
+  .then(function(){LS('gdDay',today());LS('gdAt',String(Date.now()));LS('gdErr',null);busy=false;hidePend();return true},
+   function(e){busy=false;if(e&&e.status===404)LS('gdFolder',null);LS('gdErr',String(e&&e.message||e));throw e})}
+
+ /* ---------- daily job: when the app is open, once per day ---------- */
+ function ready(){try{return !(typeof DB!=='undefined'&&DB)||!!synced}catch(e){return true}}
+ function daily(){
+  if(LS('gdOn')!=='1'||LS('gdDay')===today()||busy||!hasData()||!ready())return;
+  if(Date.now()-lastTry<30*60*1000)return;
+  run(false).then(paint,function(){showPend();paint()})}
+ setTimeout(daily,12000);setInterval(daily,60*1000);
+ document.addEventListener('visibilitychange',function(){if(!document.hidden)daily()});
+
+ /* ---------- "needs a tap" button (phone: above the bottom bar, laptop: corner) ---------- */
+ function showPend(){if(document.getElementById('gdpend'))return;var b=document.createElement('button');b.id='gdpend';b.className='b';b.textContent='Back up to Google Drive now';b.onclick=function(){window.gdNow()};document.body.appendChild(b)}
+ function hidePend(){var b=document.getElementById('gdpend');if(b)b.remove()}
+
+ /* ---------- actions ---------- */
+ window.gdSetCid=function(v){LS('gdCid',(v||'').trim()||null);tok=null;LS('gdFolder',null);paint()};
+ window.gdSetEm=function(v){LS('gdEmail',(v||'').trim()||null);tok=null};
+ window.gdToggle=function(on){
+  if(on&&!cid()){alert('First paste your Google Client ID (open One-time setup).');paint();return}
+  LS('gdOn',on?'1':'0');if(on)window.gdNow();else paint()};
+ window.gdNow=function(){
+  run(true).then(function(r){if(r)LS('gdOn','1');paint();if(r)alert('Backup saved in your Google Drive.')},function(e){paint();alert(String(e&&e.message||e))})};
+ window.gdList=function(){
+  say('gdSt','Reading your Google Drive...');
+  getTok(true).then(function(t){return folderId(t).then(function(f){return listFiles(t,f)})}).then(function(l){files=l;paint()},function(e){LS('gdErr',String(e&&e.message||e));paint()})};
+ window.gdDown=function(id,name){getTok(true).then(function(t){return api('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{},t)}).then(function(r){return r.blob()}).then(function(b){saveFile(name,b)},function(e){alert(String(e&&e.message||e))})};
+ window.gdRestore=function(id,name){
+  if(!confirm('Restore from '+name+'?\nYou will be asked next whether to REPLACE the current data or ADD to it.'))return;
+  getTok(true).then(function(t){return api('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{},t)}).then(function(r){return r.text()}).then(function(tx){
+   var x=JSON.parse(tx);if(!x||!Array.isArray(x.parties)||!Array.isArray(x.items)||!Array.isArray(x.bills)||!Array.isArray(x.pays))throw new Error('This file is not a backup of this app.');
+   var ch=0;['trs','dsp'].forEach(function(c){if(!Array.isArray(x[c]))return;D[c]=D[c]||[];x[c].forEach(function(r){if(!r||!r.id)return;var i=D[c].findIndex(function(z){return z.id===r.id});if(i<0)D[c].push(r);else D[c][i]=r;ch=1})});
+   if(x.shop&&!D.shop)D.shop=x.shop;if(ch)save();
+   impGo(x)}).then(null,function(e){alert(String(e&&e.message||e))})};
+ window.gdOff=function(){
+  if(!confirm('Disconnect Google Drive? Your backups already in Drive stay there.'))return;
+  try{if(tok&&window.google)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
+  tok=null;files=null;['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr'].forEach(function(k){LS(k,null)});hidePend();paint()};
+ window.gdSetup=function(){var e=document.getElementById('gdSetup');if(e)e.style.display=e.style.display==='none'?'block':'none'};
+
+ /* ---------- screens ---------- */
+ function stat(){
+  var err=LS('gdErr'),on=LS('gdOn')==='1',d=LS('gdDay');
+  if(err)return '<span class="red">'+esc(err)+'</span>';
+  if(!LS('gdLinked'))return 'Not connected yet. Add your Gmail and Client ID, then press Back up now.';
+  return (on?'Daily backup is ON. ':'Daily backup is OFF. ')+(d?'Last backup: <b>'+(d===today()?'today':esc(d))+'</b> ('+ago(+LS('gdAt'))+').':'No backup made yet.')}
+ function steps(){return '<div class="gdsteps"><b>One-time setup (about 5 minutes, free)</b><br>'+
+  '1. Open <b>console.cloud.google.com</b> with your Gmail and make a <b>New project</b> (name: Billing Backup).<br>'+
+  '2. Search <b>Google Drive API</b> and press <b>Enable</b>.<br>'+
+  '3. Open <b>OAuth consent screen</b> (Google Auth Platform) &rarr; External &rarr; app name Billing Backup &rarr; add your Gmail under <b>Test users</b>.<br>'+
+  '4. <b>Credentials</b> &rarr; Create credentials &rarr; <b>OAuth client ID</b> &rarr; Web application. Under <b>Authorized JavaScript origins</b> add:<br><b>'+esc(location.origin)+'</b><br>'+
+  '5. Copy the <b>Client ID</b> (ends with .apps.googleusercontent.com), paste it above, press <b>Back up now</b> and allow Google.<br>'+
+  'The app can only see the backup files it makes itself, nothing else in your Drive.</div>'}
+ function inputs(){return '<input type="email" placeholder="Your Gmail address" value="'+esc(em())+'" onchange="gdSetEm(this.value)">'+
+  '<input type="text" placeholder="Google Client ID (from One-time setup)" value="'+esc(cid())+'" onchange="gdSetCid(this.value)" autocomplete="off">'}
+ /* phone design: same white cards, rows and pill buttons as the rest of the phone app */
+ function cardM(){var on=LS('gdOn')==='1';
+  return '<div class="mg gdm"><div class="mgt">Google Drive Backup</div><div id="gdSt" class="gdst">'+stat()+'</div>'+
+   '<button class="b gdfull" onclick="gdNow()">Back up to Google Drive now</button>'+
+   '<div class="mr"><span>Back up every day</span><input type="checkbox" '+(on?'checked ':'')+'onchange="gdToggle(this.checked)"></div>'+
+   '<div class="gdst" style="padding-top:10px">Saved in the same format as your Vyapar data file, so it can be restored here with one tap.</div>'+
+   '<details class="gdd"><summary>Account and setup</summary>'+inputs()+'<div class="gdrow"><button class="s" onclick="gdOff()">Disconnect</button></div>'+steps()+'</details>'+
+   '<div class="mgt" style="padding-top:14px">Copies in your Google Drive</div><div id="gdList" class="gdst"></div></div>'}
+ /* laptop design: same bordered cards, blue buttons and rows as the other laptop pages */
+ function cardD(){var on=LS('gdOn')==='1';
+  return '<div class="card gdd" style="max-width:760px"><b style="font-size:16px">Google Drive backup (daily)</b>'+
+   '<p class="mu" style="margin:4px 0 8px">One backup file is saved in your Google Drive every day (folder: '+FOLDER+'), last '+KEEP+' days kept. It is in the same format as your Vyapar data file, so it can be restored here with one click. It runs when this page is open.</p>'+
+   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+inputs().replace('type="email"','type="email" style="max-width:300px"').replace('type="text"','type="text" style="max-width:420px"')+'</div>'+
+   '<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto;margin:0" '+(on?'checked ':'')+'onchange="gdToggle(this.checked)"> Back up to Google Drive every day</label>'+
+   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="gdNow()">Back up now</button><button class="s" onclick="gdList()">Show my Drive copies</button><button class="s" onclick="gdSetup()">One-time setup</button><button class="s" onclick="gdOff()">Disconnect</button></div>'+
+   '<div id="gdSt" class="mu" style="margin-top:8px">'+stat()+'</div>'+
+   '<div id="gdSetup" class="mu" style="display:none;margin-top:8px">'+steps()+'</div>'+
+   '<div style="margin-top:10px"><b>Copies in your Google Drive</b><div id="gdList" class="mu"></div></div></div>'}
+ function listHtml(){
+  if(files===null)return isP()?'Press <b>Back up now</b> or open Account and setup, then refresh to see the copies.<br><button class="s" style="margin-top:8px" onclick="gdList()">Show my Drive copies</button>':'Press <b>Show my Drive copies</b> to see them.';
+  if(!files.length)return 'No copies in Drive yet.';
+  return files.map(function(f){var d=f.name.slice(12,22),kb=Math.max(1,Math.round((+f.size||0)/1024));
+   var btn='<button class="s" data-i="'+esc(f.id)+'" data-n="'+esc(f.name)+'" onclick="gdDown(this.dataset.i,this.dataset.n)">Download</button> <button class="s" data-i="'+esc(f.id)+'" data-n="'+esc(f.name)+'" onclick="gdRestore(this.dataset.i,this.dataset.n)">Restore</button>';
+   return isP()?'<div class="mr" style="flex-wrap:wrap;gap:6px"><span>'+d+' <span class="mu">&middot; '+kb+' KB</span></span><span>'+btn+'</span></div>'
+    :'<div class="row" style="margin-top:6px"><span>'+d+' <span class="mu">&middot; '+kb+' KB</span></span><span>'+btn+'</span></div>'}).join('')}
+ function paint(){
+  var s=document.getElementById('gdSt');if(s)s.innerHTML=stat();
+  var l=document.getElementById('gdList');if(l)l.innerHTML=listHtml();
+  var t=document.getElementById('gdTop');if(t)t.textContent='\u2601 Drive backup'+(LS('gdDay')===today()?' \u2713':'')}
+ var _v=vBk;vBk=function(){setTimeout(paint,0);return (isP()?cardM():cardD())+_v()};
+
+ /* phone: a row in "Important Utilities" on the More screen */
+ if(typeof vMore==='function'){var _m=vMore;vMore=function(){var h=_m.apply(this,arguments);
+  try{var k='<div class="mr" onclick="nav(\'bk\')"><span>Backup / Restore</span>';
+   var row='<div class="mr" onclick="nav(\'bk\')"><span>Google Drive Backup (daily)'+(LS('gdDay')===today()?' <span class="chip g" style="margin:0 0 0 6px">Done today</span>':'')+'</span><span class="mrc">\u203a</span></div>';
+   if(h.indexOf(k)>-1)h=h.replace(k,row+k)}catch(e){}return h}}
+
+ /* laptop: a button in the top bar */
+ (function(){var t=document.getElementById('top');if(!t||document.getElementById('gdTop'))return;var b=document.createElement('button');b.id='gdTop';b.className='s';b.onclick=function(){nav('bk')};b.textContent='\u2601 Drive backup';t.appendChild(b);paint()})();
+
+ var st=document.createElement('style');
+ st.textContent='@media(max-width:899px){#gdTop{display:none!important}'+
+  '.gdm{padding-bottom:12px}.gdm .gdst{font-size:13px;color:#4a5068;line-height:1.45;padding:2px 0 10px}'+
+  '.gdm .gdfull{width:100%;padding:13px;font-size:15px;margin-bottom:6px}.gdm input[type=checkbox]{width:22px;height:22px;margin:0}'+
+  '.gdm input[type=email],.gdm input[type=text]{width:100%;background:#fff;border:1px solid #cfd5e3;border-radius:8px;padding:12px;font-size:15px;margin:6px 0}'+
+  '.gdm details{border-top:1px solid #eef0f5;margin-top:6px;padding:12px 0 2px;font-size:14px}.gdm summary{font-weight:600;color:#1f2437}.gdm .gdrow{margin:4px 0 8px}'+
+  '.gdm .gdsteps{color:#4a5068;font-size:13px;line-height:1.65;margin-top:8px}'+
+  '#gdpend{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:12;white-space:nowrap;box-shadow:0 4px 14px rgba(26,115,232,.45)}}'+
+  '@media(min-width:900px){#gdpend{position:fixed;right:18px;bottom:18px;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.25)}.gdd .gdsteps{line-height:1.7;color:#4a5068}}';
+ document.head.appendChild(st);
+})();
+</script>
 </body></html>
