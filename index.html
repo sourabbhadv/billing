@@ -4694,6 +4694,42 @@ var st2=document.createElement('style');st2.textContent='.aimic{flex:0 0 auto;wi
 document.head.appendChild(st2);var st3=document.createElement('style');st3.textContent="\n.orb{--o:46px;position:relative;display:inline-block;width:var(--o);height:var(--o);border-radius:50%;background:#0e0d14;overflow:hidden;flex:0 0 auto;isolation:isolate}\n.orb i{position:absolute;width:62%;height:62%;border-radius:50%;filter:blur(calc(var(--o)*.06));mix-blend-mode:screen}\n.orb i:nth-child(1){left:6%;top:12%;background:radial-gradient(circle at 35% 35%,#c9c4ff,#7F77DD 55%,rgba(127,119,221,0) 72%);animation:orbA 4s ease-in-out infinite}\n.orb i:nth-child(2){right:6%;top:12%;background:radial-gradient(circle at 60% 40%,#a8f0d8,#1D9E75 55%,rgba(29,158,117,0) 72%);animation:orbB 5s ease-in-out infinite}\n.orb i:nth-child(3){left:19%;bottom:4%;background:radial-gradient(circle at 50% 40%,#ffc2a8,#D85A30 55%,rgba(216,90,48,0) 72%);animation:orbC 4.6s ease-in-out infinite}\n@keyframes orbA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(18%,10%) scale(1.15)}}\n@keyframes orbB{0%,100%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-16%,14%) scale(.9)}}\n@keyframes orbC{0%,100%{transform:translate(0,0) scale(.95)}50%{transform:translate(10%,-16%) scale(1.15)}}\n@keyframes orbBreath{0%,100%{transform:scale(.94)}50%{transform:scale(1.07)}}\n.vorb{border:0;background:none;padding:0;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}\n.vorb .orb{--o:150px;box-shadow:0 0 40px rgba(127,119,221,.45),0 0 90px rgba(29,158,117,.25)}\n.vorb.on .orb{animation:orbBreath 1.6s ease-in-out infinite;box-shadow:0 0 56px rgba(127,119,221,.75),0 0 120px rgba(216,90,48,.4)}\n.vorb.on .orb i{animation-duration:1.3s}\n.aifab{background:#0e0d14!important;box-shadow:0 4px 18px rgba(127,119,221,.6)!important}.aifab .orb{--o:46px}\n.aitop{background:#0e0d14!important;color:#fff!important;border-color:#0e0d14!important;padding:6px 14px 6px 8px!important}.aitop:hover{background:#1c1a2b!important}.aitop .orb{--o:26px}\n#aivc.full{background:#0b0a12;align-items:stretch;justify-content:center}\n#aivc.full .aibox{background:transparent;color:#e9e8f5;max-width:720px;width:100%;max-height:none;height:100%;border-radius:0;padding:max(14px,env(safe-area-inset-top,0px)) 18px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;overflow-y:auto}\n#aivc.full .aih{display:none}\n#aivc .vfx{display:flex;flex-direction:column;flex:1;min-height:0}\n#aivc .vfx-x{align-self:flex-end;border:0;background:rgba(255,255,255,.1);color:#e9e8f5;width:42px;height:42px;border-radius:50%;font-size:26px;line-height:1;cursor:pointer;padding:0}\n#aivc .vfx-top{justify-content:center}\n#aivc .vfx-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;margin:8px 0;text-align:center}\n#aivc.full .aivs{color:#a9a7c8;font-size:15px;text-align:center;max-width:520px}#aivc.full .aivs.red{color:#ff9a9a}\n#aivc.full textarea#vct{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:14px;font-size:18px;text-align:center;padding:12px}\n#aivc.full textarea#vct::placeholder{color:#7d7b9c}\n#aivc.full .mu{color:#a9a7c8}\n#aivc.full .aichip{background:transparent;color:#cfcde8;border-color:#3a3850}\n#aivc.full .aichip.on{background:#7F77DD;border-color:#7F77DD;color:#fff}\n#aivc.full .aiex button{background:rgba(255,255,255,.07);color:#d8d6ee;border-color:rgba(255,255,255,.16)}\n#aivc.full .aib{background:rgba(255,255,255,.09)!important;color:#f1f0fb!important;border:0!important}\n#aivc.full .aibt .s{background:rgba(255,255,255,.1);color:#fff;border-color:transparent}\n#aivc.full .aibt .b{background:#7F77DD;border-color:#7F77DD;color:#fff}\n@media(min-width:900px){#aivc.full{background:rgba(11,10,18,.96)}#aivc.full .aibox{border-radius:0}}\n@media(prefers-reduced-motion:reduce){.orb i,.vorb.on .orb{animation:none!important}}\n";document.head.appendChild(st3);
 try{fabSync();topBtn()}catch(e){}
 try{buildNav()}catch(e){}
+/* ===== VOICE FOR EVERY TRANSACTION: payment mode, "Save now" / say "save", keep going after each save ===== */
+var SES=[],SAVING=0;
+function modeOf(t){t=String(t||'').toLowerCase();if(/\b(upi|gpay|google ?pay|phone ?pe|phonepe|paytm|bhim)\b/.test(t))return 'UPI';if(/\b(cheque|chq)\b|चेक/.test(t))return 'Cheque';if(/\b(bank|neft|rtgs|imps|transfer)\b|बैंक/.test(t))return 'Bank Transfer';if(/\b(cash|nakad|nagad)\b|कैश|नकद/.test(t))return 'Cash';return ''}
+var SAVEW=/^\s*(save|save it|save kar do|save karo|save kar|confirm|confirm kar do|ok save|done|ho gaya|ho gya|kar do|theek hai save|सेव|सेव कर दो|सेव करो|कर दो|हो गया)\W*$/i;
+var _pcV=parseCmd;
+parseCmd=function(q,force){var m=modeOf(q);
+ if(force&&SAVEW.test(String(q))){setTimeout(function(){vcSave()},0);return Promise.resolve(null)}
+ function lone(){return {a:force,p:'',rows:[],paid:0,amt:0,note:'',pt:m}}
+ return Promise.resolve(_pcV(q,force)).then(function(c){if(m){if(c)c.pt=m;else if(force&&ACT[force])c=lone()}return c},function(e){if(m&&force&&ACT[force])return lone();throw e})};
+var _vmV=vmerge;vmerge=function(c,n){_vmV(c,n);if(n&&n.pt)c.pt=n.pt};
+var _chV=confHtml;
+confHtml=function(v){var h=_chV(v),c=v.conf,pay=c.a==='payment_in'||c.a==='payment_out',bill=c.a==='sale'||c.a==='purchase';
+ if(pay||bill){var sel='<label class="mu">Payment mode</label><select onchange="AI.vc.conf.pt=this.value" style="width:100%;margin-bottom:6px">'+['Cash','UPI','Bank Transfer','Cheque'].map(function(o){return '<option'+((c.pt||'Cash')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select>';
+  h=pay?h.replace('<label class="mu">Note (optional)</label>',sel+'<label class="mu">Note (optional)</label>'):h.replace('<div class="row vtot">',sel+'<div class="row vtot">')}
+ h=h.replace(/(id="vcms">)[^<]*/,'$1Tap the mic to add more, or say “save” to save it now. · और बोलें, या “save” बोलें।');
+ return h.replace('<button class="b" onclick="vcGo()">','<button class="b" onclick="vcSave()">Save now · सेव करें</button><button class="s" onclick="vcGo()">')};
+var _vgV=vcGo;
+vcGo=function(){var v=AI.vc,c=v&&v.conf&&JSON.parse(JSON.stringify(v.conf));_vgV();
+ if(c&&!AI.vc&&c.pt){try{if(c.a==='sale')draft.pt=c.pt;else if(c.a==='payment_in'||c.a==='payment_out')pdraft.pt=c.pt;else if(DOCT[c.a])ddraft.pt=c.pt}catch(e){}render()}};
+var _vclV=vcClose;vcClose=function(){if(!SAVING)SES.length=0;return _vclV.apply(this,arguments)};
+var _cpV=capHtml;
+capHtml=function(v){var h=_cpV(v);if(!SES.length)return h;
+ var l='<div style="margin:6px 0;padding:8px 10px;border-radius:10px;background:#e8f7f1;font-size:13px"><b>Saved in this session · इस सेशन में सेव</b>'+SES.map(function(s){return '<div>✓ '+esc(s)+'</div>'}).join('')+'</div>';
+ return h.replace('<div class="aivm vfx-mid">',l+'<div class="aivm vfx-mid">')};
+window.vcSave=function(){var v=AI.vc;if(!v||!v.conf)return;
+ var c=JSON.parse(JSON.stringify(v.conf)),a=c.a,pay=a==='payment_in'||a==='payment_out',ret=a==='sale_return'||a==='purchase_return',
+  sum=TT[a][0]+' · '+(c.p||'').trim()+' · '+money(pay?(+c.amt||0):ctot(c));
+ SAVING=1;try{vcGo()}finally{SAVING=0}
+ if(AI.vc)return;/* a detail is missing: the card is still open and shows what to fix */
+ var cnt=function(){return D.bills.length+D.pays.length+D.docs.length},n0=cnt(),msgs=[],al=window.alert;
+ window.alert=function(m){msgs.push(String(m))};
+ try{if(a==='sale'){if(isM())sfSave(0);else dkSave()}else if(pay)savePin();else if(ret)saveRet();else saveDoc()}catch(e){msgs.push(e.message)}finally{window.alert=al}
+ if(cnt()<=n0){if(msgs.length)alert(msgs.join('\n'));return}/* not saved: the form stays open so you can fix it */
+ SES.push(sum);try{vcOpen(false)}catch(e){}
+ if(vsay())speak(vlang()==='en-IN'?'Saved. Next?':'सेव हो गया। अगला?');
+ setTimeout(function(){try{if(AI.vc&&!AI.vc.conf&&V.st==='idle')vcMic()}catch(e){}},1200)};
 })();
 
 /* ================= OFFLINEAI TRANSACTION ROUTER v5 ================= */
