@@ -4518,7 +4518,8 @@ function agGate(q){if(!agOn()||!ready())return false;var c=cfg();if(c.p==='own'&
 function agQuiet(fn,yes){var oa=window.alert,oc=window.confirm,op=window.prompt,m=[];window.alert=function(x){m.push(String(x))};window.confirm=function(x){if(!yes)m.push(String(x));return !!yes};window.prompt=function(){return null};try{fn()}catch(e){m.push(String(e&&e.message||e))}finally{window.alert=oa;window.confirm=oc;window.prompt=op}return m}
 function agCap(s){s=String(s||'').trim().replace(/\s+/g,' ');return s===s.toLowerCase()?s.replace(/(^|\s)(\S)/g,function(m,a,b){return a+b.toUpperCase()}):s}
 function agNum(x){x=+x;return isFinite(x)&&x>0?x:0}
-function agPick(list,name,th){name=String(name||'').trim();if(!name)return {o:null,amb:[]};var z=nz(name),ex=list.filter(function(o){return nz(o.name)===z});if(ex.length)return {o:ex[0],amb:[]};
+var AGNEW={};
+function agPick(list,name,th){name=String(name||'').trim();if(!name)return {o:null,amb:[]};if(AGNEW[(list===D.parties?'p:':'i:')+nz(name)])return {o:null,amb:[]};var z=nz(name),ex=list.filter(function(o){return nz(o.name)===z});if(ex.length)return {o:ex[0],amb:[]};
  var c=[];list.forEach(function(o){var s=sim(o.name,name);if(s>=th)c.push({o:o,s:s})});c.sort(function(a,b){return b.s-a.s});
  if(!c.length)return {o:null,amb:[]};if(c.length===1||c[0].s-c[1].s>=.08)return {o:c[0].o,amb:[]};
  return {o:null,amb:c.slice(0,4).map(function(x){return x.o.name})}}
@@ -4661,6 +4662,38 @@ function agExec(steps,q){var res=[],bills=[];steps.forEach(function(s){var r;try
 window.agYes=function(){var p=AG.pend;agConfClear();if(!p)return;var r=agExec(p.steps,p.q);if(AI.vc){AI.vc.ans=r.t;AI.vc.st='idle';try{vcDraw()}catch(e){}}};
 window.agNo=function(){var p=AG.pend;agConfClear();if(!p)return;var t=agL('Cancelled. Nothing was saved.','रद्द किया। कुछ सेव नहीं हुआ।');AG.hist.push({r:'user',t:'no'},{r:'ai',t:t});AG.t=Date.now();AI.msgs.push({r:'ai',t:t});aiDraw();if(AI.vc){AI.vc.ans=t;AI.vc.st='idle';try{vcDraw()}catch(e){}}};
 var AGYES=/^\s*(yes|y|yeah|yep|yup|ok|okay|confirm|confirmed|save|save it|do it|haan|haa|ha|han|ji|ji haan|kar do|kardo|karo|theek hai|thik hai|sahi hai|हाँ|हां|जी|जी हाँ|ठीक है|कर दो|करदो|करो|सेव)\s*[.!]*\s*$/i,AGNO=/^\s*(no|nope|nahi|nahin|nai|cancel|stop|ruko|mat karo|ना|नहीं|नही|रुको|कैंसिल|रद्द)\s*[.!]*\s*$/i;
+/* ---- find the right party / item first: if not sure, show a tap list (with "New" choice) and wait for your tap ---- */
+async function agAskP(sp,tt,newOK){var rs=resolveName(D.parties,sp),cs=rs.hit.slice(),lp=lrnGet('p',sp);
+ if(rs.k==='exact'||rs.k==='one')return rs.hit[0].name;
+ if(lp){var li=-1;cs.forEach(function(p,ix){if(p.name===lp)li=ix});if(li>0)cs.unshift(cs.splice(li,1)[0])}
+ var mapP=function(p){return {l:p.name,s:[p.name===lp?'Last time you chose this':'',p.phone,'Balance '+money(bal(p))].filter(Boolean).join('  |  '),v:{n:p.name}}},po=cs.map(function(p){var o=mapP(p);o.m=1;return o});
+ if(newOK)po.push({l:'New '+tt+': '+sp,s:'Not in my list. Create as new. / सूची में नहीं है, नई बनाएँ',v:{n:sp,nw:1}});
+ var seen={};cs.forEach(function(p){seen[p.id]=1});D.parties.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seen[p.id])po.push(mapP(p))});
+ var T=rs.k==='many'?'Which '+tt+'? You said "'+sp+'" ('+cs.length+' found)':rs.k==='fuzzy'?'Not sure about "'+sp+'". Did you mean one of these?':'I could not find "'+sp+'" in your list';
+ var H=rs.k==='many'?'कौन सा '+hiOf(tt)+'? आपने "'+sp+'" बोला ('+cs.length+' मिले)':rs.k==='fuzzy'?'"'+sp+'" पक्का नहीं है। क्या इनमें से कोई है?':'"'+sp+'" आपकी लिस्ट में नहीं मिला';
+ var r=await askQ({t:T,hi:H,sub:cs.length?'Tap the right one, or type / speak the name.':'Type or speak the name, or pick from the full list.',shi:cs.length?'सही वाले पर दबाइए, या नाम लिखिए / बोलिए':'नाम लिखिए / बोलिए, या पूरी लिस्ट से चुनिए',opts:po,inp:'text',ph:'Type name / नाम लिखें',dl:D.parties.map(function(p){return p.name})});
+ if(r.o){if(r.o.nw){AGNEW['p:'+nz(r.o.n)]=1;return r.o.n}lrnSet('p',sp,r.o.n);return r.o.n}
+ var f=findP(r.t),sq=f?[f]:qStrong(D.parties,r.t);if(sq.length===1)return sq[0].name;if(newOK)AGNEW['p:'+nz(r.t)]=1;return r.t}
+async function agAskI(nm,pur,newOK){var rs=resolveName(D.items,nm),cs=rs.hit.slice(),li2=lrnGet('i',nm);
+ if(rs.k==='exact'||rs.k==='one')return rs.hit[0].name;
+ if(li2){var lx=-1;cs.forEach(function(p,ix){if(p.name===li2)lx=ix});if(lx>0)cs.unshift(cs.splice(lx,1)[0])}
+ var mapI=function(p){var rt=pur?(+p.buy||+p.rate||0):(+p.rate||0);return {l:p.name,s:[p.name===li2?'Last time you chose this':'',p.unit,rt?'Rs '+rt:'','Stock '+(Math.round((+p.qty||0)*10)/10)].filter(Boolean).join('  |  '),v:{n:p.name}}},io=cs.map(function(p){var o=mapI(p);o.m=1;return o});
+ if(newOK)io.push({l:'New item: '+nm,s:'Not in my stock list. Create as new item. / स्टॉक में नहीं है, नया आइटम बनाएँ',v:{n:nm,nw:1}});
+ var seen={};cs.forEach(function(p){seen[p.id]=1});D.items.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(!seen[p.id])io.push(mapI(p))});
+ var T=rs.k==='many'?'Which item? You said "'+nm+'" ('+cs.length+' found)':rs.k==='fuzzy'?'Not sure about "'+nm+'". Did you mean one of these?':'I could not find "'+nm+'" in your items';
+ var H=rs.k==='many'?'कौन सा आइटम? आपने "'+nm+'" बोला ('+cs.length+' मिले)':rs.k==='fuzzy'?'"'+nm+'" पक्का नहीं है। क्या इनमें से कोई है?':'"'+nm+'" आपके आइटम में नहीं मिला';
+ var r=await askQ({t:T,hi:H,sub:cs.length?'Tap the right one, or type / speak the name.':'Type or speak the item name, or pick from the full list.',shi:cs.length?'सही वाले पर दबाइए, या नाम लिखिए / बोलिए':'आइटम का नाम लिखिए / बोलिए, या पूरी लिस्ट से चुनिए',opts:io,inp:'text',ph:'Type item name / आइटम नाम',dl:D.items.map(function(p){return p.name})});
+ if(r.o){if(r.o.nw){AGNEW['i:'+nz(r.o.n)]=1;return r.o.n}lrnSet('i',nm,r.o.n);return r.o.n}
+ var f2=findI(r.t),s2=f2?[f2]:qStrong(D.items,r.t);if(s2.length===1)return s2[0].name;if(newOK)AGNEW['i:'+nz(r.t)]=1;return r.t}
+async function agResolve(acts){var out=JSON.parse(JSON.stringify(acts)),pp={},pi={};
+ for(var k=0;k<out.length;k++){var a=out[k]||{},d=String(a.do||'').toLowerCase().replace(/[^a-z_]/g,''),bill=!!AGNM[d],pay=d==='payment_in'||d==='payment_out';
+  if(d==='add_party'){pp[nz(a.name)]=1;continue}
+  if(d==='add_item'){pi[nz(a.name)]=1;continue}
+  if((bill||pay)&&String(a.party||'').trim()&&!pp[nz(a.party)])a.party=await agAskP(String(a.party).trim(),bill?AGNM[d][1].toLowerCase():'party',1);
+  else if(d==='update_party'&&String(a.name||'').trim()&&!pp[nz(a.name)])a.name=await agAskP(String(a.name).trim(),'party',0);
+  if(bill){var rows=Array.isArray(a.items)?a.items:[];for(var i=0;i<rows.length;i++){var x=rows[i]=rows[i]||{};if(String(x.name||'').trim()&&!pi[nz(x.name)])x.name=await agAskI(String(x.name).trim(),d==='purchase'||d==='purchase_return',1)}}
+  else if((d==='update_item'||d==='add_stock')&&String(a.name||'').trim()&&!pi[nz(a.name)])a.name=await agAskI(String(a.name).trim(),0,0)}
+ return out}
 var _runAG=run;
 /* ---- ask-first mode: the AI never saves a bill by itself. It opens the real form filled in, and YOU press Save. Small things (party, item, stock) ask Yes / No first. ---- */
 var AGFORM={sale:1,purchase:1,estimate:1,sale_order:1,challan:1,sale_return:1,purchase_return:1,payment_in:1,payment_out:1};
@@ -4691,7 +4724,7 @@ run=function(q){if(!agGate(q))return _runAG(q);
  function fall(){AI.msgs.pop();AI.busy=0;return _runAG(q)}
  return agCall(agParts(q)).then(function(t){var j=jparse(t);if(!j||!Array.isArray(j.actions))return fall();
   var acts=j.actions;if(!acts.length){var sy=String(j.say||'').trim();if(!sy)return fall();AG.hist.push({r:'user',t:q},{r:'ai',t:sy});AG.t=Date.now();AI.msgs.push({r:'ai',t:sy});AI.busy=0;aiDraw();return {k:'answer',t:sy}}
-  var pr=agPrep(acts);if(pr.question)return fall();
+  AGNEW={};return agResolve(acts).then(function(acts){var pr=agPrep(acts);if(pr.question)return fall();
   if(pr.ask){AG.hist.push({r:'user',t:q},{r:'ai',t:pr.ask});AG.t=Date.now();AI.msgs.push({r:'ai',t:pr.ask});AI.busy=0;aiDraw();return {k:'answer',t:pr.ask}}
   var form=[],conf=[],other=[];pr.steps.forEach(function(s){if(AGFORM[s.d])form.push(s);else if(s.d==='cancel_bill'||s.d==='open')other.push(s);else conf.push(s)});
   function say(txt){AG.hist.push({r:'user',t:q},{r:'ai',t:txt.replace(/\*\*/g,'')});AG.t=Date.now();AI.msgs.push({r:'ai',t:txt});AI.busy=0;if(AI.vc){AI.vc.ans=txt;AI.vc.st='idle';vcDraw()}else aiDraw()}
@@ -4700,7 +4733,7 @@ run=function(q){if(!agGate(q))return _runAG(q);
    return (bad?agL('Some things could not be done:','कुछ काम नहीं हो सके:'):((conf.length||other.length)?agL('Done.','हो गया।'):''))+(lines.length?'\n'+lines.join('\n'):'')}
   if(!conf.length){var tx=go();say(tx);return {k:'answer',t:tx}}
   agAsk(conf.map(agDesc),function(){say(go())},function(){say(agL('Okay, nothing was saved.','ठीक है, कुछ सेव नहीं किया।'))});
-  AI.busy=0;var w=agL('Waiting for your Yes or No.','आपकी हाँ या ना का इंतज़ार है।');return {k:'answer',t:w}},function(e){if(e&&e.fatal){AI.msgs.push({r:'ai',t:e.message,e:1});AI.busy=0;aiDraw();return {k:'err',t:e.message}}return fall()})};
+  AI.busy=0;var w=agL('Waiting for your Yes or No.','आपकी हाँ या ना का इंतज़ार है।');return {k:'answer',t:w}},function(e){var m=String(e&&e.message||e);AI.busy=0;AI.msgs.push({r:'ai',t:m});if(AI.vc){AI.vc.ans=m;AI.vc.st='idle';vcDraw()}else aiDraw();return {k:'answer',t:m}})},function(e){if(e&&e.fatal){AI.msgs.push({r:'ai',t:e.message,e:1});AI.busy=0;aiDraw();return {k:'err',t:e.message}}return fall()})};
 /* settings card on the Ask AI page */
 function agCard(){var m=isM();return '<div class="'+(m?'mc':'card')+'"><b>Hands-free mode</b><div class="mu" style="margin:4px 0 8px">The AI does the work itself: adds parties and items, makes cash or credit bills, purchases, estimates, payments and stock changes, and opens pages. Just say or type it.</div>'+
  '<label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" style="width:auto;margin:0" '+(agOn()?'checked':'')+' onchange="agToggle(this.checked)"> Save directly without asking (Undo button appears after every bill)</label>'+
