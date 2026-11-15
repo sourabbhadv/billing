@@ -6332,4 +6332,272 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  window.addEventListener('resize',sync);sync();
 })();
 </script>
+<script>
+/* =====================================================================
+   DESKTOP: every saved transaction opens in the SAME screen used to make it,
+   locked (read only). Press Edit to change it. Payments are clickable.
+   ===================================================================== */
+(function(){
+ var ROS={};           /* keys of saved items that are currently locked: b<no>, d<id>, p<id>, r<id> */
+ var hold=0,_r0=render;
+ var st=document.createElement('style');
+ st.textContent='@media(min-width:900px){'+
+  '.dkro input:disabled,.dkro textarea:disabled,.dkro select:disabled{color:#2d3350!important;-webkit-text-fill-color:#2d3350!important;opacity:1!important;cursor:default}'+
+  '.dkro .tr,.dkro .pc,.dkro .ab,.dkro .ghost,.dkro a[onclick*="shipSame2"]{display:none!important}'+
+  '.dkro .dkw{pointer-events:none}.dkro .dkg tr:hover>td.rn .no{display:inline-block!important}'+
+  '.dkbn{margin:10px 24px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dkbn .sp{flex:1}.dkbn .cx{color:#d93025;font-weight:700}'+
+  '.dkf .ed{background:#1a73e8;color:#fff;border:0;padding:0 42px}.dkf .rs{background:#0f6e56;color:#fff;border:0;padding:0 42px}'+
+  '}';
+ document.head.appendChild(st);
+
+ function curKey(){
+  if(isM())return null;
+  if(form&&draft&&draft.edit!=null&&document.querySelector('#v .dks'))return 'b'+draft.edit;
+  if(sub==='doc'&&ddraft&&ddraft.edit)return 'd'+ddraft.edit;
+  if(sub==='pin'&&pdraft&&pdraft.edit)return 'p'+pdraft.edit;
+  if(sub==='ret'&&rdraft&&rdraft.edit)return 'r'+rdraft.edit;
+  return null}
+ function recOf(k){var id=k.slice(1);if(k[0]==='b')return bl(+id);if(k[0]==='d')return docById(id);return D.pays.find(function(q){return q.id===id})}
+ function q(s){return "'"+String(s).replace(/'/g,"\\'")+"'"}
+
+ /* ---------- open a saved item locked ---------- */
+ function openBillRO(n){
+  var b=bl(n);if(!b)return;viewB=null;
+  var ti=-1;try{ti=DKT.findIndex(function(d){return d&&d.edit===n})}catch(e){}
+  if(ti>=0){draft=DKT[ti];DKA=ti;form=true;tab='bill';last=null;return render()}
+  ROS['b'+n]=1;
+  var x=b.x;b.x=0;try{editBill(n)}finally{b.x=x}
+  render()}
+ function openDocRO(id){
+  var d=docById(id);if(!d)return;viewD=null;ROS['d'+id]=1;
+  var x=d.x;d.x=0;try{editDoc(id)}finally{d.x=x}
+  render()}
+ window.openPayRO=function(id){
+  var x=D.pays.find(function(z){return z.id===id});if(!x||isM())return;
+  var p=P(x.pid),z=dkDT(x.date);leave();
+  if(x.ret){rdraft={edit:id,name:p?p.name:'',lines:JSON.parse(JSON.stringify(x.lines||[])),dt:z.dt,tm:z.tm};pg='sret';sub='ret';ROS['r'+id]=1}
+  else{pdraft={edit:id,name:p?p.name:'',amt:x.amt,note:x.note||'',out:x.out?1:0,pt:x.pt||'Cash',dt:z.dt,tm:z.tm};pg=x.out?'pout':'pin';sub='pin';ROS['p'+id]=1}
+  render()};
+
+ /* ---------- render hook ---------- */
+ render=function(){
+  if(!isM()&&!hold){
+   if(viewB&&!openB&&bl(viewB)){openBillRO(viewB);return}
+   if(viewD&&docById(viewD)){openDocRO(viewD);return}
+  }
+  var r=_r0.apply(this,arguments);
+  try{lockUI()}catch(e){try{console.error('lockUI',e)}catch(_){}}
+  return r};
+ var _se=saveEdit;saveEdit=function(){hold=1;try{return _se.apply(this,arguments)}finally{hold=0}};
+
+ /* ---------- lock the screen after it is drawn ---------- */
+ function lockUI(){
+  var k=curKey();if(!k)return;var root=document.querySelector('#v .dks');if(!root)return;
+  var rec=recOf(k);if(!rec)return;
+  var kind=k[0],can=!!rec.x,ro=!!ROS[k]||can,id=k.slice(1);
+  var h2=root.querySelector('.dkh h2');
+  var label=kind==='b'?'Sale':kind==='d'?(DT[rec.t]||{}).s||'Document':kind==='r'?'Sale Return':(rec.out?'Payment-Out':'Payment-In');
+  var no=kind==='b'?rec.no:kind==='d'?rec.no:'';
+  var args=kind==='b'?String(rec.no):q(id);
+  var fWA=kind==='b'?'wa('+args+')':kind==='d'?'docWA('+args+')':'payWA('+args+')';
+  var fPr=kind==='b'?'printBill('+args+')':kind==='d'?'printDoc('+args+')':'rpPrintPay('+args+')';
+  var fSh=kind==='b'?'shareBill('+args+')':fWA;
+  var fDel=kind==='b'?'delBill('+args+')':kind==='d'?'delDoc('+args+')':'delPay('+args+')';
+  var fCan=kind==='b'?'cancelBill('+args+')':kind==='d'?'cancelDoc('+args+')':'togPay('+args+')';
+  var fRes=kind==='b'?'restoreBill('+args+')':kind==='d'?'restoreDoc('+args+')':'togPay('+args+')';
+  var old=root.querySelector('.dkbn');if(old)old.remove();
+  if(!ro){
+   if(h2&&kind!=='b')h2.textContent=h2.textContent.replace(/^(Edit )?/,'Edit ');
+   if(kind!=='b'){var bn0=document.createElement('div');bn0.className='ok dkbn';bn0.innerHTML='<span>Editing '+esc(label)+' '+(no?'#'+esc(no):'')+' - change anything and press <b>Save changes</b>.</span><span class="sp"></span><button class="s" onclick="dkDiscard()">Discard changes</button>';var hd0=root.querySelector('.dkh');hd0.parentNode.insertBefore(bn0,hd0.nextSibling);
+    var sv=root.querySelector('.dkf .sv');if(sv&&!/changes/i.test(sv.textContent))sv.textContent='Save changes'}
+   return}
+  root.classList.add('dkro');
+  if(h2)h2.textContent=h2.textContent.replace(/^Edit /,'');
+  root.querySelectorAll('input,select,textarea').forEach(function(e){e.disabled=true});
+  ['bi','dit','rit'].forEach(function(i){var e=document.getElementById(i);if(e){var tr=e.closest('tr');if(tr)tr.style.display='none'}});
+  root.querySelectorAll('.ok').forEach(function(e){if(/^\s*Saved bill #/.test(e.textContent)&&!e.classList.contains('dkbn'))e.style.display='none'});
+  var bn=document.createElement('div');bn.className='ok dkbn';
+  bn.innerHTML='<span>'+esc(label)+(no?' #'+esc(no):'')+' &middot; '+dt(rec.date)+(can?' <span class="cx">(Cancelled)</span>':'')+' &middot; <span class="mu">Saved. Press <b>Edit</b> to change it.</span></span><span class="sp"></span>'+
+   '<button class="s" onclick="'+fWA+'">WhatsApp</button>'+
+   (can?'':'<button class="s" onclick="'+fCan+';render()">Cancel</button>')+
+   '<button class="s" style="color:#d93025" onclick="'+fDel+'">Delete</button>'+
+   '<button class="s" onclick="dkCloseRO()">Close</button>';
+  var hd=root.querySelector('.dkh');hd.parentNode.insertBefore(bn,hd.nextSibling);
+  var f=document.querySelector('#v .dkf');
+  if(f)f.innerHTML='<button class="ic" title="Share" onclick="'+fSh+'">&#8599;</button><span class="pr"><button onclick="'+fPr+'">Print</button></span>'+
+   (can?'<button class="rs" onclick="dkRestoreRO()">Restore</button>':'<button class="ed" onclick="dkEdit()">Edit</button>')}
+
+ window.dkEdit=function(){var k=curKey();if(!k)return;delete ROS[k];render()};
+ window.dkCloseRO=function(){
+  var k=curKey();if(!k)return;
+  if(k[0]==='b'){leaveForm();return}
+  if(k[0]==='d')ddraft=null;sub=null;render()};
+ window.dkRestoreRO=function(){
+  var k=curKey();if(!k)return;var id=k.slice(1);
+  if(k[0]==='b'){restoreBill(+id);try{DKT.forEach(function(d,i){if(d&&d.edit===+id){DKT.splice(i,1)}});DKA=-1}catch(e){}viewB=+id;form=false;render()}
+  else if(k[0]==='d'){restoreDoc(id);openDocRO(id)}
+  else{togPay(id);openPayRO(id)}};
+ window.dkDiscard=function(){
+  var k=curKey();if(!k)return;var id=k.slice(1);
+  if(!confirm('Discard what you changed and show the saved version?'))return;
+  if(k[0]==='d')openDocRO(id);else openPayRO(id)};
+
+ /* ---------- Payment-In / Payment-Out / Sale Return rows are clickable ---------- */
+ var _vPL=vPayList;
+ vPayList=function(kk){
+  var h=_vPL(kk);if(isM())return h;
+  return h.replace(/<tr data-n="[^"]*">(?:(?!<\/tr>)[\s\S])*?<\/tr>/g,function(row){
+   var m=row.match(/data-i="([^"]+)"/);
+   return m?row.replace('<tr ','<tr style="cursor:pointer" onclick="openPayRO(\''+m[1]+'\')" '):row})};
+
+ /* ---------- saving an edited payment / return ---------- */
+ var _sp=savePin;
+ savePin=function(){
+  if(isM()||!pdraft||!pdraft.edit)return _sp.apply(this,arguments);
+  var x=D.pays.find(function(z){return z.id===pdraft.edit});if(!x)return;
+  var nm=(pdraft.name||'').trim(),a=+pdraft.amt;
+  if(!nm)return alert('Enter party name');if(!(a>0))return alert('Enter the amount');
+  var p=findP(nm);
+  if(!p){if(!confirm('"'+nm+'" is not in your parties. Create new party?'))return;p={id:uid(),name:nm,phone:'',open:0};D.parties.push(p)}
+  var s0=x.amt+'|'+(x.note||'')+'|'+x.pid;
+  x.pid=p.id;x.amt=a;x.note=(pdraft.note||'').trim();x.pt=pdraft.pt||'Cash';
+  var ts=dkTs(pdraft);if(ts)x.date=ts;
+  save();var id=x.id,ch=s0!==(x.amt+'|'+(x.note||'')+'|'+x.pid);
+  pdraft={name:'',amt:'',note:'',out:0};sub=null;
+  try{if(ch&&awGo('upd',p)){_awUpd='pay';try{payWA(id)}finally{_awUpd=0}}}catch(e){}
+  render()};
+ var _sr=saveRet;
+ saveRet=function(){
+  if(isM()||!rdraft||!rdraft.edit)return _sr.apply(this,arguments);
+  if(!dkRetFlush())return;
+  var x=D.pays.find(function(z){return z.id===rdraft.edit});if(!x)return;
+  var p=findP(rdraft.name);if(!p)return alert('Pick the customer from the list');
+  if(!rdraft.lines.length)return alert('Add at least one item');
+  if(!x.x)(x.lines||[]).forEach(function(l){var i=(l.iid&&I(l.iid))||findI(l.name);if(i)i.qty=rnd(i.qty-l.qty)});
+  var tot=0;
+  rdraft.lines.forEach(function(l){var i=findI(l.name);if(!i){i={id:uid(),name:l.name,unit:l.unit,rate:l.rate,qty:0,low:0};D.items.push(i)}l.iid=i.id;if(!x.x)i.qty=rnd(i.qty+l.qty);tot+=l.amt});
+  x.pid=p.id;x.lines=rdraft.lines;x.amt=tot;var ts=dkTs(rdraft);if(ts)x.date=ts;
+  save();rdraft={name:'',lines:[]};sub=null;render()};
+
+ /* ---------- after delete, do not stay on a screen for a record that is gone ---------- */
+ var _dp=delPay;delPay=function(id){var n=D.pays.length;_dp.apply(this,arguments);if(D.pays.length<n&&(sub==='pin'||sub==='ret')){sub=null}render()};
+ var _dd=delDoc;delDoc=function(id){var n=D.docs.length;_dd.apply(this,arguments);if(D.docs.length<n){ddraft=null;if(sub==='doc')sub=null}render()};
+})();
+</script>
+<script>
+/* =====================================================================
+   BACKUPS: offline copy on this computer every day (+ file), and email backup
+   ===================================================================== */
+(function(){
+ var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
+ var today=function(){var d=new Date(),p=function(n){return (n<10?'0':'')+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())};
+ var KEEP=30;
+ /* --- tiny IndexedDB helper --- */
+ function db(){return new Promise(function(res,rej){if(!window.indexedDB)return rej('no idb');var r=indexedDB.open('sbBackup',1);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains('snaps'))d.createObjectStore('snaps',{keyPath:'day'});if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
+ function tx(store,mode,fn){return db().then(function(d){return new Promise(function(res,rej){var t=d.transaction(store,mode),s=t.objectStore(store),o=fn(s);t.oncomplete=function(){res(o&&o.result)};t.onerror=t.onabort=function(){rej(t.error)}})})}
+ function kvGet(k){return tx('kv','readonly',function(s){return s.get(k)})}
+ function kvSet(k,v){return tx('kv','readwrite',function(s){return s.put(v,k)})}
+ function snapsAll(){return tx('snaps','readonly',function(s){return s.getAll()}).then(function(a){return (a||[]).sort(function(x,y){return x.day<y.day?1:-1})})}
+ function full(){return JSON.stringify(D)}
+ function hasData(){return D&&((D.bills||[]).length+(D.parties||[]).length+(D.items||[]).length)>0}
+ function say(id,t){var e=document.getElementById(id);if(e)e.textContent=t}
+
+ /* --- offline copy inside this browser (IndexedDB), one per day, last 30 kept --- */
+ var lastSnap=0;
+ function localSnap(force){
+  if(!hasData())return Promise.resolve(false);
+  if(!force&&Date.now()-lastSnap<30*60*1000)return Promise.resolve(false);
+  lastSnap=Date.now();var s=full();
+  return tx('snaps','readwrite',function(st){return st.put({day:today(),ts:Date.now(),size:s.length,bills:(D.bills||[]).length,data:s})})
+   .then(function(){return snapsAll()})
+   .then(function(a){var old=a.slice(KEEP);if(!old.length)return true;return tx('snaps','readwrite',function(st){old.forEach(function(o){st.delete(o.day)})}).then(function(){return true})})
+   .then(function(r){LS('bkLocalAt',String(Date.now()));return r},function(){return false})}
+
+ /* --- daily file: into a chosen folder (Chrome/Edge) or a normal download --- */
+ var pend=null;
+ function fileName(){return 'backup-'+today()+'.json'}
+ function writeFile(auto){
+  var name=fileName(),json=full();
+  function dl(){saveFile(name,new Blob([json],{type:'application/json'}));LS('bkFileDay',today());return 'download'}
+  return kvGet('dir').catch(function(){return null}).then(function(h){
+   if(!h)return dl();
+   return h.queryPermission({mode:'readwrite'}).then(function(p){
+    if(p!=='granted'&&auto){showPend();return 'pending'}
+    return (p==='granted'?Promise.resolve('granted'):h.requestPermission({mode:'readwrite'})).then(function(p2){
+     if(p2!=='granted')return dl();
+     return h.getFileHandle(name,{create:true}).then(function(fh){return fh.createWritable()}).then(function(w){return w.write(json).then(function(){return w.close()})}).then(function(){LS('bkFileDay',today());hidePend();return 'folder'})})})
+  }).catch(function(){return dl()})}
+ function showPend(){if(document.getElementById('bkpend'))return;var b=document.createElement('button');b.id='bkpend';b.className='b';b.style.cssText='position:fixed;right:18px;bottom:18px;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.25)';b.textContent='Click to save today\u2019s backup file';b.onclick=function(){writeFile(false).then(function(){hidePend();paint()})};document.body.appendChild(b)}
+ function hidePend(){var b=document.getElementById('bkpend');if(b)b.remove()}
+
+ /* --- email (needs the one-time Supabase function, see setup text) --- */
+ function sendMail(){
+  var to=(LS('bkEmail')||'').trim();
+  if(!to)return Promise.reject(new Error('Type your email address first.'));
+  if(!window.SB||!SB.functions)return Promise.reject(new Error('Not signed in to the cloud yet.'));
+  return SB.functions.invoke('backup-email',{body:{to:to,filename:fileName(),json:full()}}).then(function(r){
+   if(r&&r.error)throw new Error((r.error.message||'The email function is not set up yet.'));
+   if(r&&r.data&&r.data.error)throw new Error(r.data.error);
+   LS('bkMailDay',today());LS('bkMailAt',String(Date.now()));return true})}
+
+ /* --- the daily job: runs a few seconds after opening and then every 30 minutes --- */
+ function daily(){
+  if(!hasData())return;
+  localSnap(false);
+  if(LS('bkFile')!=='0'&&LS('bkFileDay')!==today())writeFile(true).then(function(){paint()});
+  if(LS('bkMail')==='1'&&(LS('bkEmail')||'').trim()&&LS('bkMailDay')!==today()&&window.SB)sendMail().then(paint,function(e){LS('bkMailErr',String(e&&e.message||e));paint()})}
+ setTimeout(daily,8000);setInterval(daily,30*60*1000);
+ document.addEventListener('visibilitychange',function(){if(document.hidden)localSnap(false)});
+
+ /* --- merge a backup into the app (newer records stay) --- */
+ function merge(x){
+  if(!x||!x.items||!x.parties)throw new Error('This is not a backup file of this app.');
+  ['parties','items','bills','pays','docs','trs','dsp'].forEach(function(c){
+   if(!Array.isArray(x[c]))return;D[c]=D[c]||[];
+   x[c].forEach(function(r){if(c==='bills'&&!r.id)r.id='b'+r.no;if(!r.id)return;var a=D[c],i=a.findIndex(function(z){return z.id===r.id});if(i<0)a.push(r);else a[i]=r})});
+  if(x.shop)D.shop=x.shop;save();render()}
+ window.bkRestoreLocal=function(day){
+  if(!confirm('Restore records as they were on '+day+'? Newer bills and parties stay.'))return;
+  tx('snaps','readonly',function(s){return s.get(day)}).then(function(r){try{merge(JSON.parse(r.data));alert('Restored')}catch(e){alert(e.message||'Could not restore')}},function(){alert('Could not read the copy')})};
+ window.bkDownloadLocal=function(day){tx('snaps','readonly',function(s){return s.get(day)}).then(function(r){saveFile('backup-'+day+'.json',new Blob([r.data],{type:'application/json'}))})};
+ window.bkNow=function(){say('bkSt','Saving...');localSnap(true).then(function(ok){say('bkSt',ok?'Saved a copy inside this browser.':'Could not save (browser storage blocked?)');paint()})};
+ window.bkFileNow=function(){writeFile(false).then(function(r){say('bkSt',r==='folder'?'Saved into your backup folder.':'File downloaded.');paint()})};
+ window.bkPickDir=function(){
+  if(!window.showDirectoryPicker)return alert('Your browser cannot pick a folder. Use Chrome or Edge on the computer. Files will go to Downloads instead.');
+  window.showDirectoryPicker({mode:'readwrite'}).then(function(h){return kvSet('dir',h)}).then(function(){LS('bkFileDay',null);say('bkSt','Folder chosen. Today\u2019s file will be saved there.');return writeFile(false)}).then(function(){paint()},function(){})};
+ window.bkClearDir=function(){kvSet('dir',null).then(function(){hidePend();paint()})};
+ window.bkOpt=function(k,v){LS(k,v);if(k==='bkMail'||k==='bkEmail')LS('bkMailErr',null);paint()};
+ window.bkMailNow=function(){say('bkMailSt','Sending...');sendMail().then(function(){LS('bkMailErr',null);paint()},function(e){LS('bkMailErr',String(e&&e.message||e));paint()})};
+ window.bkMailDraft=function(){var to=(LS('bkEmail')||'').trim();window.bkFileNow();location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent('Backup '+today())+'&body='+encodeURIComponent('Attach the file backup-'+today()+'.json that was just saved.')};
+ window.bkLoadFile=function(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var x=JSON.parse(r.result);if(!x.items||!x.parties)throw new Error('This is not a backup file of this app.');if(confirm('Restore records from "'+f.name+'"? Newer bills and parties stay.')){merge(x);alert('Restored')}}catch(e){alert(e.message||'Invalid backup file')}inp.value=''};r.readAsText(f)};
+ window.bkSetup=function(){var e=document.getElementById('bkSetup');if(e)e.style.display=e.style.display==='none'?'block':'none'};
+
+ /* --- the Backup page card --- */
+ function ago(t){if(!t)return 'never';var m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':new Date(t).toLocaleDateString('en-IN')}
+ function card(){
+  var fOn=LS('bkFile')!=='0',mOn=LS('bkMail')==='1',em=LS('bkEmail')||'';
+  return '<div class="card" style="max-width:760px"><b style="font-size:16px">Offline backup (this computer)</b>'+
+   '<p class="mu" style="margin:4px 0 8px">A copy of all your data is saved inside this browser once a day, and the last '+KEEP+' days are kept. It works with no internet.</p>'+
+   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="bkNow()">Backup now</button><button class="s" onclick="bkFileNow()">Save backup file now</button><label class="s" style="cursor:pointer">Restore from file<input type="file" accept=".json,application/json" style="display:none" onchange="bkLoadFile(this)"></label></div>'+
+   '<div id="bkSt" class="mu" style="margin:6px 0">Last copy in this browser: <b>'+ago(+LS('bkLocalAt'))+'</b></div>'+
+   '<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto;margin:0" '+(fOn?'checked ':'')+'onchange="bkOpt(\'bkFile\',this.checked?\'1\':\'0\')"> Also save a backup file automatically every day</label>'+
+   '<div class="mu" style="margin-left:26px">'+(fOn?'Last file: <b>'+(LS('bkFileDay')||'never')+'</b>. ':'')+'<span id="bkDirSt"></span> <button class="s" onclick="bkPickDir()">Choose backup folder</button> <button class="s" id="bkDirX" style="display:none" onclick="bkClearDir()">Use Downloads instead</button></div>'+
+   '<div style="margin-top:10px"><b>Copies in this browser</b><div id="bkList" class="mu">Loading...</div></div></div>'+
+   '<div class="card" style="max-width:760px"><b style="font-size:16px">Email backup</b>'+
+   '<p class="mu" style="margin:4px 0 8px">Sends the backup file to your email every day.</p>'+
+   '<input type="email" placeholder="Your email address" value="'+esc(em)+'" onchange="bkOpt(\'bkEmail\',this.value.trim())" style="max-width:340px">'+
+   '<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto;margin:0" '+(mOn?'checked ':'')+'onchange="bkOpt(\'bkMail\',this.checked?\'1\':\'0\')"> Email me a backup every day</label>'+
+   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="bkMailNow()">Email backup now</button><button class="s" onclick="bkMailDraft()">Save file &amp; open an email draft</button><button class="s" onclick="bkSetup()">One-time setup</button></div>'+
+   '<div id="bkMailSt" class="mu" style="margin-top:6px">'+(LS('bkMailErr')?'<span class="red">'+esc(LS('bkMailErr'))+'</span>':(LS('bkMailAt')?'Last email sent: <b>'+ago(+LS('bkMailAt'))+'</b>':'No email sent yet.'))+'</div>'+
+   '<div id="bkSetup" class="mu" style="display:none;margin-top:8px;line-height:1.5"><b>One-time setup (a web page cannot send email by itself)</b><br>1. Make a free account at resend.com and copy an API key.<br>2. Supabase &rarr; Edge Functions &rarr; new function named <b>backup-email</b> &rarr; paste the code from the file <b>backup-email-function.ts</b>.<br>3. Supabase &rarr; Edge Functions &rarr; Secrets: add <b>RESEND_API_KEY</b>. Optional: <b>BACKUP_TO</b> (your email), <b>BACKUP_FROM</b>.<br>4. Come back here, type your email, press <b>Email backup now</b>.<br>The app then emails a backup the first time you open it each day. The file also explains how to make it send even on days you do not open the app.</div></div>'}
+ function paint(){
+  var e=document.getElementById('bkList');
+  snapsAll().then(function(a){e=document.getElementById('bkList');if(!e)return;
+   e.innerHTML=a.length?a.map(function(s){return '<div class="row" style="margin-top:6px"><span>'+s.day+' <span class="mu">&middot; '+(s.bills||0)+' bills &middot; '+Math.max(1,Math.round(s.size/1024))+' KB</span></span><span><button class="s" onclick="bkDownloadLocal(\''+s.day+'\')">Download</button> <button class="s" onclick="bkRestoreLocal(\''+s.day+'\')">Restore</button></span></div>'}).join(''):'None yet. The first copy is made a few seconds after the app opens.'},function(){e=document.getElementById('bkList');if(e)e.textContent='This browser blocks local storage, so offline copies cannot be kept. Use "Save backup file now".'});
+  kvGet('dir').then(function(h){var s=document.getElementById('bkDirSt'),x=document.getElementById('bkDirX');if(s)s.textContent=h?'Folder: '+h.name+'.':'Files go to your Downloads folder.';if(x)x.style.display=h?'':'none'},function(){});
+  if(document.getElementById('bkSt')&&document.getElementById('bkSt').textContent.indexOf('Last copy')===0)say('bkSt','Last copy in this browser: '+ago(+LS('bkLocalAt')))}
+ var _vBk=vBk;
+ vBk=function(){setTimeout(paint,0);return card()+_vBk()};
+})();
+</script>
 </body></html>
