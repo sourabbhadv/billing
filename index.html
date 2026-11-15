@@ -6773,4 +6773,18 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  document.head.appendChild(st);
 })();
 </script>
+<style id="dk-col-fix">
+/* DESKTOP ONLY: the item table keeps the same column sizes (wide ITEM, compact DESCRIPTION) in every
+   transaction, whether it is a new one or an already saved one. Saved rows used to force their own
+   column widths and squeezed the ITEM / slab-size text. Phone is not touched. */
+@media(min-width:900px){
+.dkg th:nth-child(2),.dkg td:nth-child(2){width:auto!important}
+.dkg th:nth-child(3),.dkg td:nth-child(3){width:120px!important}
+.dkg th:nth-child(4),.dkg td:nth-child(4),.dkg th:nth-child(5),.dkg td:nth-child(5){width:90px!important}
+.dkg th:nth-child(6),.dkg td:nth-child(6),.dkg th:nth-child(7),.dkg td:nth-child(7){width:120px!important}
+.dkg table:has(#bds2) th:nth-child(8),.dkg table:has(#bds2) td:nth-child(8){width:155px!important}
+.dkg table:has(#dlc) th:nth-child(8),.dkg table:has(#dlc) td:nth-child(8){width:170px!important}
+.dkg td input{min-width:0}
+}
+</style>
 </body></html>
