@@ -6017,7 +6017,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  function r2(n){return Math.round(n*100)/100}
  function users(){try{var p=PS();return Array.isArray(p.users)?p.users:[]}catch(e){return []}}
  function hash(s){var h=7;s=String(s);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return 'h'+h+'_'+s.length}
- function me(){try{var n=localStorage.getItem('actUser')||'';return (n&&sessionStorage.getItem('actOK')===n)?n:''}catch(e){return ''}}
+ function remOn(){try{return localStorage.getItem('actRem')!=='0'}catch(e){return true}}
+ function me(){try{var n=localStorage.getItem('actUser')||'';if(!n)return '';var us=users(),u=us.filter(function(x){return x.n===n})[0];if(us.length&&!u)return '';if(sessionStorage.getItem('actOK')===n)return n;if(!remOn()||!u)return '';if(!u.p)return n;return (localStorage.getItem('actPinFor')===n&&Date.now()-(+localStorage.getItem('actPinAt')||0)<30*864e5)?n:''}catch(e){return ''}}
  function show(k,v){
   if(v===undefined||v===null||v==='')return '(empty)';
   if(k==='pid'){var p=P(v);return p?p.name:String(v)}
@@ -6119,7 +6120,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   var us=users(),cur=localStorage.getItem('actUser')||'',h='<b style="font-size:18px">Who is using the app?</b><div class="acm">Your name is saved with every change you make.</div>';
   if(!us.length)return actAdd(boot);
   us.forEach(function(u,i){h+='<button type="button" class="s" onclick="actPick('+i+')">\ud83d\udc64 '+esc(u.n)+(u.p?' \ud83d\udd12':'')+(u.n===cur?' \u00b7 last used':'')+'</button>'});
-  h+='<div id="acpin"></div><button type="button" class="s" onclick="actAdd('+(boot?1:0)+')">+ Add person</button>';
+  h+='<div id="acpin"></div><button type="button" class="s" onclick="actAdd('+(boot?1:0)+')">+ Add person</button><button type="button" class="s" onclick="actManage('+(boot?1:0)+')">\u2699\ufe0f Manage people (rename, PIN, remove)</button>';
   if(!boot)h+='<button type="button" class="s" onclick="actClose()">Cancel</button>';
   ov(h)};
  window.actPick=function(i){
@@ -6128,7 +6129,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   else actSet(u.n)};
  window.actPin=function(i){var u=users()[i],v=(document.getElementById('acpv')||{}).value||'';if(u&&hash(v)===u.p)actSet(u.n);else{alert('Wrong PIN');var e=document.getElementById('acpv');if(e){e.value='';e.focus()}}};
  window.actSet=function(n){
-  var prev=me();localStorage.setItem('actUser',n);sessionStorage.setItem('actOK',n);actClose();
+  var prev=me();localStorage.setItem('actUser',n);sessionStorage.setItem('actOK',n);try{localStorage.setItem('actPinFor',n);localStorage.setItem('actPinAt',String(Date.now()))}catch(e){}actClose();
   if(prev!==n){D.acts=D.acts||[];entry('login','login',n+' started using the app',[]);save()}
   chip();try{render()}catch(e){}};
  window.actAdd=function(boot){
@@ -6144,18 +6145,39 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   var first=!me();save();
   if(first)actSet(n);else{entry('set','set','Person added: '+n,[]);save();if(boot)actWho(1);else{actClose();try{render()}catch(e){}}}};
  window.actDelUser=function(i){
-  var u=users()[i];if(!u)return;
-  if(u.n===me())return alert('Switch to someone else before removing yourself.');
-  if(u.p){var v=prompt('Enter PIN of '+u.n+' to remove this person');if(v===null)return;if(hash(v.trim())!==u.p)return alert('Wrong PIN')}
-  if(!confirm('Remove '+u.n+'? Their past activity stays in the history.'))return;
-  var ps=PS();ps.users=users().filter(function(x,j){return j!==i});entry('set','set','Person removed: '+u.n,[]);save();try{render()}catch(e){}};
+   var u=users()[i];if(!u)return;
+   if(u.p){var v=prompt('Enter PIN of '+u.n+' to remove this person');if(v===null)return;if(hash(v.trim())!==u.p)return alert('Wrong PIN')}
+   var self=(u.n===me()||u.n===(localStorage.getItem('actUser')||''));
+   if(!confirm('Remove '+u.n+(self?' (this is you on this device)':'')+'? Their past activity stays in the history.'))return;
+   var ps=PS();entry('set','set','Person removed: '+u.n,[]);ps.users=users().filter(function(x,j){return j!==i});
+   if(self){try{localStorage.removeItem('actUser');localStorage.removeItem('actPinFor');sessionStorage.removeItem('actOK')}catch(e){}}
+   save();try{render()}catch(e){}
+   if(self){if(users().length)actWho(1);else actAdd(1)}else if(mng())actManage(MB)};
  window.actPinSet=function(i){
   var u=users()[i];if(!u)return;
   if(u.p){var v=prompt('Enter current PIN of '+u.n);if(v===null)return;if(hash(v.trim())!==u.p)return alert('Wrong PIN')}
   var n=prompt('New PIN for '+u.n+' (3 to 8 digits). Leave empty for no PIN.','');if(n===null)return;n=n.trim();
   if(n&&!/^\d{3,8}$/.test(n))return alert('PIN must be 3 to 8 digits');
-  u.p=n?hash(n):'';entry('set','set',(n?'PIN set for ':'PIN removed for ')+u.n,[]);save();try{render()}catch(e){}};
- function chip(){
+  u.p=n?hash(n):'';try{if(localStorage.getItem('actPinFor')===u.n)localStorage.removeItem('actPinFor')}catch(e){}entry('set','set',(n?'PIN set for ':'PIN removed for ')+u.n,[]);save();try{render()}catch(e){}if(mng())actManage(MB)};
+ var MB=0;function mng(){return !!document.getElementById('amng')}
+ window.actRename=function(i){
+  var u=users()[i];if(!u)return;
+  if(u.p){var v=prompt('Enter PIN of '+u.n+' to rename this person');if(v===null)return;if(hash(v.trim())!==u.p)return alert('Wrong PIN')}
+  var n=prompt('New name for '+u.n,u.n);if(n===null)return;n=n.trim();if(!n||n===u.n)return;
+  if(users().some(function(x,j){return j!==i&&x.n.toLowerCase()===n.toLowerCase()}))return alert('This name already exists');
+  var old=u.n,mineNow=(old===(localStorage.getItem('actUser')||''));
+  u.n=n;
+  if(mineNow){try{localStorage.setItem('actUser',n);if(sessionStorage.getItem('actOK')===old)sessionStorage.setItem('actOK',n);if(localStorage.getItem('actPinFor')===old)localStorage.setItem('actPinFor',n)}catch(e){}}
+  entry('set','set','Person renamed: '+old+' \u2192 '+n,[]);save();chip();try{render()}catch(e){}if(mng())actManage(MB)};
+ window.actRem=function(on){try{localStorage.setItem('actRem',on?'1':'0')}catch(e){}};
+ window.actManage=function(boot){
+  MB=boot?1:0;var us=users(),h='<div id="amng"></div><b style="font-size:18px">Manage people</b><div class="acm">Rename a person, set or change a PIN, or remove someone who no longer uses the app.</div>';
+  if(!us.length)h+='<div class="acm">No people added yet.</div>';
+  us.forEach(function(u,i){h+='<div style="border:1px solid #e3e7ee;border-radius:10px;padding:8px 10px;margin:8px 0"><div style="font-weight:600">\ud83d\udc64 '+esc(u.n)+(u.p?' \ud83d\udd12':'')+(u.n===me()?' <i class="acm">(you)</i>':'')+'</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button type="button" class="s acchip" style="width:auto;margin:0" onclick="actRename('+i+')">Rename</button><button type="button" class="s acchip" style="width:auto;margin:0" onclick="actPinSet('+i+')">'+(u.p?'Change PIN':'Set PIN')+'</button><button type="button" class="s acchip" style="width:auto;margin:0;color:#d93025" onclick="actDelUser('+i+')">Remove</button></div></div>'});
+  h+='<label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-size:14px;cursor:pointer"><input type="checkbox" style="width:auto;margin:3px 0 0" '+(remOn()?'checked ':'')+'onchange="actRem(this.checked)"><span>Remember me on this device<br><span class="acm">Does not ask who is using the app again after a refresh or restart. For a person with a PIN, the PIN is asked again after 30 days.</span></span></label>';
+  h+='<button type="button" class="b" style="text-align:center" onclick="actAdd('+(boot?1:0)+')">+ Add person</button><button type="button" class="s" onclick="actWho('+(boot?1:0)+')">Back</button><button type="button" class="s" onclick="actClose()">Close</button>';
+  ov(h)};
+  function chip(){
   var t=document.getElementById('top');if(!t)return;var b=t.querySelector('.acchip'),n=me();
   if(!b){b=document.createElement('button');b.type='button';b.className='s acchip';b.onclick=function(){actWho(0)};t.appendChild(b)}
   b.textContent='\ud83d\udc64 '+(n||'Choose person')}
@@ -6207,7 +6229,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   var h=_vs.apply(this,arguments);
   try{if(typeof sTab!=='undefined'&&sTab!=='gen')return h;var k=h.lastIndexOf('</div>');if(k<0)return h;
    var sec='<div class="sec"><h3>People &amp; activity history</h3><div class="mu" style="margin-bottom:6px">Everyone who uses the app. Their name is saved with every change. History is kept for 6 months, then removed automatically.</div>';
-   users().forEach(function(u,i){sec+='<div class="ck" style="cursor:default"><span style="flex:1">\ud83d\udc64 '+esc(u.n)+(u.p?' \ud83d\udd12':'')+(u.n===me()?' <i class="mu">(you)</i>':'')+'</span><button type="button" class="s" onclick="actPinSet('+i+')">'+(u.p?'Change PIN':'Set PIN')+'</button> <button type="button" class="s" onclick="actDelUser('+i+')">Remove</button></div>'});
+   users().forEach(function(u,i){sec+='<div class="ck" style="cursor:default"><span style="flex:1">\ud83d\udc64 '+esc(u.n)+(u.p?' \ud83d\udd12':'')+(u.n===me()?' <i class="mu">(you)</i>':'')+'</span><button type="button" class="s" onclick="actPinSet('+i+')">'+(u.p?'Change PIN':'Set PIN')+'</button> <button type="button" class="s" onclick="actRename('+i+')">Rename</button> <button type="button" class="s" onclick="actDelUser('+i+')">Remove</button></div>'});
+   sec+='<label class="ck" style="cursor:pointer"><input type="checkbox" '+(remOn()?'checked ':'')+'onchange="actRem(this.checked)"><span>Remember me on this device (do not ask again after refresh)</span></label>';
    sec+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="s" onclick="actAdd(0)">+ Add person</button><button type="button" class="s" onclick="nav(\'act\')">Open Activity History</button></div></div>';
    return h.slice(0,k)+sec+h.slice(k)}catch(e){return h}}}
  try{render()}catch(e){}
@@ -6296,6 +6319,17 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   try{_se.apply(this,arguments)}finally{hold=0}
   if(no!=null&&viewB===no){viewB=null;form=true;tab='bill';last=no;render()}
  };
+})();
+</script>
+<script>
+/* ---------- DESKTOP ONLY: no top button bar while a sale / transaction form is open ---------- */
+(function(){
+ var st=document.createElement('style');
+ st.textContent='@media(min-width:900px){body.notop #top{display:none!important}body.notop .dks{min-height:100vh}}';
+ document.head.appendChild(st);
+ function sync(){try{var v=document.getElementById('v');document.body.classList.toggle('notop',!isM()&&!!(v&&v.querySelector('.dks')))}catch(e){}}
+ var _r=render;render=function(){var r=_r.apply(this,arguments);sync();return r};
+ window.addEventListener('resize',sync);sync();
 })();
 </script>
 </body></html>
