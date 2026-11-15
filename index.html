@@ -4631,20 +4631,49 @@ function agToast(ns,extra){var el=document.getElementById('agToast');if(!el){el=
  if(extra)h+='<div class="agr">'+esc(extra)+'</div>';el.innerHTML=h;clearTimeout(agToast.t);agToast.t=setTimeout(function(){var e=document.getElementById('agToast');if(e)e.remove()},30000)}
 window.agView=function(n){try{vcClose()}catch(e){}leave();pg='si';viewB=n;render();var e=document.getElementById('agToast');if(e)e.remove()};
 window.agUndo=function(n){var b=bl(n);if(!b||b.x)return;agQuiet(function(){cancelBill(n)},1);try{render()}catch(e){}agToast([],agL('Bill #'+n+' cancelled (undone).','बिल #'+n+' वापस लिया।'))};
+
+/* ---------- ASK FIRST: nothing is saved until the owner says yes (or taps Save) ---------- */
+function agDesc(s){var d=s.d,a=s.a||{},L=function(x){return x.q+' '+x.n+' @ '+money(x.r)};
+ if(d==='add_party')return agL('Add party '+s.name+(a.phone?' ('+a.phone+')':''),'पार्टी जोड़ना: '+s.name+(a.phone?' ('+a.phone+')':''));
+ if(d==='update_party')return agL('Change party '+s.p.name,'पार्टी बदलना: '+s.p.name);
+ if(d==='add_item')return agL('Add item '+s.name+(agNum(a.sale_rate)?' at '+money(agNum(a.sale_rate)):'')+(agNum(a.stock)?', stock '+agNum(a.stock):''),'आइटम जोड़ना: '+s.name);
+ if(d==='update_item')return agL('Change item '+s.i.name,'आइटम बदलना: '+s.i.name);
+ if(d==='add_stock')return agL('Add '+agNum(a.qty)+' stock to '+s.i.name,s.i.name+' में '+agNum(a.qty)+' स्टॉक जोड़ना');
+ if(AGNM[d]){var who=s.party||agL('walk-in customer','कैश ग्राहक'),tl=s.lines.map(L).join(', ');
+  var md=(d==='sale'||d==='purchase')?(s.cash?agL('CASH ','कैश '):agL('CREDIT ','उधार ')):'';
+  return md+AGNM[d][0]+agL(' for ',' - ')+who+': '+tl+agL(' | Total ',' | कुल ')+money(s.total)+((!s.cash&&s.paid>0&&(d==='sale'||d==='purchase'))?agL(', paid now ',', अभी दिए ')+money(s.paid):'')+(s.newParty?agL(' (new party)',' (नई पार्टी)'):'')}
+ if(AGDOC[d]&&!AGNM[d])return d;
+ if(d==='payment_in'||d==='payment_out')return (d==='payment_in'?agL('Received ','प्राप्त '):agL('Paid ','दिए '))+money(s.amt)+(d==='payment_in'?agL(' from ',' - '):agL(' to ',' - '))+s.party;
+ if(d==='cancel_bill')return agL('Cancel bill #'+s.no,'बिल #'+s.no+' रद्द करना');
+ return d}
+function agConfText(steps){return agL('Please check. I will do this:','कृपया देखिए, मैं यह करूँगा:')+'\n'+steps.map(function(s){return '• '+agDesc(s)}).join('\n')+'\n'+agL('Say YES to save, or NO to cancel.','सेव करने के लिए हाँ बोलिए, रद्द करने के लिए नहीं।')}
+function agConfClear(){AG.pend=null;var e=document.getElementById('agConf');if(e)e.remove()}
+function agConfCard(steps){var e=document.getElementById('agConf');if(e)e.remove();e=document.createElement('div');e.id='agConf';
+ e.style.cssText='position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:calc(100% - 24px);max-width:440px;max-height:70vh;overflow:auto;background:#fff;color:#1c2033;border:2px solid #1a73e8;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.28);padding:12px 14px;z-index:2147483000;font-size:14px;line-height:1.45';
+ e.innerHTML='<b>'+agL('Please check before saving','सेव करने से पहले देखिए')+'</b><div style="margin:6px 0 10px">'+steps.map(function(s){return '• '+esc(agDesc(s))}).join('<br>')+'</div><div style="display:flex;gap:8px"><button type="button" onclick="agYes()" style="flex:1;background:#1a9d4a;color:#fff;border:0;border-radius:10px;padding:11px;font-weight:700;font-size:15px">'+agL('Save','सेव करें')+'</button><button type="button" onclick="agNo()" style="flex:1;background:#fff;color:#d93025;border:1.5px solid #d93025;border-radius:10px;padding:11px;font-weight:700;font-size:15px">'+agL('Cancel','रद्द करें')+'</button></div>';
+ document.body.appendChild(e)}
+function agExec(steps,q){var res=[],bills=[];steps.forEach(function(s){var r;try{r=agOne(s)}catch(e){r={ok:0,m:String(e&&e.message||e)}}res.push(r);if(r.ok&&r.no)bills.push(r.no)});
+  var good=res.filter(function(r){return r.ok}),bad=res.filter(function(r){return !r.ok});
+  var txt=(bad.length?agL('Some things could not be done:','कुछ काम नहीं हो सके:'):agL('Done.','हो गया।'))+'\n'+good.map(function(r){return '• '+r.t}).concat(bad.map(function(r){return '• ⚠ '+r.m})).join('\n');
+  AG.hist.push({r:'user',t:q},{r:'ai',t:txt.replace(/\*\*/g,'')});AG.t=Date.now();AI.msgs.push({r:'ai',t:txt});AI.busy=0;aiDraw();
+  if(bills.length)setTimeout(function(){agToast(bills)},50);
+  return {k:'answer',t:txt}}
+window.agYes=function(){var p=AG.pend;agConfClear();if(!p)return;var r=agExec(p.steps,p.q);if(AI.vc){AI.vc.ans=r.t;AI.vc.st='idle';try{vcDraw()}catch(e){}}};
+window.agNo=function(){var p=AG.pend;agConfClear();if(!p)return;var t=agL('Cancelled. Nothing was saved.','रद्द किया। कुछ सेव नहीं हुआ।');AG.hist.push({r:'user',t:'no'},{r:'ai',t:t});AG.t=Date.now();AI.msgs.push({r:'ai',t:t});aiDraw();if(AI.vc){AI.vc.ans=t;AI.vc.st='idle';try{vcDraw()}catch(e){}}};
+var AGYES=/^\s*(yes|y|yeah|yep|yup|ok|okay|confirm|confirmed|save|save it|do it|haan|haa|ha|han|ji|ji haan|kar do|kardo|karo|theek hai|thik hai|sahi hai|हाँ|हां|जी|जी हाँ|ठीक है|कर दो|करदो|करो|सेव)\s*[.!]*\s*$/i,AGNO=/^\s*(no|nope|nahi|nahin|nai|cancel|stop|ruko|mat karo|ना|नहीं|नही|रुको|कैंसिल|रद्द)\s*[.!]*\s*$/i;
 var _runAG=run;
-run=function(q){if(!agGate(q))return _runAG(q);
+run=function(q){if(AG.pend){if(Date.now()-AG.pend.t>300000)agConfClear();else if(AGYES.test(q)){var pp=AG.pend;agConfClear();AI.msgs.push({r:'user',t:q});var r1=agExec(pp.steps,pp.q);return Promise.resolve(r1)}else if(AGNO.test(q)){AI.msgs.push({r:'user',t:q});agNo();return Promise.resolve({k:'answer',t:agL('Cancelled. Nothing was saved.','रद्द किया। कुछ सेव नहीं हुआ।')})}else agConfClear()}
+ if(!agGate(q))return _runAG(q);
  AI.msgs.push({r:'user',t:q});AI.busy=1;AI.hint='';aiDraw();
  function fall(){AI.msgs.pop();AI.busy=0;return _runAG(q)}
  return agCall(agParts(q)).then(function(t){var j=jparse(t);if(!j||!Array.isArray(j.actions))return fall();
   var acts=j.actions;if(!acts.length){var sy=String(j.say||'').trim();if(!sy)return fall();AG.hist.push({r:'user',t:q},{r:'ai',t:sy});AG.t=Date.now();AI.msgs.push({r:'ai',t:sy});AI.busy=0;aiDraw();return {k:'answer',t:sy}}
   var pr=agPrep(acts);if(pr.question)return fall();
   if(pr.ask){AG.hist.push({r:'user',t:q},{r:'ai',t:pr.ask});AG.t=Date.now();AI.msgs.push({r:'ai',t:pr.ask});AI.busy=0;aiDraw();return {k:'answer',t:pr.ask}}
-  var res=[],bills=[];pr.steps.forEach(function(s){var r;try{r=agOne(s)}catch(e){r={ok:0,m:String(e&&e.message||e)}}res.push(r);if(r.ok&&r.no)bills.push(r.no)});
-  var good=res.filter(function(r){return r.ok}),bad=res.filter(function(r){return !r.ok});
-  var txt=(bad.length?agL('Some things could not be done:','कुछ काम नहीं हो सके:'):agL('Done.','हो गया।'))+'\n'+good.map(function(r){return '• '+r.t}).concat(bad.map(function(r){return '• ⚠ '+r.m})).join('\n');
-  AG.hist.push({r:'user',t:q},{r:'ai',t:txt.replace(/\*\*/g,'')});AG.t=Date.now();AI.msgs.push({r:'ai',t:txt});AI.busy=0;aiDraw();
-  if(bills.length)setTimeout(function(){agToast(bills)},50);
-  return {k:'answer',t:txt}},function(e){if(e&&e.fatal){AI.msgs.push({r:'ai',t:e.message,e:1});AI.busy=0;aiDraw();return {k:'err',t:e.message}}return fall()})};
+  var need=pr.steps.some(function(s){return s.d!=='open'&&s.d!=='cancel_bill'});
+  if(!need){var r0=agExec(pr.steps,q);return r0}
+  var ct=agConfText(pr.steps);AG.pend={steps:pr.steps,q:q,t:Date.now()};AG.hist.push({r:'user',t:q},{r:'ai',t:ct.replace(/\*\*/g,'')});AG.t=Date.now();AI.msgs.push({r:'ai',t:ct});AI.busy=0;aiDraw();agConfCard(pr.steps);
+  return {k:'answer',t:ct}},function(e){if(e&&e.fatal){AI.msgs.push({r:'ai',t:e.message,e:1});AI.busy=0;aiDraw();return {k:'err',t:e.message}}return fall()})};
 /* settings card on the Ask AI page */
 function agCard(){var m=isM();return '<div class="'+(m?'mc':'card')+'"><b>Hands-free mode</b><div class="mu" style="margin:4px 0 8px">The AI does the work itself: adds parties and items, makes cash or credit bills, purchases, estimates, payments and stock changes, and opens pages. Just say or type it.</div>'+
  '<label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" style="width:auto;margin:0" '+(agOn()?'checked':'')+' onchange="agToggle(this.checked)"> Save directly without asking (Undo button appears after every bill)</label>'+
