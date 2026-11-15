@@ -212,7 +212,7 @@ function fillI(v){var i=findI(v);if(i){$('#br').value=i.rate;$('#bu').value=i.un
 function addLine2(){
  var n=$('#bi').value.trim(),q=+$('#bq').value,r=+$('#br').value;
  if(!n||!(q>0)||$('#br').value==='')return alert('Enter item name, qty and rate');
- draft.lines.push({name:n,unit:$('#bu').value.trim()||'pcs',qty:q,rate:r,amt:q*r,nowq:Math.min(+(($('#bs')||{}).value)||0,q)});render();setTimeout(function(){var e=$('#bi');if(e)e.focus()},0);
+ draft.lines.push({name:n,unit:$('#bu').value.trim()||'pcs',qty:q,rate:r,amt:q*r,nowq:Math.min(+(($('#bs')||{}).value)||0,q)});window.__sugOff=Date.now()+900;render();setTimeout(function(){var e=$('#bi');if(e)e.focus()},0);
 }
 function saveBill2(){
  var nm=(draft.name||'').trim();if(!nm)return alert('Enter party name');
@@ -1513,7 +1513,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
  box.addEventListener('pointerup',function(e){var d=e.target.closest&&e.target.closest('div[data-v]');if(!d||!cur)return;if(Math.abs(e.clientX-spx)>8||Math.abs(e.clientY-spy)>8)return;var inp=cur;inp.value=d.dataset.v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));hide();
   if(inp.id==='bi'){var q2=document.getElementById('bq');if(q2){q2.focus();try{q2.select()}catch(x){}}}});
  document.addEventListener('input',function(e){var t=e.target;if(t&&t.dataset&&t.dataset.dl)show(t)});
- document.addEventListener('focusin',function(e){var t=e.target;if(t&&t.dataset&&t.dataset.dl)show(t)});
+ document.addEventListener('focusin',function(e){var t=e.target;if(window.__sugOff&&Date.now()<window.__sugOff)return;if(t&&t.dataset&&t.dataset.dl)show(t)});
  document.addEventListener('focusout',function(e){setTimeout(function(){if(cur&&document.activeElement!==cur)hide()},120)});
  window.addEventListener('scroll',pos,true);window.addEventListener('resize',pos);
  document.addEventListener('keydown',function(e){if(e.key==='Escape')hide()});
