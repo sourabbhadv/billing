@@ -3308,11 +3308,11 @@ function cbTxt(v){return v>0.009?F(v)+' to receive':v<-0.009?F(-v)+' to pay':'Ni
 function ctxBill(b){var p=P(b.pid)||{name:'?'},ad=bAddr(b);
  return {title:g('pr_ti','Sale Invoice')||'Sale Invoice',noLb:'Invoice No.',no:b.no,date:b.date,disc:+b.disc||0,total:b.total,paid:paidOn(b),hasPay:true,tn:b.tn||'',vn:b.vn||'',x:!!b.x,
   cb:(b.pid&&b.pid!=='__cash'&&P(b.pid))?bal(P(b.pid)):null,party:{name:p.name,phone:p.phone||'',addr:ad.a,ship:ad.s},
-  lines:b.lines.map(function(l){var lc='';try{lc=op('hloc')?itemLoc(l):''}catch(e){}return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,loc:lc}})}}
+  lines:b.lines.map(function(l){var lc='';try{lc=op('hloc')?itemLoc(l):''}catch(e){}return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,loc:lc,sz:l.sz,szu:l.szu}})}}
 function ctxDoc(d){var p=P(d.pid)||{name:'?'},T=DT[d.t]||{s:'Document'};
  return {title:T.n||T.s,noLb:T.s+' No.',no:d.no,date:d.date,disc:+d.disc||0,total:d.total,paid:0,hasPay:false,tn:'',vn:'',x:!!d.x,cb:null,
   party:{name:p.name,phone:p.phone||'',addr:p.addr||'',ship:p.ship||''},
-  lines:d.lines.map(function(l){return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,loc:(d.t==='pur'&&(l.loc||d.gd))||''}})}}
+  lines:d.lines.map(function(l){return {name:l.name,unit:l.unit,qty:l.qty,rate:l.rate,amt:l.amt,loc:(d.t==='pur'&&(l.loc||d.gd))||'',sz:l.sz,szu:l.szu}})}}
 function ctxSample(){var L=[{name:'Vitrified Tile 2x2 Glossy',unit:'box',qty:20,rate:520,amt:10400,loc:''},{name:'Tile Adhesive 20 kg',unit:'bag',qty:10,rate:410,amt:4100,loc:''},{name:'Spacer 3mm (pack)',unit:'pkt',qty:5,rate:60,amt:300,loc:''}];
  return {title:g('pr_ti','Sale Invoice')||'Sale Invoice',noLb:'Invoice No.',no:101,date:Date.now(),disc:500,total:14300,paid:5000,hasPay:true,tn:'Sharma Transport',vn:'MH 35 AB 1234',x:false,cb:9300,
   party:{name:'Sample Customer',phone:'9876543210',addr:'12 Main Road, Gondia',ship:'Site: Plot 8, Ramnagar, Gondia'},lines:L}}
@@ -3331,7 +3331,7 @@ function totRows(c){var sub=sumA(c),r=[];
  return r}
 function itemsTbl(c){var sn=op('pr_sn'),rt=op('pr_rate');
  var hd='<tr>'+(sn?'<th class="c" style="width:30px">#</th>':'')+'<th>Item name</th><th class="r">Quantity</th>'+(rt?'<th class="r">Price/unit</th>':'')+'<th class="r">Amount</th></tr>';
- var rows=c.lines.map(function(l,k){return '<tr>'+(sn?'<td class="c">'+(k+1)+'</td>':'')+'<td>'+esc(l.name)+(l.loc?'<div class="loc">Godown / Block: '+esc(l.loc)+'</div>':'')+'</td><td class="r">'+qT(l)+'</td>'+(rt?'<td class="r">'+F(l.rate)+'</td>':'')+'<td class="r">'+F(l.amt)+'</td></tr>'}).join('');
+ var rows=c.lines.map(function(l,k){return '<tr>'+(sn?'<td class="c">'+(k+1)+'</td>':'')+'<td>'+esc(l.name)+(window.szPrintHtml?szPrintHtml(l):'')+(l.loc?'<div class="loc">Godown / Block: '+esc(l.loc)+'</div>':'')+'</td><td class="r">'+qT(l)+'</td>'+(rt?'<td class="r">'+F(l.rate)+'</td>':'')+'<td class="r">'+F(l.amt)+'</td></tr>'}).join('');
  return '<table class="it"><thead>'+hd+'</thead><tbody>'+rows+'</tbody></table>'+(off('pr_tq')?'<div class="tqn">Total quantity: <b>'+totQ(c)+'</b></div>':'')}
 
 /* ---- regular printer document ---- */
@@ -3397,8 +3397,8 @@ function thDoc(c,th){
  if(off('th_tr')&&(c.tn||c.vn))o+='<div>Transport: '+esc(c.tn||'-')+(c.vn?' · '+esc(c.vn):'')+'</div>';
  o+='<div class="dl"></div>';
  var rt=op('th_rt');
- if(t1){o+=c.lines.map(function(l){return '<div class="b it1">'+esc(l.name)+'</div><div class="row"><span>'+qT(l)+(rt?' x '+F(l.rate):'')+'</span><span>'+F(l.amt)+'</span></div>'+(l.loc?'<div class="sm">Godown: '+esc(l.loc)+'</div>':'')}).join('')}
- else{o+='<table><thead><tr><th>Item</th><th class="r">Qty</th>'+(rt?'<th class="r">Rate</th>':'')+'<th class="r">Amt</th></tr></thead><tbody>'+c.lines.map(function(l){return '<tr><td>'+esc(l.name)+'</td><td class="r">'+qT(l)+'</td>'+(rt?'<td class="r">'+(+l.rate||0)+'</td>':'')+'<td class="r">'+Math.round((+l.amt||0)*100)/100+'</td></tr>'}).join('')+'</tbody></table>'}
+ if(t1){o+=c.lines.map(function(l){return '<div class="b it1">'+esc(l.name)+'</div>'+(window.szPrintHtml?szPrintHtml(l):'')+'<div class="row"><span>'+qT(l)+(rt?' x '+F(l.rate):'')+'</span><span>'+F(l.amt)+'</span></div>'+(l.loc?'<div class="sm">Godown: '+esc(l.loc)+'</div>':'')}).join('')}
+ else{o+='<table><thead><tr><th>Item</th><th class="r">Qty</th>'+(rt?'<th class="r">Rate</th>':'')+'<th class="r">Amt</th></tr></thead><tbody>'+c.lines.map(function(l){return '<tr><td>'+esc(l.name)+(window.szPrintHtml?szPrintHtml(l):'')+'</td><td class="r">'+qT(l)+'</td>'+(rt?'<td class="r">'+(+l.rate||0)+'</td>':'')+'<td class="r">'+Math.round((+l.amt||0)*100)/100+'</td></tr>'}).join('')+'</tbody></table>'}
  o+='<div class="dl"></div>';
  if(off('th_tq'))o+='<div class="row"><span>Total qty</span><span>'+totQ(c)+'</span></div>';
  if(c.disc>0&&op('th_dc')){o+='<div class="row"><span>Sub Total</span><span>'+F(sumA(c))+'</span></div><div class="row"><span>Discount</span><span>- '+F(c.disc)+'</span></div>'}
@@ -5781,13 +5781,47 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  function isSqft(u){return ['sqft','sqfeet','sqfoot','squarefeet','squarefoot','sqf','sft'].indexOf(String(u||'').toLowerCase().replace(/[^a-z]/g,''))>=0}
  function DR(kind){return kind==='sale'?draft:(typeof ddraft!=='undefined'?ddraft:null)}
  window.szText=function(l){return l&&l.sz&&l.sz.length?cnt(l.sz)+(cnt(l.sz)>1?' slabs':' slab')+(l.szu==='ft'?' (feet & inches): ':' (inches): ')+szList(l):''};
+ window.szPrintHtml=function(l){
+  if(!l||!l.sz||!l.sz.length)return '';
+  var rows=l.sz.map(function(a){var n=nz(a),d=l.szu==='ft'?fi(a[0])+' \u00d7 '+fi(a[1]):(+a[0])+' \u00d7 '+(+a[1])+' in';
+   return esc(d)+(n>1?' \u00d7 '+n+' nos':'')+' = '+sq(a).toFixed(2)+' sq ft'});
+  return '<div class="szp2" style="font-size:.82em;font-weight:400;color:#444;line-height:1.45;margin-top:3px">'+rows.join('<br>')+'</div>'};
  window.szLines=function(l){
   if(!l||!l.sz||!l.sz.length)return [];
   var out=[],cur='';
   l.sz.map(function(a){return pair(a,l.szu)}).forEach(function(p){var t=cur?cur+', '+p:p;if(t.length>44&&cur){out.push(cur+',');cur=p}else cur=t});
   out.push(cur);out[0]='Sizes: '+out[0];return out};
  var css=document.createElement('style');
- css.textContent='#szov{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}.szbox{background:#fff;color:#111;border-radius:12px;width:100%;max-width:440px;max-height:90vh;overflow:auto;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.3)}.szr{display:flex;align-items:center;gap:6px;margin:6px 0}.szr input{flex:1;min-width:0;margin:0;width:auto}.szr .szq{min-width:88px;text-align:right;font-size:13px;color:#555}.szn{font-size:12px;color:#5b6477;margin-top:2px;line-height:1.35}.szb{margin-top:4px;font-size:13px;padding:6px 10px;white-space:nowrap}';
+ css.textContent=[
+'#szov{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}',
+'.szbox{background:#fff;color:#111;width:100%;max-width:520px;max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;border-radius:18px 18px 0 0;box-shadow:0 -6px 30px rgba(0,0,0,.25)}',
+'@media(min-width:600px){#szov{align-items:center;padding:12px}.szbox{border-radius:14px;max-height:90vh}}',
+'.szhd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 10px;font-size:18px}',
+'.szseg{display:flex;background:#eef1f7;border-radius:999px;padding:3px;flex:none}',
+'.szseg button{border:0;background:transparent;color:#3b4a6b;font-size:14px;font-weight:600;padding:8px 14px;border-radius:999px;margin:0;min-height:0;width:auto;cursor:pointer;box-shadow:none}',
+'.szseg button.on{background:var(--ac,#1a73e8);color:#fff}',
+'.szbd{flex:1;overflow:auto;padding:2px 16px 12px;-webkit-overflow-scrolling:touch}',
+'.szc{background:#f6f8fc;border:1px solid #e3e8f2;border-radius:14px;padding:10px 12px 12px;margin:0 0 10px}',
+'.szch{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#5b6477;margin-bottom:6px}',
+'.szbox .szx{border:0;background:transparent;color:#8a93a6;font-size:16px;width:34px;height:34px;min-height:0;margin:-8px -8px -8px 0;padding:0;border-radius:50%;cursor:pointer;box-shadow:none}',
+'.szg{display:grid;grid-template-columns:1fr 1fr;gap:10px}',
+'.szg label,.szn2 label{display:block;font-size:12px;color:#5b6477;margin:0 0 4px}',
+'.szp{display:flex;gap:6px}',
+'.szf{position:relative;flex:1;min-width:0}',
+'.szf i{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-style:normal;font-size:14px;color:#8a93a6;pointer-events:none}',
+'.szbox .szf input,.szbox .szn2 input{display:block;width:100%;box-sizing:border-box;height:46px;margin:0;padding:0 28px 0 10px;font-size:17px;border:1px solid #cdd4e3;border-radius:10px;background:#fff;color:#111;-moz-appearance:textfield}',
+'.szbox input::-webkit-outer-spin-button,.szbox input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}',
+'.szn2{display:flex;align-items:center;gap:10px;margin-top:10px}',
+'.szn2 label{margin:0;font-size:14px;color:#111;font-weight:600}',
+'.szbox .szn2 input{width:84px;flex:none;padding:0 10px;text-align:center}',
+'.szq{margin-left:auto;font-size:14px;font-weight:600;color:#1f3a6e;text-align:right}',
+'.szadd{display:block;width:100%;border:2px dashed #b9c6e2;background:transparent;color:var(--ac,#1a73e8);font-size:15px;font-weight:600;padding:12px;border-radius:12px;margin:0;cursor:pointer;box-shadow:none}',
+'.szft{border-top:1px solid #e3e6ec;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:#fff}',
+'.szt{display:flex;justify-content:space-between;font-size:16px;margin-bottom:10px}',
+'.szbt{display:flex;gap:8px}.szbox .szbt button{min-height:46px;font-size:16px;margin:0}.szbox .szbt .b{flex:1}',
+'.szn{font-size:12px;color:#5b6477;margin-top:2px;line-height:1.35}',
+'.szb{margin-top:4px;font-size:13px;padding:6px 10px;white-space:nowrap}'
+].join('');
  document.head.appendChild(css);
 
  function blank(){return {l:'',w:'',lf:'',li:'',wf:'',wi:'',n:''}}
@@ -5801,33 +5835,30 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  function upd(){
   var t=0,n=0;ST.rows.forEach(function(r,i){var L=val(r,'l'),W=val(r,'w'),ok=L>0&&W>0,one=ok?r2(L*W/144):0,k=rn(r),q=r2(one*k),e=document.getElementById('szq'+i);if(ok){t+=q;n+=k}if(e)e.textContent=ok?(k>1?one.toFixed(2)+' \u00d7 '+k+' = ':'')+q.toFixed(2)+' sq ft':''});
   var e=document.getElementById('szt');if(e)e.textContent=n+(n===1?' slab':' slabs')+' = '+r2(t).toFixed(2)+' sq ft'}
- function inp(i,f,ph,v,last){return '<input type="number" inputmode="decimal" step="any" min="0" placeholder="'+ph+'" data-sz="'+i+'-'+f+'" value="'+esc(String(v))+'" oninput="szIn('+i+',\''+f+'\',this.value)"'+(last?' onkeydown="if(event.key===\'Enter\'){szAdd();return false}"':'')+'>'}
- function nosInp(i,v,wide){return '<input type="number" inputmode="numeric" min="1" step="1" placeholder="Nos" data-sz="'+i+'-n" value="'+esc(String(v))+'" oninput="szIn('+i+',\'n\',this.value)" onkeydown="if(event.key===\'Enter\'){szAdd();return false}" style="flex:none;width:'+(wide?'90':'64')+'px">'}
+
+ function inp(i,f,ph,v){return '<input type="number" inputmode="decimal" step="any" min="0" placeholder="'+ph+'" data-sz="'+i+'-'+f+'" value="'+esc(String(v))+'" oninput="szIn('+i+',\''+f+'\',this.value)">'}
+ function fld(i,f,u,v){return '<div class="szf">'+inp(i,f,'0',v)+'<i>'+u+'</i></div>'}
+ function nosInp(i,v){return '<input type="number" inputmode="numeric" min="1" step="1" placeholder="1" data-sz="'+i+'-n" value="'+esc(String(v))+'" oninput="szIn('+i+',\'n\',this.value)" onkeydown="if(event.key===\'Enter\'){szAdd();return false}">'}
  function draw(fr){
-  var o=document.getElementById('szov');if(o)o.remove();
-  o=document.createElement('div');o.id='szov';var ft=ST.m==='ft';
-  var h='<div class="szbox"><b style="font-size:17px">Slab sizes</b>'
-   +'<div style="display:flex;gap:6px;margin:8px 0 6px"><button type="button" class="'+(ft?'s':'b')+'" style="flex:1;margin:0" onclick="szMode(\'in\')">Inches</button><button type="button" class="'+(ft?'b':'s')+'" style="flex:1;margin:0" onclick="szMode(\'ft\')">Feet &amp; inches</button></div>'
-   +'<div style="margin:0 0 8px;font-size:13px;color:#666">'+(ft?'Type feet and inches for Length and Width, e.g. 8 ft 6 in \u00d7 4 ft 1 in.':'Type Length \u00d7 Width of each slab in inches.')+' Same size more than once? Put the count in Nos. Sq ft is worked out for you.</div>';
+  var old=document.getElementById('szov'),sc=old&&old.querySelector('.szbd'),top=sc?sc.scrollTop:0;
+  if(old)old.remove();
+  var o=document.createElement('div');o.id='szov';var ft=ST.m==='ft';
+  var h='<div class="szbox"><div class="szhd"><b>Slab sizes</b><div class="szseg"><button type="button" class="'+(ft?'':'on')+'" onclick="szMode(\'in\')">Inches</button><button type="button" class="'+(ft?'on':'')+'" onclick="szMode(\'ft\')">Feet + in</button></div></div><div class="szbd">';
   ST.rows.forEach(function(r,i){
-   var qline='<div class="szq" id="szq'+i+'" style="text-align:right;font-size:13px;color:#555;min-height:16px"></div>';
-   if(!ft){
-    h+='<div style="border-top:1px solid #e3e6ec;padding:6px 0 2px;margin-top:4px"><div class="szr"><span style="width:20px;color:#888">'+(i+1)+'</span>'+inp(i,'l','Length',r.l)+'<span>\u00d7</span>'+inp(i,'w','Width',r.w)+nosInp(i,r.n)
-     +'<button type="button" class="s" onclick="szDel('+i+')">\u2715</button></div>'+qline+'</div>'}
-    else{
-    h+='<div style="border-top:1px solid #e3e6ec;padding:6px 0 2px;margin-top:4px">'
-     +'<div class="szr"><span style="width:20px;color:#888">'+(i+1)+'</span><span style="width:50px;font-size:13px">Length</span>'+inp(i,'lf','ft',r.lf)+'<span>ft</span>'+inp(i,'li','in',r.li)+'<span>in</span><button type="button" class="s" onclick="szDel('+i+')">\u2715</button></div>'
-     +'<div class="szr"><span style="width:20px"></span><span style="width:50px;font-size:13px">Width</span>'+inp(i,'wf','ft',r.wf)+'<span>ft</span>'+inp(i,'wi','in',r.wi)+'<span>in</span></div>'
-     +'<div class="szr"><span style="width:20px"></span><span style="width:50px;font-size:13px">Nos</span>'+nosInp(i,r.n,1)+'<span style="flex:1"></span></div>'+qline+'</div>'}});
-  h+='<button type="button" class="s" onclick="szAdd()">+ Add slab</button>'
-   +'<div style="display:flex;justify-content:space-between;margin:12px 2px 10px;font-size:16px"><b>Total</b><b id="szt"></b></div>'
-   +'<div style="display:flex;gap:8px"><button type="button" class="b" style="flex:1" onclick="szDone()">Done</button><button type="button" class="s" onclick="szClose()">Cancel</button></div></div>';
+   h+='<div class="szc"><div class="szch"><span>Slab '+(i+1)+'</span><button type="button" class="szx" aria-label="Remove slab" onclick="szDel('+i+')">&#10005;</button></div><div class="szg">'
+    +(ft?'<div><label>Length</label><div class="szp">'+fld(i,'lf','ft',r.lf)+fld(i,'li','in',r.li)+'</div></div><div><label>Width</label><div class="szp">'+fld(i,'wf','ft',r.wf)+fld(i,'wi','in',r.wi)+'</div></div>'
+     :'<div><label>Length</label>'+fld(i,'l','in',r.l)+'</div><div><label>Width</label>'+fld(i,'w','in',r.w)+'</div>')
+    +'</div><div class="szn2"><label>Nos</label>'+nosInp(i,r.n)+'<span class="szq" id="szq'+i+'"></span></div></div>'});
+  h+='<button type="button" class="szadd" onclick="szAdd()">+ Add another slab</button></div>'
+   +'<div class="szft"><div class="szt"><span>Total</span><b id="szt"></b></div><div class="szbt"><button type="button" class="b" onclick="szDone()">Done</button><button type="button" class="s" onclick="szClose()">Cancel</button></div></div></div>';
   o.innerHTML=h;document.body.appendChild(o);upd();
-  setTimeout(function(){var e=o.querySelector('[data-sz="'+(fr==null?0:fr)+'-'+(ft?'lf':'l')+'"]');if(e)e.focus()},40)}
+  var sb=o.querySelector('.szbd');
+  if(fr===ST.rows.length-1&&fr>0)sb.scrollTop=sb.scrollHeight;else sb.scrollTop=top;
+  if(fr>=0)setTimeout(function(){var e=o.querySelector('[data-sz="'+fr+'-'+(ft?'lf':'l')+'"]');if(e)e.focus()},40)}
  window.szIn=function(i,f,v){if(ST&&ST.rows[i]){ST.rows[i][f]=v;upd()}};
  window.szAdd=function(){if(!ST)return;ST.rows.push(blank());draw(ST.rows.length-1)};
- window.szDel=function(i){if(!ST)return;if(ST.rows.length>1)ST.rows.splice(i,1);else ST.rows=[blank()];draw(0)};
- window.szMode=function(m){if(!ST||ST.m===m)return;var cur=ST.rows.map(function(r){return [val(r,'l'),val(r,'w'),rn(r)]});ST.m=m;ST.rows=cur.map(function(a){return toRow(a,m)});draw(0)};
+ window.szDel=function(i){if(!ST)return;if(ST.rows.length>1)ST.rows.splice(i,1);else ST.rows=[blank()];draw(-1)};
+ window.szMode=function(m){if(!ST||ST.m===m)return;var cur=ST.rows.map(function(r){return [val(r,'l'),val(r,'w'),rn(r)]});ST.m=m;ST.rows=cur.map(function(a){return toRow(a,m)});draw(-1)};
  window.szClose=function(){var o=document.getElementById('szov');if(o)o.remove();ST=null};
  window.szOpen=function(kind,k){
   var d=DR(kind),l=(k!=null&&d&&d.lines)?d.lines[k]:null,src,m;
