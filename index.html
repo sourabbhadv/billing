@@ -1177,6 +1177,7 @@ function vybConvert(Tb){
  var IT={};
  Tb('kb_items').forEach(function(x){
   var it={id:'i'+x.item_id,name:str(x.item_name)||('Item '+x.item_id),unit:U[x.base_unit_id]||'pcs',rate:rd(x.item_sale_unit_price),buy:rd(x.item_purchase_unit_price),qty:rd(x.item_stock_quantity),low:rd(x.item_min_stock_quantity)};
+   if(it.qty>0&&num(x.item_stock_value)>0){it.buy0=it.buy;it.buy=Math.round(num(x.item_stock_value)/it.qty*10000)/10000}
   var loc=str(x.item_location);if(loc)it.loc=loc;
   IT[x.item_id]=it;out.items.push(it)});
  /* ---- parties ---- */
@@ -1245,6 +1246,7 @@ function vybConvert(Tb){
  /* pass 3: payments in/out and sale returns */
  T.forEach(function(t){
   var ty=t.txn_type,p,cash=rd(t.txn_cash_amount),dte=ts(t.txn_date,t.txn_time),note=str(t.txn_description);
+  if(ty===3||ty===4){var full=rd(t.txn_current_balance);if(full>cash)cash=full}
   if(ty===3){
    p=party(t.txn_name_id);var left=cash;
    (links[t.txn_id]||[]).forEach(function(k){var b=billTx[k.inv];if(!b||!(k.amt>0))return;
