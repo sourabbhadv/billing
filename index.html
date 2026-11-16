@@ -1,8 +1,16 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Stock & Billing</title>
-<meta name="theme-color" content="#0f6e56">
+<title>Laxmi AI Billing</title>
+<meta name="theme-color" content="#071631">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="application-name" content="Laxmi AI Billing">
+<meta name="apple-mobile-web-app-title" content="Laxmi AI Billing">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<script>if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}</script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--ac:#0f6e56;--ac2:#e1f5ee;--bd:#dedcd4;--rd:#b3261e}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#161614;--card:#222220;--tx:#eeede8;--mu:#9a9990;--ac:#3fbf9a;--ac2:#18352c;--bd:#3a3a36;--rd:#f2877f}}
@@ -61,6 +69,14 @@ button.dlb{background:#fdecee;color:#d21f30}button.dlb:hover{background:#fbd5da}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.78.0/dist/umd/supabase.js"></script>
 <script>
 var $=function(s){return document.querySelector(s)};
+/* SPEED: build each number/date/sort formatter once and reuse it (the browser was rebuilding it for every single number, date and name) */
+(function(){var cN={},cD={},cC={},oN=Number.prototype.toLocaleString,oD=Date.prototype.toLocaleDateString,oC=String.prototype.localeCompare;
+function key(l,o){return String(l)+'|'+(o?JSON.stringify(o):'')}
+Number.prototype.toLocaleString=function(l,o){try{var k=key(l,o),f=cN[k]||(cN[k]=new Intl.NumberFormat(l,o));return f.format(this)}catch(e){return oN.call(this,l,o)}};
+Date.prototype.toLocaleDateString=function(l,o){try{var k=key(l,o),f=cD[k]||(cD[k]=new Intl.DateTimeFormat(l,o));return f.format(this)}catch(e){return oD.call(this,l,o)}};
+String.prototype.localeCompare=function(b,l,o){try{var k=key(l,o),f=cC[k]||(cC[k]=new Intl.Collator(l,o));return f.compare(this,b)}catch(e){return oC.call(this,b,l,o)}};
+})();
+var PDN=60,_pdSel=null;/* ledger rows shown at a time */
 /* SAFETY: expire old sign-ins on shared devices BEFORE any business data is loaded */
 (function(){try{
  var K=Object.keys(localStorage).filter(function(k){return /^sb-.*-auth-token/.test(k)});
@@ -279,8 +295,8 @@ function vLedger(){
 function receive(){var a=+prompt('Amount received');if(a>0){D.pays.push({id:uid(),pid:openP,date:Date.now(),amt:a,note:''});save();var p=P(openP);if(confirm('Saved. Send payment receipt on WhatsApp?'))openWA(p,'Namaste '+p.name+',\nReceived '+money(a)+' with thanks.\nPending balance: '+money(Math.max(bal(p),0))+'\n- '+D.shop);render()}}
 function remind(){var p=P(openP),b=bal(p);openWA(p,'Namaste '+p.name+',\nYour pending balance with '+D.shop+' is '+money(b)+'. Kindly clear it at your earliest convenience. Thank you.')}
 /* ---------- BACKUP ---------- */
-function vBk(){return '<div class="card"><b>Backup</b><p class="mu">Data is saved in this browser on this device only. Copy the backup text and keep it safely (WhatsApp to yourself or Notes). To restore, paste it below and tap Restore.</p><textarea id="bt" rows="8">'+esc(JSON.stringify(D))+'</textarea><div class="row"><button class="b" onclick="cp()">Copy backup</button><button class="s" onclick="rs()">Restore from box</button></div></div>'}
-function cp(){var t=$('#bt');t.select();try{navigator.clipboard.writeText(t.value);alert('Copied')}catch(e){document.execCommand('copy')}}
+function vBk(){return '<div class="card"><b>Backup</b><p class="mu">Data is saved in this browser on this device only. Copy the backup text and keep it safely (WhatsApp to yourself or Notes). To restore, paste it below and tap Restore.</p><textarea id="bt" rows="8" placeholder="To restore: paste your backup text here, then tap Restore."></textarea><div class="row"><button class="b" onclick="cp()">Copy backup</button><button class="s" onclick="rs()">Restore from box</button></div></div>'}
+function cp(){var s=JSON.stringify(D);function fb(){var t=$('#bt');t.value=s;t.select();try{document.execCommand('copy');alert('Copied')}catch(e){alert('Could not copy. Please use Download backup.')}t.value=''}try{navigator.clipboard.writeText(s).then(function(){alert('Copied')},fb)}catch(e){fb()}}
 function rs(){try{var x=JSON.parse($('#bt').value);if(!x.items||!x.parties)throw 0;if(confirm('Replace all current data with this backup?')){D=x;save();alert('Restored');render()}}catch(e){alert('Invalid backup text')}}
 /* ---------- CLOUD SYNC + SAFETY ---------- */
 var COLS=['parties','items','bills','pays'],SM={},DB=null,synced=false,dirty=0,got={};
@@ -406,7 +422,7 @@ function openWA(p,text){
  document.body.appendChild(m);document.getElementById('wat').value=text;
 }
 /* ---------- PART PAYMENTS PER BILL ---------- */
-function dueNow(tot){var v=+($('#bp').value||0),e=$('#dn');if(!e)return;e.innerHTML=v>0?'Received '+money(v)+' · <b class="red">Remaining on this bill '+money(Math.max(tot-v,0))+'</b>'+(v>tot?' · extra '+money(v-tot)+' kept as advance':''):'Full amount '+money(tot)+' will stay pending'}
+function dueNow(tot){var bp=$('#bp'),v=+((bp&&bp.value)||0),e=$('#dn');if(!bp||!e)return;e.innerHTML=v>0?'Received '+money(v)+' · <b class="red">Remaining on this bill '+money(Math.max(tot-v,0))+'</b>'+(v>tot?' · extra '+money(v-tot)+' kept as advance':''):'Full amount '+money(tot)+' will stay pending'}
 function paidOn(b){var s=+b.paid||0;D.pays.forEach(function(x){if(x.bn===b.no&&!x.x)s+=x.amt});return s}
 function pend(b){
  if(b.x)return ' · <span class="red">Cancelled</span> <button class="s" onclick="restoreBill('+b.no+')">Restore</button>';
@@ -857,10 +873,10 @@ vParties=function(){
  var L='<div class="row" style="margin-bottom:6px"><button class="b" onclick="pform={};render()">+ Add Party</button><button class="s" onclick="csvParties()">Excel (CSV)</button></div><input placeholder="Search party name or phone number" oninput="flt(this.value)">'+pChip()+'<select style="margin:0 0 8px" onchange="setPSort(this.value)">'+[['az','Name: A to Z'],['za','Name: Z to A'],['hi','Amount: High to Low'],['lo','Amount: Low to High']].map(function(o){return '<option value="'+o[0]+'"'+(PSORT===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select><div class="card" style="padding:0">'+ps.map(function(p){return '<div class="row" data-n="'+esc((p.name+' '+(p.phone||'')+' '+String(p.phone||'').replace(/\D/g,'')).toLowerCase())+'" style="padding:10px;cursor:pointer;border-bottom:1px solid var(--bd);'+(cur&&cur.id===p.id&&!pform?'background:var(--ac2)':'')+'" onclick="selP=\''+p.id+'\';pform=null;render()"><span>'+esc(p.name)+'</span><b>'+(function(b){return b>0.009?'<span class="grn">'+money(b)+'</span>':b<-0.009?'<span class="red">'+money(-b)+'</span>':'<span class="mu">0.00</span>'})(bal(p))+'</b></div>'}).join('')+(ps.length?'':'<p class="mu" style="padding:10px">No parties yet</p>')+'</div>';
  var R='';
  if(pform)R=vPartyForm();
- else if(cur){var b2=bal(cur),lr=ledgerRows(cur).slice().reverse();
+ else if(cur){if(cur.id!==_pdSel){_pdSel=cur.id;PDN=60}var b2=bal(cur),lrAll=ledgerRows(cur).slice().reverse(),lr=lrAll.slice(0,PDN);
   R='<button class="s mob" onclick="selP=null;render()">← Back</button><div class="card"><div class="row"><h2 style="font-size:18px;margin:0">'+esc(cur.name)+'</h2><button class="s" onclick="pform={id:\''+cur.id+'\'};render()">✎ Edit</button></div><div class="mu" style="margin-top:4px">Phone: '+esc(cur.phone||'not added')+'</div><div style="margin-top:6px">'+balTxt(b2)+'</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="b" onclick="payFor(\''+cur.id+'\',0)">Receive payment</button><button class="s" onclick="payFor(\''+cur.id+'\',1)">Pay (Payment-Out)</button><button class="s" onclick="remindP(\''+cur.id+'\')">WhatsApp reminder</button><button class="s" onclick="stmtOf(\''+cur.id+'\')">Party Statement</button></div></div>';
   var head=['Type','Number','Date','Total','Balance','Status'];
-  R+='<div class="card"><b>Transactions</b>'+tbl2(head,lr.map(function(x){return {k:x.k||'',c:[x.ty,x.no,dt(x.d),money(x.tot),balShort(x.bl),stH(x.st)],a:x.a}}),1)+'<div class="mu" style="margin-top:6px">Opening balance: '+balShort(+cur.open||0)+' (Dr = party owes you, Cr = you owe party)</div></div>'}
+  R+='<div class="card"><b>Transactions</b>'+tbl2(head,lr.map(function(x){return {k:x.k||'',c:[x.ty,x.no,dt(x.d),money(x.tot),balShort(x.bl),stH(x.st)],a:x.a}}),1)+(lrAll.length>PDN?'<button class="s" style="width:100%;margin:8px 0" onclick="PDN+=60;render()">Show older transactions ('+(lrAll.length-PDN)+' more)</button>':'')+'<div class="mu" style="margin-top:6px">Opening balance: '+balShort(+cur.open||0)+' (Dr = party owes you, Cr = you owe party)</div></div>'}
  else R='<div class="card mu">Click a party to see its transactions</div>';
  return '<div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+R+'</div></div>'};
 function vPartyForm(){var p=pform.id?P(pform.id):null,o=p?+p.open||0:0;
@@ -2859,8 +2875,8 @@ var PDQ='';
 function pdSearch(v){PDQ=v;var e=document.getElementById('pdl');if(e)e.innerHTML=pdCards(selP,v)}
 function pdCards(pid,q){q=String(q||'').toLowerCase().trim();var rows=mTxRows(pid);
  if(q)rows=rows.filter(function(r){return (r.ty+' '+r.st+' '+r.no).toLowerCase().indexOf(q)>=0});
- return rows.map(function(r){return mTxCard(r,0)}).join('')+(rows.length?'':'<div class="mc mu">No transactions found</div>')}
-function vMPartyDet(p){var b=bal(p),c=b>0.009?'g':b<-0.009?'d':'z',lab=c==='g'?'Receivable':c==='d'?'Payable':'Balance';
+ var all=rows.length;rows=rows.slice(0,PDN);return rows.map(function(r){return mTxCard(r,0)}).join('')+(rows.length?'':'<div class="mc mu">No transactions found</div>')+(all>PDN?'<button class="s" style="width:100%;margin:6px 0 90px" onclick="PDN+=60;pdSearch(PDQ)">Show older transactions ('+(all-PDN)+' more)</button>':'')}
+function vMPartyDet(p){if(selP!==_pdSel){_pdSel=selP;PDN=60}var b=bal(p),c=b>0.009?'g':b<-0.009?'d':'z',lab=c==='g'?'Receivable':c==='d'?'Payable':'Balance';
  return '<div class="pdc"><div class="pdh"><div><div class="pdn">'+esc(p.name)+'</div><div class="pdp">'+esc(p.phone||'no phone')+(p.phone?VIC.phone:'')+'</div></div>'
   +'<div class="pdr"><div class="pdrec '+c+'"><i>'+(c==='g'?'↙':'↗')+'</i>'+lab+': '+money(Math.abs(b))+'</div><div class="pdcl">No Credit Limit Set</div></div></div>'
   +'<div class="pda"><button onclick="remindP(\''+p.id+'\')">'+VIC.bell+'Send Reminder</button><span class="dv"></span><button onclick="stmtOf(\''+p.id+'\')">'+VIC.stmt+'Send Statement</button></div></div>'
