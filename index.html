@@ -6889,14 +6889,26 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   if(window.google&&google.accounts&&google.accounts.oauth2)return res();
   var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;
   s.onload=function(){res()};s.onerror=function(){rej(new Error('Cannot reach Google. Check the internet.'))};document.head.appendChild(s)})}
+  /* ---------- same-account lock: when signed in with Google, Drive backup uses ONLY that Google account ---------- */
+ function lockMail(){return Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){var ss=(r&&r.data&&r.data.session)||window.__sbSess,u=ss&&ss.user;if(!u)return '';var g=(u.app_metadata&&u.app_metadata.provider==='google')||(u.identities||[]).some(function(i){return i&&i.provider==='google'});return g?String(u.email||'').toLowerCase():''}).catch(function(){return ''})}
+ function whoIs(t){return fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){return String((j&&j.user&&j.user.emailAddress)||'').toLowerCase()}).catch(function(){return ''})}
+ function wrongAcct(t,lock){try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Drive backup must use the same Google account you signed in with ('+lock+'). Please choose that account.')}
  function getTok(ask){
   if(tok&&Date.now()<tokExp-60000)return Promise.resolve(tok);
   if(!cid())return Promise.reject(new Error('First paste your Google Client ID (open One-time setup).'));
-  return loadGsi().then(function(){return new Promise(function(res,rej){
-   var c=google.accounts.oauth2.initTokenClient({client_id:cid(),scope:SCOPE,login_hint:em()||undefined,
-    callback:function(r){if(r&&r.access_token){tok=r.access_token;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');res(tok)}else rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'))},
+  return lockMail().then(function(lock){return loadGsi().then(function(){return new Promise(function(res,rej){
+   var hint=lock||em()||undefined;
+   function accept(t,r){tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');res(tok)}
+   var c=google.accounts.oauth2.initTokenClient({client_id:cid(),scope:SCOPE,login_hint:hint,hint:hint,
+    callback:function(r){
+     if(!(r&&r.access_token))return rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'));
+     if(!lock)return accept(r.access_token,r);
+     whoIs(r.access_token).then(function(w){
+      if(!w){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
+      if(w!==lock)return rej(wrongAcct(r.access_token,lock));
+      accept(r.access_token,r)})},
     error_callback:function(e){rej(new Error(e&&e.type==='popup_blocked_by_browser'?'The browser blocked the Google window. Press Back up now.':'Google sign-in was closed.'))}});
-   c.requestAccessToken({prompt:(ask&&LS('gdLinked')!=='1')?'consent':''})})})}
+   c.requestAccessToken({prompt:(ask&&LS('gdLinked')!=='1')?'consent':''})})})})}
 
  /* ---------- Google Drive calls ---------- */
  function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
@@ -7072,7 +7084,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  var client=function(){return (ls('gdCid')||DEFAULT_GOOGLE_CLIENT_ID).trim()},email=function(){return (ls('gdEmail')||'').trim()};
  var tok=null,exp=0,fileId=ls('lvFile')||null,folder=ls('gdFolder')||null,on=ls('lvOn')==='1',busy=false,timer=null,pollT=null,suppress=false,needTap=false,armed=false,lastStamp=ls('lvStamp')||'',lastMsg='';
  var base=loadBase(),dev=ls('lvDev')||(function(){var d='d'+Math.random().toString(36).slice(2,8);ls('lvDev',d);return d})();
- (function(){try{var o=JSON.parse(ls('lvTok')||'null');if(o&&o.t&&o.e>Date.now()+60000){tok=o.t;exp=o.e}}catch(e){}})();   /* login survives a refresh */
+ (function(){try{var o=JSON.parse(ls('lvTok')||'null');if(o&&o.t&&o.e>Date.now()+60000){tok=o.t;exp=o.e;var tm=o.m||'';setTimeout(function(){lockMail().then(function(lk){if(lk&&tm!==lk){tok=null;exp=0;ls('lvTok',null)}})},0)}}catch(e){}})();   /* login survives a refresh */
  function loadBase(){try{var b=JSON.parse(ls('lvBase')||'null');if(b&&b.h)return b}catch(e){}return {h:{},q:{},m:{}}}
  function saveBase(){ls('lvBase',JSON.stringify(base))}
  function tokOk(){return !!tok&&Date.now()<exp-60000}
@@ -7088,13 +7100,25 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 
  /* ---------- Google sign-in (token is kept across refresh for its 1 hour) ---------- */
  function loadGsi(){return new Promise(function(res,rej){if(window.google&&google.accounts&&google.accounts.oauth2)return res();var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=function(){res()};s.onerror=function(){rej(new Error('Cannot reach Google. Check the internet.'))};document.head.appendChild(s)})}
+  /* ---------- same-account lock: when signed in with Google, Drive backup uses ONLY that Google account ---------- */
+ function lockMail(){return Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){var ss=(r&&r.data&&r.data.session)||window.__sbSess,u=ss&&ss.user;if(!u)return '';var g=(u.app_metadata&&u.app_metadata.provider==='google')||(u.identities||[]).some(function(i){return i&&i.provider==='google'});return g?String(u.email||'').toLowerCase():''}).catch(function(){return ''})}
+ function whoIs(t){return fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){return String((j&&j.user&&j.user.emailAddress)||'').toLowerCase()}).catch(function(){return ''})}
+ function wrongAcct(t,lock){try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Drive backup must use the same Google account you signed in with ('+lock+'). Please choose that account.')}
  function getTok(first){
   if(tokOk())return Promise.resolve(tok);
-  return loadGsi().then(function(){return new Promise(function(res,rej){
-   var c=google.accounts.oauth2.initTokenClient({client_id:client(),scope:SCOPE,login_hint:email()||undefined,
-    callback:function(r){if(r&&r.access_token){tok=r.access_token;exp=Date.now()+(+r.expires_in||3600)*1000;ls('lvTok',JSON.stringify({t:tok,e:exp}));ls('gdLinked','1');needTap=false;res(tok)}else rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'))},
+  return lockMail().then(function(lock){return loadGsi().then(function(){return new Promise(function(res,rej){
+   var hint=lock||email()||undefined;
+   function accept(t,r){tok=t;exp=Date.now()+(+r.expires_in||3600)*1000;ls('lvTok',JSON.stringify({t:tok,e:exp,m:lock}));ls('gdLinked','1');needTap=false;res(tok)}
+   var c=google.accounts.oauth2.initTokenClient({client_id:client(),scope:SCOPE,login_hint:hint,hint:hint,
+    callback:function(r){
+     if(!(r&&r.access_token))return rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'));
+     if(!lock)return accept(r.access_token,r);
+     whoIs(r.access_token).then(function(w){
+      if(!w){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
+      if(w!==lock)return rej(wrongAcct(r.access_token,lock));
+      accept(r.access_token,r)})},
     error_callback:function(e){var b=e&&e.type==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':'Google sign-in was closed.'),{blocked:b}))}});
-   c.requestAccessToken({prompt:(first&&ls('gdLinked')!=='1')?'consent':''})})})}
+   c.requestAccessToken({prompt:(first&&ls('gdLinked')!=='1')?'consent':''})})})})}
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
  function armTap(){
   needTap=true;setStatus('Tap anywhere to reconnect Google Drive (needed about once an hour)');
