@@ -66,7 +66,7 @@ button.dlb{background:#fdecee;color:#d21f30}button.dlb:hover{background:#fbd5da}
 <header><h1 id="sh" onclick="rename()"></h1><span class="mu" id="sy">tap name to edit</span></header>
 <nav><button id="t-home" onclick="go('home')">Home</button><button id="t-bill" onclick="go('bill')">Sale</button><button id="t-party" onclick="go('party')">Parties</button><button id="t-stock" onclick="go('stock')">Items</button><button id="t-tx" onclick="go('tx')">Transactions</button><button id="t-rep" onclick="go('rep')">Reports</button><button id="t-bk" onclick="go('bk')">Backup</button></nav>
 <div id="v"></div>
-<!-- Supabase SDK intentionally omitted in Free / Google Drive edition. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 var $=function(s){return document.querySelector(s)};
 /* SPEED: build each number/date/sort formatter once and reuse it (the browser was rebuilding it for every single number, date and name) */
@@ -438,7 +438,7 @@ function wa(no){
  openWA(p,t);
 }
 /* ===== SUPABASE (fill these two lines, see setup steps) ===== */
-var SUPA_URL='',SUPA_KEY='';
+var SUPA_URL='https://bdyirqnmorubgnoeakms.supabase.co',SUPA_KEY='sb_publishable_bNh96eT7PkEFSMHyWCxaKw_Q0E9q3Ya';
 var SB=null;
 function saveFile(name,blob){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},500)}
 function bad(r){if(r&&r.error)throw {code:'unavailable',message:r.error.message};return r}
@@ -471,13 +471,23 @@ function mkDB(uid){
  };
 }
 function initAuth(){
- SB=null;DB=null;synced=false;
- setMsg('Free edition · Google Drive / this device');
- return;
+ DB=null;synced=false;SB=null;
+ setMsg('Free plan · this device');
+ if(!window.supabase||!SUPA_URL||SUPA_URL.indexOf('PASTE')===0)return;
+ try{SB=supabase.createClient(SUPA_URL,SUPA_KEY)}catch(e){SB=null;return}
+ /* Supabase here is ONLY for Pro sign-in, the license lookup and the WhatsApp Outbox. Shop data is never stored in it. */
+ SB.auth.getSession().then(function(r){var ss=r&&r.data&&r.data.session;if(ss)sbReady(ss)}).catch(function(){});
+}
+function cancelLogin(){var x=document.getElementById('lgn');if(x)x.remove()}
+function sbReady(ss){
+ window.__sbSess=ss;window.sbLive=1;
+ try{localStorage.setItem('sbEml',String((ss.user&&ss.user.email)||'').toLowerCase())}catch(e){}
+ if(window.PLAN&&PLAN.fetchLicense)PLAN.fetchLicense().then(function(){try{render()}catch(e){}});
+ else try{render()}catch(e){}
 }
 function loginBox(){
  var m=document.createElement('div');m.id='lgn';m.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
- m.innerHTML="<div class='card' style='width:100%;max-width:380px'><b>Sign in</b><p class='mu'>Use the same email and password on every device.</p><input id='le' type='email' placeholder='Email' autocomplete='username'><input id='lp' type='password' placeholder='Password (6+ characters)' autocomplete='current-password'><div class='row' style='margin-top:8px'><button class='b' onclick='doAuth(0)'>Sign in</button><button class='s' onclick='doAuth(1)'>Create account</button></div><div id='lm' style='margin-top:10px;color:var(--rd);font-size:14px'></div></div>";
+ m.innerHTML="<div class='card' style='width:100%;max-width:380px'><b>Sign in</b><p class='mu'>Use the email and password we gave you for your Pro plan.</p><input id='le' type='email' placeholder='Email' autocomplete='username'><input id='lp' type='password' placeholder='Password (6+ characters)' autocomplete='current-password'><div class='row' style='margin-top:8px'><button class='b' onclick='doAuth(0)'>Sign in</button><button class='s' onclick='cancelLogin()'>Cancel</button></div><div id='lm' style='margin-top:10px;color:var(--rd);font-size:14px'></div></div>";
  document.body.appendChild(m);
 }
 function doAuth(up){
@@ -486,11 +496,11 @@ function doAuth(up){
  if(!e||p.length<6)return say('Write your email and a password of 6 or more letters or numbers.');
  if(!SB)return say('Not connected. Check your internet and press Ctrl+F5.');
  say('Please wait...');
- var f=up?SB.auth.signUp({email:e,password:p}):SB.auth.signInWithPassword({email:e,password:p});
+ var f=SB.auth.signInWithPassword({email:e,password:p});
  Promise.resolve(f).then(function(r){
   if(r.error)return say('Problem: '+r.error.message);
-  if(!r.data.session)return say('Account made. Open your email, press the confirm link, then come back here and press Sign in.');
-  var x=document.getElementById('lgn');if(x)x.remove();startSync(mkDB(r.data.session.user.id));
+  if(!r.data||!r.data.session)return say('Could not sign in. Check the email and password.');
+  var x=document.getElementById('lgn');if(x)x.remove();sbReady(r.data.session);
  }).catch(function(x){say('Problem: '+((x&&x.message)||x))});
 }
 /* ---------- DISPATCH WITH QUANTITIES ---------- */
@@ -2587,7 +2597,7 @@ var _dhPr=docHtml;docHtml=function(d){return prOpts(_dhPr(d),d)};
 /* ---------- OUTBOX: automatic WhatsApp sending (sender program runs on laptop) ---------- */
 var OB={rows:[],beats:[],sel:{},min:1,err:'',T:null,bulkDone:false,
  tpl:'Namaste {name},\nYour pending balance with {shop} is {amount}. Kindly clear it at your earliest convenience. Thank you.'};
-function obOk(){return !!(SB&&SB.from)}
+function obOk(){return !!(SB&&SB.from&&window.__sbSess)}
 function obToast(t){var e=document.createElement('div');e.style.cssText='position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;z-index:60;font-size:14px;max-width:90%;text-align:center';e.textContent=t;document.body.appendChild(e);setTimeout(function(){e.remove()},3000)}
 function obAdd(list){return Promise.resolve(SB.from('outbox').insert(list)).then(function(r){if(r&&r.error)throw r.error;return r})}
 /* what kind of message is this? (used for the per-type auto-send switches) */
@@ -3174,10 +3184,13 @@ function logoutNow(msg,all,note){
  var ov=document.createElement('div');ov.style.cssText='position:fixed;inset:0;background:#101338;color:#fff;z-index:200;display:flex;align-items:center;justify-content:center;font-size:18px;padding:20px;text-align:center';ov.textContent=msg||'Signing out…';document.body.appendChild(ov);
  try{flushSaves()}catch(e){}
  if(note){try{sessionStorage.setItem('sbMsg',note)}catch(e){}}
- var done=0,fin=function(){if(done)return;done=1;try{Object.keys(localStorage).forEach(function(k){if(k==='sb'||k==='sbDec'||k==='sbTrust'||k==='sbLast'||/^sb-.*-auth-token/.test(k))localStorage.removeItem(k)});sessionStorage.removeItem('sbAlive')}catch(e){}location.reload()};
+ var done=0,fin=function(){if(done)return;done=1;try{Object.keys(localStorage).forEach(function(k){if(k==='sbEml'||k==='sbDec'||k==='sbTrust'||k==='sbLast'||/^sb-.*-auth-token/.test(k))localStorage.removeItem(k)});sessionStorage.removeItem('sbAlive')}catch(e){}location.reload()};
  setTimeout(function(){try{Promise.resolve(SB&&SB.auth.signOut({scope:all?'global':'local'})).then(fin,fin)}catch(e){fin()}},900);
  setTimeout(fin,4000)}
-function sbOut(all){alert('Supabase sign-in is not used in the Free edition. Your local business data is safe.');return}
+function sbOut(all){
+ if(!window.__sbSess){alert('You are not signed in to a Pro account. Your shop data stays on this device.');return}
+ if(!confirm(all?'Log out from EVERY device where you are signed in? Pro features lock until you sign in again. Your shop data stays on each device.':'Log out of this device? Pro features lock until you sign in again. Your shop data stays on this device.'))return;
+ logoutNow('Signing out…',all)}
 /* Original Premium logout implementation is intentionally not active in this Free build. */
 function __sbOutDisabled(all){
  var w=(typeof synced!=='undefined'&&!synced)?'\n\nNote: cloud sync has not finished, so very recent changes on this device may be lost.':'';
@@ -7289,10 +7302,13 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   var pl,sg;try{pl=b64u(m[1]);sg=b64u(m[2])}catch(e){return Promise.resolve(null)}
   return crypto.subtle.importKey('jwk',CFG.PUB,{name:'ECDSA',namedCurve:'P-256'},false,['verify'])
    .then(function(k){return crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},k,sg,pl)})
-   .then(function(ok){if(!ok)return null;var o=JSON.parse(new TextDecoder().decode(pl));return o&&o.p==='pro'&&+o.e>0?o:null})
+   .then(function(ok){if(!ok)return null;var o=JSON.parse(new TextDecoder().decode(pl));if(!(o&&o.p==='pro'&&+o.e>0))return null;
+    /* a key made for one email works only when that email is signed in on this device */
+    if(o.m&&String(o.m).toLowerCase()!==String(LS('sbEml')||'').toLowerCase())o.mm=1;
+    return o})
    .catch(function(){return null})}
  function apply(o){
-  var was=st.pro;st.info=o;st.pro=!!(o&&o.e>now());st.expired=!!(o&&!st.pro);st.ready=true;
+  var was=st.pro;st.info=o;st.pro=!!(o&&o.e>now()&&!o.mm);st.expired=!!(o&&!o.mm&&!st.pro);st.mism=!!(o&&o.mm);st.ready=true;
   try{document.body.classList.toggle('pfree',!st.pro)}catch(e){}
   var sy=document.getElementById('sy');if(sy&&/^(Free|Pro)\b/.test(sy.textContent))sy.textContent=st.pro?'Pro plan':'Free plan \u00B7 this device';
   if(st.pro&&!was){/* Pro just switched on: restart live sync if this device had it on */
@@ -7302,6 +7318,20 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  }
  function check(){return verify(LS('sbLic')).then(function(o){apply(o);return st.pro})}
  function fmt(ms){return new Date(ms).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
+ /* after sign-in: fetch this email's license from Supabase (table licenses, row-security shows only the own row) and switch Pro on by itself */
+ function fetchLic(){
+  if(!window.SB||!SB.from||!window.__sbSess)return check();
+  var em=String((window.__sbSess.user&&window.__sbSess.user.email)||'').toLowerCase();LS('sbEml',em);
+  return Promise.resolve(SB.from('licenses').select('license_key,expires_at').order('expires_at',{ascending:false}).limit(5)).then(function(q){
+   var rows=(q&&q.data)||[],i=0;
+   function nx(){if(i>=rows.length)return check();var k=String(rows[i++].license_key||'').replace(/\s+/g,'');
+    return verify(k).then(function(o){if(o&&!o.mm&&o.e>now()){LS('sbLic',k);return check()}return nx()})}
+   return nx()}).catch(function(){return check()})}
+ function signCard(cl){
+  if(!window.SB)return '';
+  var em=window.__sbSess&&window.__sbSess.user?window.__sbSess.user.email:'';
+  return '<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">Pro account</b>'+(em?'<div class="mu" style="margin:6px 0 10px">Signed in as <b>'+esc(em)+'</b></div><button class="s" onclick="planRefresh()">Check my license</button><span id="plr" class="mu" style="margin-left:8px"></span>':'<div class="mu" style="margin:6px 0 10px">Already bought Pro? Sign in with the email and password we gave you. Pro switches on by itself.</div><button class="b" onclick="loginBox()">Sign in</button>')+'</div>'}
+ window.planRefresh=function(){var e=document.getElementById('plr');if(e)e.textContent='Checking...';fetchLic().then(function(){try{render()}catch(x){}})};
 
  /* ---------- public helpers ---------- */
  var PLAN=window.PLAN={
@@ -7320,7 +7350,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
     '<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">\uD83D\uDD12 '+esc(feature)+' is a Pro feature</b>'+
     '<ul style="margin:10px 0 12px;padding-left:20px;line-height:1.5">'+(points||[]).map(function(x){return '<li class="mu" style="display:list-item;font-size:14px">'+esc(x)+'</li>'}).join('')+'</ul>'+
     '<button class="b" onclick="nav(\'plan\')">See Pro plan</button></div>'},
-  check:check
+  check:check,fetchLicense:fetchLic
  };
 
  /* ---------- the Plan & Upgrade page ---------- */
@@ -7334,6 +7364,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   /* status */
   if(st.pro){var left=Math.ceil((st.info.e-now())/864e5);
    h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">\u2B50 Pro plan is ON</b><div class="mu" style="margin-top:6px">Licensed to <b>'+esc(st.info.n||'')+'</b><br>Valid till <b>'+fmt(st.info.e)+'</b> ('+left+' days left)</div></div>'}
+  else if(st.mism){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">This license is for '+esc(st.info.n||'another account')+'</b><div class="mu" style="margin-top:6px">Sign in with the email it was made for ('+esc(st.info.m||'')+') to use Pro on this device.</div></div>'}
   else if(st.expired){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">Pro plan ended on '+fmt(st.info.e)+'</b><div class="mu" style="margin-top:6px">Nothing is deleted. All your data is still on this device. Pro features are locked until you renew.</div></div>'}
   else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Your data is stored on this one device and backed up to your Google Drive every day.</div></div>';
   /* comparison */
@@ -7345,6 +7376,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    row('<b>Live sync on many phones and computers</b>',0,1)+
    row('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1)+
    row('<b>Automatic WhatsApp</b>: bills, receipts, reminders, campaigns',0,1)+'</div>';
+  h+=signCard(cl);
   /* how to get / renew */
   if(!st.pro){
    var wa='https://wa.me/'+String(CFG.WA).replace(/\D/g,'')+'?text='+encodeURIComponent('Hello, I paid for the Pro plan.\nShop name: '+(D.shop||'')+'\nPlease send my license key.');
@@ -7362,6 +7394,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   say('Checking...');
   verify(k).then(function(o){
    if(!o)return say('This key is not valid. Copy the whole key again.',1);
+   if(o.mm)return say('This key is for '+o.m+'. Sign in with that email first, then Pro switches on by itself.',1);
    if(!(o.e>now()))return say('This key ended on '+fmt(o.e)+'. Ask us for a renewal key.',1);
    LS('sbLic',k.replace(/\s+/g,''));msg='';apply(o);alert('Pro plan is ON for '+(o.n||'you')+' till '+fmt(o.e)+'.');try{render()}catch(x){}})};
  window.planRemove=function(){if(!confirm('Remove the license from this device? Pro features will lock. Your data stays.'))return;LS('sbLic',null);apply(null);try{render()}catch(e){}};
@@ -7382,6 +7415,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   'body.pfree .mr[onclick*="\'ai\'"] span:first-child::after,body.pfree .mr[onclick*="\'out\'"] span:first-child::after{content:" \\1F512"}';
  document.head.appendChild(css);
  check().then(function(){if(!st.ready)apply(null)});
+ if(window.__sbSess)fetchLic().then(function(){try{render()}catch(e){}});
 })();
 </script>
 </body></html>
