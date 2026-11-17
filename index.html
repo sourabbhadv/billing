@@ -3188,7 +3188,7 @@ function logoutNow(msg,all,note){
  setTimeout(function(){try{Promise.resolve(SB&&SB.auth.signOut({scope:all?'global':'local'})).then(fin,fin)}catch(e){fin()}},900);
  setTimeout(fin,4000)}
 function sbOut(all){
- if(!window.__sbSess){alert('You are not signed in to a Pro account. Your shop data stays on this device.');return}
+ if(!window.__sbSess){if(window.SB)loginBox();else alert('Sign-in is not available right now. Check your internet and reload the page.');return}
  if(!confirm(all?'Log out from EVERY device where you are signed in? Pro features lock until you sign in again. Your shop data stays on each device.':'Log out of this device? Pro features lock until you sign in again. Your shop data stays on this device.'))return;
  logoutNow('Signing out…',all)}
 /* Original Premium logout implementation is intentionally not active in this Free build. */
@@ -3219,10 +3219,10 @@ function sbIdleChk(){if(!window.sbLive||window.sbOut)return;
  if(n-last>SB_IDLE){window.sbOut=1;logoutNow('Signed out after 30 minutes of no use…',0,'You were signed out after 30 minutes of no use. Please sign in again.')}}
 setInterval(sbIdleChk,30000);document.addEventListener('visibilitychange',function(){if(!document.hidden)sbIdleChk()});
 var _vSetAcc=vSettings;vSettings=function(){var h=_vSetAcc();if(sTab!=='gen')return h;var k=h.lastIndexOf('</div>');if(k<0)return h;var t=sbIsTrusted();
- var b='<div class="sec"><h3>Account &amp; security</h3><div class="hint">'+(t?'This device is marked as your own and stays signed in until you log out.':'This device signs out when the browser is closed or after 30 minutes of no use.')+'</div><div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="b" onclick="sbOut(0)">Log out</button><button class="s" onclick="sbTrustToggle()">'+(t?'Stop keeping me signed in here':'This is my own device')+'</button></div></div>';
+ var b='<div class="sec"><h3>Account &amp; security</h3><div class="hint">'+(t?'This device is marked as your own and stays signed in until you log out.':'This device signs out when the browser is closed or after 30 minutes of no use.')+'</div><div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="b" onclick="sbOut(0)">'+(window.__sbSess?'Log out':'Sign in')+'</button><button class="s" onclick="sbTrustToggle()">'+(t?'Stop keeping me signed in here':'This is my own device')+'</button></div></div>';
  return h.slice(0,k)+b+h.slice(k)};
-var _vMoreL=vMore;vMore=function(){return _vMoreL()+'<div class="mg"><div class="mgt">Account</div><div class="mr" onclick="sbOut(0)"><span>Log out</span><span class="mrc">›</span></div></div>'};
-var _bnL=buildNav;buildNav=function(){_bnL();var n=document.querySelector('nav');if(n&&!n.querySelector('.lgo'))n.insertAdjacentHTML('beforeend','<button class="lgo" onclick="sbOut(0)">Log out</button>')};
+var _vMoreL=vMore;vMore=function(){return _vMoreL()+'<div class="mg"><div class="mgt">Account</div><div class="mr" onclick="sbOut(0)"><span>'+(window.__sbSess?'Log out':'Sign in')+'</span><span class="mrc">›</span></div></div>'};
+var _bnL=buildNav;buildNav=function(){_bnL();var n=document.querySelector('nav');if(n&&!n.querySelector('.lgo'))n.insertAdjacentHTML('beforeend','<button class="lgo" onclick="sbOut(0)">'+(window.__sbSess?'Log out':'Sign in')+'</button>')};
 
 
 /* ---------- DESKTOP ONLY: Vyapar-style chrome, one consistent set of sizes (phone untouched) ---------- */
