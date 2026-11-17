@@ -7064,8 +7064,48 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  function writeFile(t,f,id){var boundary='fdlive'+Date.now(),meta={name:FILE,mimeType:'application/json'};if(!id)meta.parents=[f];var body='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+build()+'\r\n--'+boundary+'--';return api('https://www.googleapis.com/upload/drive/v3/files'+(id?'/'+id:'')+'?uploadType=multipart&fields=id,modifiedTime,md5Checksum',{method:id?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body:body},t).then(function(r){return r.json()}).then(function(j){fileId=j.id||id;lastRemote=j.md5Checksum||j.modifiedTime||'';ls('fdFile',fileId);ls('fdAt',String(Date.now()));ls('fdEnabled','1');session=true;say('Synced just now')})}
  function saveLocal(){try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){}}
  function applyCloud(x){suppress=true;D=x;saveLocal();ls('fdPending',null);ls('fdPendingData',null);ls('fdPendingAt',null);ls('fdPendingBase',null);pending=false;conflict=false;try{if(typeof softRender==='function')softRender();else if(typeof render==='function')render()}finally{suppress=false}}
- function startPolling(){if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(pollRemote,5000)}
- function pollRemote(){if(!session||!token||Date.now()>expires-60000||busy||timer||pending||conflict||document.hidden)return;if(!fileId)fileId=ls('fdFile');if(!fileId)return;getMeta(token,fileId).then(function(m){var stamp=m.md5Checksum||m.modifiedTime||'';if(!stamp||stamp===lastRemote||timer)return;busy=true;return readFile(token,fileId).then(function(remote){lastRemote=stamp;ls('fdRemoteStamp',lastRemote);applyCloud(remote);ls('fdAt',String(Date.now()));say('Updated from Google Drive · '+new Date().toLocaleTimeString('en-IN'))}).finally(function(){busy=false})}).catch(function(e){if(e&&/401|expired|invalid credentials/i.test(e.message||'')){token=null;expires=0;say('Google session expired. Tap Connect / Sync once to continue.')}})}
+ var pollBusy=false,lastPoll=0;
+ function startPolling(){
+   if(pollTimer)clearTimeout(pollTimer);
+   pollTimer=null;
+   pollRemote();
+ }
+ function queuePoll(delay){
+   if(pollTimer)clearTimeout(pollTimer);
+   pollTimer=setTimeout(function(){pollTimer=null;pollRemote()},delay||5000);
+ }
+ function pollRemote(){
+   if(!session||!token||conflict){queuePoll(5000);return}
+   if(document.hidden||document.visibilityState==='hidden'){queuePoll(5000);return}
+   if(pollBusy||busy||timer||pending){queuePoll(2500);return}
+   if(Date.now()>expires-60000){say('Google session expired. Tap Connect / Sync once to continue.');queuePoll(15000);return}
+   if(!fileId)fileId=ls('fdFile');
+   if(!fileId){queuePoll(5000);return}
+   pollBusy=true;lastPoll=Date.now();
+   getMeta(token,fileId).then(function(m){
+     var stamp=m.md5Checksum||m.modifiedTime||'';
+     if(!stamp||stamp===lastRemote||timer||pending)return;
+     busy=true;
+     return readFile(token,fileId).then(function(remote){
+       lastRemote=stamp;ls('fdRemoteStamp',lastRemote);
+       applyCloud(remote);ls('fdAt',String(Date.now()));
+       say('Updated from Google Drive · '+new Date().toLocaleTimeString('en-IN'));
+     }).finally(function(){busy=false});
+   }).catch(function(e){
+     if(e&&/401|expired|invalid credentials/i.test(e.message||'')){
+       token=null;expires=0;say('Google session expired. Tap Connect / Sync once to continue.');
+     }else if(e){say('Live check delayed: '+(e.message||'network issue'))}
+   }).finally(function(){pollBusy=false;queuePoll(5000)});
+ }
+ function wakePoll(){
+   if(!session)return;
+   if(pollTimer){clearTimeout(pollTimer);pollTimer=null}
+   if(!document.hidden&&document.visibilityState!=='hidden')pollRemote();
+ }
+ document.addEventListener('visibilitychange',function(){if(!document.hidden)wakePoll()});
+ window.addEventListener('focus',wakePoll);
+ window.addEventListener('pageshow',wakePoll);
+ window.addEventListener('online',wakePoll);
  function connect(){if(busy)return;busy=true;say('Connecting to Google Drive…');getToken(false).then(function(t){return folderId(t).then(function(f){return findFile(t,f).then(function(found){if(!found){fileId=null;return writeFile(t,f,null).then(function(){return 'created'})}fileId=found.id;ls('fdFile',fileId);return readFile(t,fileId).then(function(remote){if(pending){return getMeta(t,fileId).then(function(meta){var cloudStamp=meta.md5Checksum||meta.modifiedTime||'';var baseStamp=ls('fdPendingBase')||'';if(baseStamp&&cloudStamp&&cloudStamp!==baseStamp){conflict=true;throw new Error('This device has offline changes and Google Drive also changed. Both copies are preserved. Do not upload or load either copy until the conflict is resolved.')}if(hasData()&&hasData(remote)){var keep=confirm('This device has unsent changes. Google Drive has not changed since they were saved. Press OK to LOAD Google Drive data (discard local unsent changes), or Cancel to KEEP this device data and upload it.');if(keep){applyCloud(remote);session=true;ls('fdEnabled','1');ls('fdAt',String(Date.now()));say('Loaded from Google Drive')}else{return writeFile(t,f,fileId).then(function(){return 'uploaded'})}}else{return writeFile(t,f,fileId).then(function(){return 'uploaded'})}})}if(hasData()&&hasData(remote)){var use=confirm('A live billing file already exists in Google Drive.\n\nPress OK to LOAD the Google Drive data onto this device.\nPress Cancel to keep this device data and upload it to Google Drive.');if(use){applyCloud(remote);session=true;ls('fdEnabled','1');ls('fdAt',String(Date.now()));say('Loaded from Google Drive')}else{return writeFile(t,f,fileId).then(function(){return 'uploaded'})}}else if(hasData(remote)){applyCloud(remote);session=true;ls('fdEnabled','1');ls('fdAt',String(Date.now()));say('Loaded from Google Drive')}else{return writeFile(t,f,fileId).then(function(){return 'uploaded'})}})})})}).then(function(){session=true;busy=false;getMeta(token,fileId).then(function(m){lastRemote=m.md5Checksum||m.modifiedTime||'';ls('fdRemoteStamp',lastRemote);startPolling();say('Connected · automatic updates ON');paint()}).catch(function(){startPolling();say('Connected · automatic updates ON');paint()})},function(e){busy=false;say('Not connected: '+(e&&e.message||e));paint();alert(String(e&&e.message||e))})}
  function push(){if(!session||!token||Date.now()>expires-60000){say('Changes saved on this device. Reconnect Google Drive to upload them.');return Promise.resolve(false)}if(busy)return Promise.resolve(false);busy=true;return getMeta(token,fileId||ls('fdFile')).then(function(m){var stamp=m.md5Checksum||m.modifiedTime||'';if(pending&&(ls('fdPendingBase')||lastRemote)&&stamp&&(stamp!==(ls('fdPendingBase')||lastRemote))){conflict=true;busy=false;say('Sync paused: Google Drive changed while this device had unsent changes. Your local changes are preserved on this device. Do not choose upload or load until we resolve the conflict.');return false}return folderId(token).then(function(f){return writeFile(token,f,fileId||ls('fdFile'))}).then(function(){return getMeta(token,fileId).then(function(m2){lastRemote=m2.md5Checksum||m2.modifiedTime||''})}).then(function(){busy=false;return true})}).catch(function(e){busy=false;say('Changes are saved on this device; Drive upload will retry when connected. '+(e&&e.message||e));return false})}
  function schedule(){if(suppress)return;pending=true;ls('fdPending','1');ls('fdPendingData',build());ls('fdPendingAt',String(Date.now()));if(!ls('fdPendingBase'))ls('fdPendingBase',lastRemote||'');if(!session||!token||navigator.onLine===false){say('Saved on this device · waiting for Google Drive connection');return}if(timer)clearTimeout(timer);timer=setTimeout(function(){timer=null;push()},1800)}
@@ -7074,7 +7114,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  window.freeDriveConnect=connect;
  window.freeDriveSyncNow=function(){if(!session){connect();return}push().then(function(ok){if(ok)alert('Your billing data is saved to Google Drive.')})};
  var oldSave=window.save;window.save=function(){var r=oldSave.apply(this,arguments);schedule();return r};
- var oldVbk=window.vBk;window.vBk=function(){var live='<div class="card" style="max-width:760px"><b>Google Drive live data · Free plan</b><p class="mu" style="margin:5px 0">Keeps one live copy of your billing data in your Google Drive. Free plan is for one device. Connect once in each browser. While connected, changes are checked automatically every 5 seconds. Your existing daily dated backups remain available below.</p><div id="fdStatus" class="mu" style="margin:8px 0"></div><div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="freeDriveConnect()">Connect / Sync Google Drive</button><button class="s" onclick="freeDriveSyncNow()">Save to Drive now</button></div></div>';return live+(oldVbk?oldVbk.apply(this,arguments):'')};
+ var oldVbk=window.vBk;window.vBk=function(){var live='<div class="card" style="max-width:760px"><b>Google Drive live data · Free plan</b><p class="mu" style="margin:5px 0">Keeps one live copy of your billing data in your Google Drive. Free plan is for one device. Connect once in each browser. While the app is open, changes are checked automatically about every 5 seconds. When you return to the app, it checks immediately. Your existing daily dated backups remain available below.</p><div id="fdStatus" class="mu" style="margin:8px 0"></div><div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="freeDriveConnect()">Connect / Sync Google Drive</button><button class="s" onclick="freeDriveSyncNow()">Save to Drive now</button></div></div>';return live+(oldVbk?oldVbk.apply(this,arguments):'')};
  var oldOut=window.vOutbox;window.vOutbox=function(){return '<div class="card"><b>Premium feature</b><p class="mu">WhatsApp Outbox, automatic campaigns, and cloud-based sending require the Premium cloud service. Your normal WhatsApp share buttons continue to work in the Free edition.</p></div>'};
  var oldSettings=window.vSettings;window.vSettings=function(){if(typeof sTab!=='undefined'&&sTab==='promo')return '<div class="card"><b>Premium feature</b><p class="mu">WhatsApp campaigns and automatic bulk sending require the Premium cloud service. Your existing campaign code and data structure are preserved in this experimental copy.</p></div>';return oldSettings.apply(this,arguments)};
  var oldMore=window.vMore;window.vMore=function(){var h=oldMore?oldMore.apply(this,arguments):'';return h.replace(/<div class="mg"><div class="mgt">Account<\/div>[\s\S]*?<\/div>/,'')};
