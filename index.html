@@ -7291,7 +7291,9 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   PUB:{"kty":"EC","crv":"P-256","x":"6Cgm0rCu39CjW8A7Y5Lv-9paiZBq6A4zOsvUeWtyhoQ","y":"5EA6mWrF9vL80g0R6vUA6dmgtzXIx-UHMCGc_CdnHXY"},                      /* paste the public key from license-maker.html, like {"kty":"EC","crv":"P-256","x":"...","y":"..."} */
   PRICE:'Rs. ____ per year',     /* what the customer sees */
   UPI:'yourname@upi',            /* where the customer pays */
-  WA:'91__________'              /* YOUR WhatsApp number with country code, customer sends payment proof here */
+  WA:'91__________',             /* YOUR WhatsApp number with country code, customer sends payment proof here */
+  RZP_KEY:'rzp_test_U1EYu9o2mwMf1P',   /* Razorpay Key ID (public). TEST key now. Before going live, replace with your rzp_live_ key */
+  MONTHLY:300, YEARLY:3000       /* rupees */
  };
  function LS(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
  function today(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
@@ -7361,7 +7363,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  };
 
  /* ---------- the Plan & Upgrade page ---------- */
- var msg='';
+ var msg='',bmsg='',bmsgBad=0;
+ function bsay(t,bad){bmsg=t;bmsgBad=bad?1:0;var e=document.getElementById('plbm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
  function say(t,bad){msg=t;var e=document.getElementById('plm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
  function tick(y){return y?'<b class="grn">\u2713</b>':'<span class="mu" style="display:inline">\u2715</span>'}
  function row(a,f,p){return '<div style="display:grid;grid-template-columns:1fr 46px 46px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid #e6e9f2;font-size:14px"><div>'+a+'</div><div style="text-align:center">'+tick(f)+'</div><div style="text-align:center">'+tick(p)+'</div></div>'}
@@ -7384,17 +7387,56 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    row('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1)+
    row('<b>Automatic WhatsApp</b>: bills, receipts, reminders, campaigns',0,1)+'</div>';
   h+=signCard(cl);
+  /* ---------- Buy Pro with Razorpay (automatic) ---------- */
+  var em0=window.__sbSess&&window.__sbSess.user?window.__sbSess.user.email:'';
+  h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?'Renew Pro':'Buy Pro')+'</b>'+
+   '<div class="mu" style="margin:6px 0 10px">Pay online by UPI, card or net banking. Pro switches on by itself within a minute. No key to paste.</div>'+
+   (em0?'<div class="mu" style="margin-bottom:10px">Pro will be added to <b>'+esc(em0)+'</b></div>':'<div class="mu" style="margin-bottom:10px">Sign in first, so we can add Pro to your account.</div>')+
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+   '<button class="b" style="padding:14px 8px;line-height:1.3" onclick="planBuy(\'monthly\')"><span style="font-size:13px;opacity:.9">Monthly</span><br><b style="font-size:20px">\u20B9'+CFG.MONTHLY+'</b></button>'+
+   '<button class="b" style="padding:14px 8px;line-height:1.3" onclick="planBuy(\'yearly\')"><span style="font-size:13px;opacity:.9">Yearly \u00B7 best value</span><br><b style="font-size:20px">\u20B9'+CFG.YEARLY+'</b></button></div>'+
+   '<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="margin-top:10px;font-size:14px">'+esc(bmsg)+'</div></div>';
   /* how to get / renew */
   if(!st.pro){
    var wa='https://wa.me/'+String(CFG.WA).replace(/\D/g,'')+'?text='+encodeURIComponent('Hello, I paid for the Pro plan.\nShop name: '+(D.shop||'')+'\nPlease send my license key.');
-   h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">Get Pro \u2013 '+esc(CFG.PRICE)+'</b>'+
+   h+='<details class="'+cl+'" style="max-width:600px"><summary style="cursor:pointer;font-weight:600">Pay manually by UPI instead / I already have a license key</summary><div style="margin-top:10px"></div>'+
     '<ol style="margin:10px 0;padding-left:20px;line-height:1.6;font-size:14px"><li>Pay by UPI to <b>'+esc(CFG.UPI)+'</b></li><li>Send the payment screenshot and your shop name to us on WhatsApp</li><li>We send you a license key. Paste it below and press Activate</li></ol>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><a href="'+wa+'" target="_blank" rel="noopener" class="b" style="text-decoration:none;display:inline-block">Send payment proof on WhatsApp</a></div>'+
     '<textarea id="plk_in" rows="3" placeholder="Paste your license key here (starts with LAB1.)" style="width:100%;box-sizing:border-box"></textarea>'+
     '<div class="row" style="margin-top:8px;justify-content:flex-start;gap:10px"><button class="b" onclick="planActivate()">Activate</button><span id="plm" class="'+(msg?'grn':'')+'">'+esc(msg)+'</span></div>'+
-    (CFG.PUB?'':'<div class="red" style="margin-top:8px;font-size:12px">Owner note: Pro is not set up yet. Open license-maker.html, create your keys, and paste the public key into CFG.PUB in the plan-gate script.</div>')+'</div>'}
+    (CFG.PUB?'':'<div class="red" style="margin-top:8px;font-size:12px">Owner note: Pro is not set up yet. Open license-maker.html, create your keys, and paste the public key into CFG.PUB in the plan-gate script.</div>')+'</details>'}
   else h+='<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">Use the same key on your other devices. Press Activate there.</div></div>';
   return h}
+ /* ---------- Razorpay checkout ---------- */
+ var rzpBusy=0;
+ function loadRzp(){return new Promise(function(res,rej){if(window.Razorpay)return res();var x=document.createElement('script');x.src='https://checkout.razorpay.com/v1/checkout.js';x.onload=function(){res()};x.onerror=function(){rej(new Error('load'))};document.head.appendChild(x)})}
+ /* after payment: the webhook makes the license; check Supabase every 3 seconds (up to ~90 s) until Pro switches on */
+ function waitLic(n){
+  n=n||0;
+  return fetchLic().then(function(){
+   if(st.pro){rzpBusy=0;bsay('Payment received. Pro plan is ON.');try{render()}catch(e){}return}
+   if(n>=30){rzpBusy=0;bsay('Payment received. Pro is taking longer than usual. Press "Check my license" above in a minute. If it does not switch on, contact us with your payment ID.',1);return}
+   bsay('Payment received. Activating your Pro plan...');
+   return new Promise(function(r){setTimeout(r,3000)}).then(function(){return waitLic(n+1)})})}
+ window.planBuy=function(kind){
+  if(rzpBusy)return;
+  if(!window.__sbSess||!window.__sbSess.user){bsay('Please sign in first, then press Buy again.',1);try{loginBox()}catch(e){}return}
+  var email=window.__sbSess.user.email||'',yearly=kind==='yearly',amt=(yearly?CFG.YEARLY:CFG.MONTHLY)*100;
+  rzpBusy=1;bsay('Opening payment...');
+  loadRzp().then(function(){
+   var o={
+    key:CFG.RZP_KEY,amount:amt,currency:'INR',
+    name:'Pro plan',description:(yearly?'Yearly':'Monthly')+' Pro plan',
+    prefill:{email:email},
+    notes:{email:email,plan:yearly?'yearly':'monthly',shop:String((window.D&&D.shop)||'')},
+    theme:{color:'#3b4cca'},
+    handler:function(r){bsay('Payment received. Activating your Pro plan...');waitLic(0)},
+    modal:{ondismiss:function(){if(!st.pro&&bmsg.indexOf('received')<0){rzpBusy=0;bsay('')}}}
+   };
+   var rz=new Razorpay(o);
+   rz.on('payment.failed',function(r){rzpBusy=0;bsay('Payment failed'+(r&&r.error&&r.error.description?': '+r.error.description:'')+'. Please try again.',1)});
+   rz.open()
+  }).catch(function(){rzpBusy=0;bsay('Could not open the payment window. Check your internet and try again.',1)})};
  window.planActivate=function(){
   var e=document.getElementById('plk_in'),k=e?e.value.trim():'';
   if(!k)return say('Paste the license key first.',1);
