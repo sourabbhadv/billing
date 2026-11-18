@@ -7994,4 +7994,121 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   return r};
 })();
 </script>
+<script id="firms-step1">
+/* ---- FIRMS (step 1): names of the firms, typed by the owner in Settings > Firms. Nothing else in the app is changed. ---- */
+(function(){
+ function FM(){var p=PS();if(!p.firms||!p.firms.length)p.firms=[{id:'f1',name:''},{id:'f2',name:''}];return p.firms}
+ window.firmList=function(){return (PS().firms||[]).filter(function(f){return String(f.name||'').trim()})};
+ window.fmSet=function(i,v){var L=FM();if(L[i]){L[i].name=String(v).trim();save()}};
+ window.fmAdd=function(){var L=FM();L.push({id:uid(),name:''});save();render()};
+ window.fmDone=function(){var n=firmList().length;save();render();alert(n+' firm name'+(n===1?'':'s')+' saved.')};
+ var _old=vSettings,pill='<button class="s" onclick="sTab=\'firms\';render()">Firms</button>';
+ vSettings=function(){
+  if(sTab==='firms'){
+   var L=FM();
+   return '<h2 style="font-size:20px;margin:6px 0">Settings</h2><div class="pills" style="display:flex"><button class="s" onclick="sTab=\'gen\';render()">← Back</button><button class="s" style="background:#1a73e8;color:#fff">Firms</button></div>'
+   +'<div class="card" style="max-width:600px"><b>Your firms</b><div class="mu">Type the name of each firm. You can change it later.</div>'
+   +L.map(function(f,i){return '<label class="mu">Firm '+(i+1)+' name</label><input value="'+esc(f.name||'')+'" placeholder="Type firm name" onchange="fmSet('+i+',this.value)">'}).join('')
+   +'<div class="row" style="justify-content:flex-start;margin-top:12px"><button class="b" onclick="document.activeElement&&document.activeElement.blur();fmDone()">Save</button><button class="s" onclick="fmAdd()">+ Add another firm</button></div></div>';
+  }
+  var h=_old.apply(this,arguments);
+  var k='</div><div class="card"';
+  if(h.indexOf(k)>-1)return h.replace(k,pill+k);
+  return h;
+ };
+})();
+</script>
+<script id="firms-step2">
+/* ---- FIRMS (step 2): every item gets a Firm. Dropdown in the Add / Edit item form. ---- */
+(function(){
+ var _vf=vItemForm;
+ vItemForm=function(){
+  var h=_vf.apply(this,arguments),F=window.firmList?firmList():[];
+  if(!F.length)return h;
+  var i=iform&&iform.id?I(iform.id):null,cur=i?(i.fm||''):((iform&&iform.fm)||'');
+  var sel='<select id="sfm" style="grid-column:1/-1"><option value="">Firm (choose)</option>'+F.map(function(f){return '<option value="'+esc(f.id)+'"'+(cur===f.id?' selected':'')+'>'+esc(f.name)+'</option>'}).join('')+'</select>';
+  var a=h.indexOf('<div class="bcfld">'),b=h.indexOf('<input id="sg"'),k=a>=0?a:b;
+  return k>=0?h.slice(0,k)+sel+h.slice(k):h};
+ var _s=saveItem;
+ saveItem=function(){
+  var e=document.getElementById('sfm'),v=e?e.value:null,id=iform&&iform.id,n0=D.items.length,r=_s.apply(this,arguments);
+  if(v!==null){
+   var t=id?I(id):(D.items.length>n0?D.items[D.items.length-1]:null);
+   if(t&&(t.fm||'')!==v){t.fm=v;save()}
+   if(!id&&t&&iform&&!iform.id)iform.fm=v}
+  return r};
+ addItem=saveItem;
+})();
+</script>
+<script id="firms-step3">
+/* ---- FIRMS (step 3): give old items a firm, many at once. Shown in Settings > Firms. ---- */
+(function(){
+ var Q='',SEL={},MAX=150;
+ function rows(){
+  var q=Q.toLowerCase(),L=D.items.filter(function(i){return !i.fm&&(!q||String(i.name).toLowerCase().indexOf(q)>-1)});
+  return L}
+ function paint(){
+  var e=document.getElementById('fmlist');if(!e)return;
+  var L=rows(),S=L.slice(0,MAX),n=Object.keys(SEL).length;
+  e.innerHTML=S.map(function(i){return '<label style="display:flex;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid #eee"><input type="checkbox" style="width:20px;height:20px;margin:0;flex:0 0 20px"'+(SEL[i.id]?' checked':'')+' onchange="fmTick(\''+i.id+'\',this.checked)"><span>'+esc(i.name)+'</span></label>'}).join('')||'<div class="mu" style="padding:8px 0">No item here.</div>';
+  var c=document.getElementById('fmcnt');if(c)c.textContent=L.length+' item'+(L.length===1?'':'s')+' without firm'+(L.length>MAX?' (showing first '+MAX+', use search)':'')+' · '+n+' chosen'}
+ window.fmTick=function(id,on){if(on)SEL[id]=1;else delete SEL[id];paint()};
+ window.fmQ=function(v){Q=v;paint()};
+ window.fmAll=function(on){rows().slice(0,MAX).forEach(function(i){if(on)SEL[i.id]=1;else delete SEL[i.id]});paint()};
+ window.fmGive=function(fid){
+  var ids=Object.keys(SEL);if(!ids.length)return alert('First tick the items.');
+  var f=firmList().find(function(x){return x.id===fid});if(!f)return;
+  if(!confirm('Put '+ids.length+' item'+(ids.length===1?'':'s')+' in "'+f.name+'"?'))return;
+  var c=0;ids.forEach(function(id){var i=I(id);if(i){i.fm=fid;c++}});SEL={};save();render();alert(c+' item'+(c===1?'':'s')+' done.')};
+ var _o=vSettings;
+ vSettings=function(){
+  var h=_o.apply(this,arguments);
+  if(sTab!=='firms')return h;
+  var F=firmList(),n=D.items.filter(function(i){return !i.fm}).length;
+  if(!F.length)return h;
+  var k=h.lastIndexOf('</div>');
+  var card='<div class="card" style="max-width:600px;margin-top:10px"><b>Old items: choose firm</b><div class="mu">Tick the items, then press the firm button.</div>'
+   +'<input placeholder="Search item" oninput="fmQ(this.value)" value="'+esc(Q)+'">'
+   +'<div class="row" style="justify-content:flex-start;margin:6px 0"><button class="s" onclick="fmAll(true)">Tick all shown</button><button class="s" onclick="fmAll(false)">Clear ticks</button></div>'
+   +'<div class="mu" id="fmcnt"></div><div id="fmlist" style="max-height:340px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:0 8px;margin:6px 0"></div>'
+   +'<div class="row" style="justify-content:flex-start;margin-top:8px">'+F.map(function(f){return '<button class="b" onclick="fmGive(\''+f.id+'\')">Put in '+esc(f.name)+'</button>'}).join('')+'</div></div>';
+  setTimeout(paint,0);
+  return h+card};
+})();
+</script>
+<script id="firms-step4">
+/* ---- FIRMS (step 4): Purchase bill. Choose the firm of each item; the app remembers it for next time. ---- */
+(function(){
+ function fname(id){var f=(PS().firms||[]).find(function(x){return x.id===id});return f?f.name:''}
+ function isPur(){return typeof ddraft!=='undefined'&&ddraft&&ddraft.t==='pur'}
+ var _vf=vDocForm;
+ vDocForm=function(){
+  var h=_vf.apply(this,arguments),F=window.firmList?firmList():[];
+  if(!isPur()||!F.length)return h;
+  var sel='<select id="dfm" style="width:100%;margin-bottom:4px"><option value="">Firm (choose)</option>'+F.map(function(f){return '<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>'}).join('')+'</select>';
+  h=h.replace('<input id="dit"',sel+'<input id="dit"');
+  var L=ddraft.lines||[];
+  if(L.length){
+   h+='<div class="card" style="max-width:600px"><b>Firm of each item</b>'+L.map(function(l,k){
+    var i=findI(l.name),id=l.fm||(i&&i.fm)||'',n=id?fname(id):'';
+    return '<div class="row" style="padding:4px 0"><span>'+(k+1)+'. '+esc(l.name)+'</span><b style="'+(n?'color:#1a73e8':'color:#d33')+'">'+(n?esc(n):'no firm')+'</b></div>'}).join('')+'</div>'}
+  return h};
+ document.addEventListener('input',function(e){
+  var t=e.target;if(!t||t.id!=='dit')return;
+  var s=document.getElementById('dfm');if(!s)return;
+  var i=findI(t.value);if(i)s.value=i.fm||''},true);
+ var _al=addDocLine;
+ addDocLine=window.addDocLine=function(){
+  var pur=isPur(),s=document.getElementById('dfm'),sv=s?s.value:'',nm=((document.getElementById('dit')||{}).value||'').trim(),n0=pur?ddraft.lines.length:0;
+  var r=_al.apply(this,arguments);
+  try{if(pur&&ddraft&&ddraft.lines.length>n0){var l=ddraft.lines[ddraft.lines.length-1],i=findI(nm),f=sv||(i&&i.fm)||'';if(f)l.fm=f}}catch(x){}
+  return r};
+ var _sd=saveDoc;
+ saveDoc=window.saveDoc=function(){
+  var pur=isPur(),snap=pur?ddraft.lines.map(function(l){return [l.name,l.fm]}):[];
+  var r=_sd.apply(this,arguments);
+  try{if(pur&&!ddraft){var ch=0;snap.forEach(function(a){var i=findI(a[0]);if(i&&a[1]&&i.fm!==a[1]){i.fm=a[1];ch=1}});if(ch)save()}}catch(x){}
+  return r};
+})();
+</script>
 </body></html>
