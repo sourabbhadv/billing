@@ -527,6 +527,10 @@ function initAuth(){
  try{SB=supabase.createClient(SUPA_URL,SUPA_KEY)}catch(e){SB=null;return}
  /* Supabase here is ONLY for Pro sign-in, the license lookup and the WhatsApp Outbox. Shop data is never stored in it. */
  SB.auth.getSession().then(function(r){var ss=r&&r.data&&r.data.session;if(ss)sbReady(ss)}).catch(function(){});
+ /* keep the page's idea of 'signed in' true: renewed tokens are picked up, and a sign-out from another tab or an expired login is noticed */
+ try{SB.auth.onAuthStateChange(function(ev,ss){
+  if((ev==='TOKEN_REFRESHED'||ev==='USER_UPDATED')&&ss){window.__sbSess=ss}
+  else if(ev==='SIGNED_OUT'&&window.__sbSess&&!window.sbOut){window.__sbSess=null;window.sbLive=0;try{render()}catch(e){}}})}catch(e){}
 }
 function cancelLogin(){var x=document.getElementById('lgn');if(x)x.remove()}
 function sbReady(ss){
@@ -539,11 +543,15 @@ function loginBox(){
  var m=document.createElement('div');m.id='lgn';m.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
  m.innerHTML="<div class='card' style='width:100%;max-width:380px'><b>Sign in</b><p class='mu'>Use the email and password we gave you for your Pro plan.</p><input id='le' type='email' placeholder='Email' autocomplete='username'><input id='lp' type='password' placeholder='Password (6+ characters)' autocomplete='current-password'><div class='row' style='margin-top:8px'><button class='b' onclick='doAuth(0)'>Sign in</button><button class='s' onclick='cancelLogin()'>Cancel</button></div><div style='text-align:center;margin:12px 0 4px;font-size:13px;opacity:.7'>or</div><button class='s' style='width:100%' onclick='googleAuth()'>Sign in with Google</button><div id='lm' style='margin-top:10px;color:var(--rd);font-size:14px'></div></div>";
  document.body.appendChild(m);
+ ['le','lp'].forEach(function(i){var x=document.getElementById(i);if(x)x.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doAuth(0)}})});
+ var f=document.getElementById('le');if(f&&!f.value)try{f.focus()}catch(e){}
 }
 function googleAuth(){
  var m=document.getElementById('lm');
  function say(t){if(m)m.textContent=t}
  if(!SB)return say('Not connected. Check your internet and press Ctrl+F5.');
+ if(!/^https?:$/.test(location.protocol))return say('Google sign-in only works when the app is opened from its website address, not from a saved file.');
+ try{var c=document.getElementById('ltr');sbMark(!!(c&&c.checked))}catch(e){}   /* the "own device" tick also counts for Google sign-in */
  say('Opening Google...');
  Promise.resolve(SB.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}})).then(function(r){if(r&&r.error)say('Problem: '+r.error.message)}).catch(function(x){say('Problem: '+((x&&x.message)||x))});
 }
@@ -555,7 +563,7 @@ function doAuth(up){
  say('Please wait...');
  var f=SB.auth.signInWithPassword({email:e,password:p});
  Promise.resolve(f).then(function(r){
-  if(r.error)return say('Problem: '+r.error.message);
+  if(r.error){var em=String(r.error.message||'');return say(/invalid login/i.test(em)?'Wrong email or password. If you normally use "Sign in with Google", press that button instead.':/not confirmed/i.test(em)?'This email is not confirmed yet. Open the confirmation email we sent, then sign in again.':'Problem: '+em)}
   if(!r.data||!r.data.session)return say('Could not sign in. Check the email and password.');
   var x=document.getElementById('lgn');if(x)x.remove();sbReady(r.data.session);
  }).catch(function(x){say('Problem: '+((x&&x.message)||x))});
@@ -6959,7 +6967,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
       if(!w){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
       if(w!==lock)return rej(wrongAcct(r.access_token,lock));
       accept(r.access_token,r,w)})},
-    error_callback:function(e){rej(new Error(e&&e.type==='popup_blocked_by_browser'?'The browser blocked the Google window. Press Back up now.':'Google sign-in was closed.'))}});
+    error_callback:function(e){var t=e&&e.type;rej(new Error(t==='popup_failed_to_open'||t==='popup_blocked_by_browser'?'The browser blocked the Google window. Allow pop-ups for this site, then press Back up now again.':t==='popup_closed'?'The Google window was closed before it finished. Press again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press again.'))}});
    c.requestAccessToken({prompt:(ask&&LS('gdLinked')!=='1')?'consent':''})})})})}
 
  /* ---------- Google Drive calls ---------- */
@@ -7170,7 +7178,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
       if(!w){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
       if(w!==lock)return rej(wrongAcct(r.access_token,lock));
       accept(r.access_token,r)})},
-    error_callback:function(e){var b=e&&e.type==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':'Google sign-in was closed.'),{blocked:b}))}});
+    error_callback:function(e){var t=e&&e.type,b=t==='popup_failed_to_open'||t==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':t==='popup_closed'?'The Google window was closed before it finished. Press Start again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press Sync now.'),{blocked:b}))}});
    c.requestAccessToken({prompt:(first&&ls('gdLinked')!=='1')?'consent':''})})})})}
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
  function armTap(){
