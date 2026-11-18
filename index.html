@@ -900,10 +900,10 @@ function vDocView(){var d=docById(viewD);if(!d){viewD=null;return vPage()}
  if(d.x)h+='<button class="b" onclick="restoreDoc(\''+d.id+'\')">Restore</button>';else{h+='<button class="b" onclick="editDoc(\''+d.id+'\')">Edit</button>';if(d.t==='est'||d.t==='so'||d.t==='chal')h+='<button class="s" onclick="convertDoc(\''+d.id+'\')">Convert to Sale</button>';if(d.t==='pur')h+='<button class="s" onclick="payDoc(\''+d.id+'\')">Payment-Out</button>';h+='<button class="s" onclick="docWA(\''+d.id+'\')">WhatsApp</button><button class="s" onclick="printDoc(\''+d.id+'\')">Print</button><button class="s" onclick="cancelDoc(\''+d.id+'\')">Cancel</button>'}
  return h+'</div>'}
 function vDocForm(){var d=ddraft,c=DT[d.t],tot=0,rows='';
- d.lines.forEach(function(l,k){tot+=l.amt;rows+='<tr><td>'+(k+1)+'</td><td style="min-width:160px">'+delnIn(k,'name',l.name,'text','il4')+'</td><td style="width:90px">'+delnIn(k,'qty',l.qty,'number')+'</td><td style="width:90px">'+delnIn(k,'unit',l.unit,'text')+'</td><td style="width:110px">'+delnIn(k,'rate',l.rate,'number')+'</td><td style="text-align:right">'+money(l.amt)+'</td>'+(d.t==='pur'&&gdOn()?'<td style="min-width:150px">'+delnIn(k,'loc',l.loc||d.gd||'','text','gdl')+'</td>':'')+(d.t==='pur'&&bcOn()?'<td style="min-width:150px">'+bcCell(l,k)+'</td>':'')+'<td><button class="s" onclick="ddraft.lines.splice('+k+',1);render()">✕</button></td></tr>'});
+ d.lines.forEach(function(l,k){tot+=l.amt;rows+='<tr><td>'+(k+1)+'</td><td style="min-width:160px">'+delnIn(k,'name',l.name,'text','il4')+'</td><td style="width:90px">'+delnIn(k,'qty',l.qty,'number')+'</td><td style="width:90px">'+delnIn(k,'unit',l.unit,'text')+'</td><td style="width:110px">'+delnIn(k,'rate',l.rate,'number')+'</td><td style="text-align:right">'+money(l.amt)+'</td>'+(d.t==='pur'&&gdOn()?'<td style="min-width:150px">'+delnIn(k,'loc',l.loc||d.gd||'','text','gdl')+'</td>':'')+(d.t==='pur'&&bcOn()?'<td style="min-width:150px">'+bcCell(l,k)+'</td>':'')+(d.t==='pur'&&mrpOn()?'<td style="min-width:170px">'+mrpCell(l,k)+'</td>':'')+'<td><button class="s" onclick="ddraft.lines.splice('+k+',1);render()">✕</button></td></tr>'});
  setTimeout(docInfo,0);var no=d.edit?docById(d.edit).no:docNo(d.t);
  return '<button class="s" onclick="ddraft=null;sub=null;render()">← Back</button><h2 style="font-size:20px;margin:8px 0">'+(d.edit?'Edit ':'New ')+c.s+'</h2><div class="card">'+partyList('pl4')+'<div class="split" style="grid-template-columns:1fr 1fr 200px;gap:10px"><div><input id="dn" list="pl4" placeholder="'+c.pl+' name *" autocomplete="off" value="'+esc(d.name)+'" oninput="ddraft.name=this.value;docInfo()"><div id="dinfo" class="mu"></div></div><div><input id="dph" type="tel" placeholder="Phone number" value="'+esc(d.phone)+'" oninput="ddraft.phone=this.value"></div><div class="mu" style="text-align:right">No: <b>'+no+'</b><br>Date: <b>'+(d.edit?dt(docById(d.edit).date):new Date().toLocaleDateString('en-IN'))+'</b></div></div></div>'+
- (d.t==='pur'?gdDL():'')+'<div class="card" style="overflow-x:auto"><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><table class="tbl"><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>'+(d.t==='pur'||d.t==='pret'?'Purchase price':'Price/Unit')+'</th><th>Amount</th>'+(d.t==='pur'&&gdOn()?'<th>Godown / Block</th>':'')+(d.t==='pur'&&bcOn()?'<th>Barcode</th>':'')+'<th></th></tr>'+rows+'<tr><td>+</td><td style="min-width:160px"><input id="dit" list="il4" placeholder="Item name" autocomplete="off" oninput="docFill(this.value)"></td><td style="width:80px"><input id="dqt" type="number" inputmode="decimal" placeholder="Qty"></td><td style="width:90px"><input id="dut" placeholder="Unit"></td><td style="width:100px"><input id="drt" type="number" inputmode="decimal" placeholder="Rate"></td><td></td>'+(d.t==='pur'&&gdOn()?'<td style="min-width:150px"><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+(d.t==='pur'&&bcOn()?'<td></td>':'')+'<td><button class="s addb" onclick="addDocLine()">Add</button></td></tr></table></div>'+
+ (d.t==='pur'?gdDL():'')+'<div class="card" style="overflow-x:auto"><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><table class="tbl"><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>'+(d.t==='pur'||d.t==='pret'?'Purchase price':'Price/Unit')+'</th><th>Amount</th>'+(d.t==='pur'&&gdOn()?'<th>Godown / Block</th>':'')+(d.t==='pur'&&bcOn()?'<th>Barcode</th>':'')+(d.t==='pur'&&mrpOn()?'<th>MRP</th>':'')+'<th></th></tr>'+rows+'<tr><td>+</td><td style="min-width:160px"><input id="dit" list="il4" placeholder="Item name" autocomplete="off" oninput="docFill(this.value)"></td><td style="width:80px"><input id="dqt" type="number" inputmode="decimal" placeholder="Qty"></td><td style="width:90px"><input id="dut" placeholder="Unit"></td><td style="width:100px"><input id="drt" type="number" inputmode="decimal" placeholder="Rate"></td><td></td>'+(d.t==='pur'&&gdOn()?'<td style="min-width:150px"><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+(d.t==='pur'&&bcOn()?'<td></td>':'')+(d.t==='pur'&&mrpOn()?mrpEntry():'')+'<td><button class="s addb" onclick="addDocLine()">Add</button></td></tr></table></div>'+
  '<div class="card" style="max-width:420px;margin-left:auto"><div class="row"><b>Total</b><b>'+money(tot)+'</b></div>'+(c.paid?'<input id="dpd" type="number" inputmode="decimal" placeholder="Paid now (optional)" value="'+esc(d.paid)+'">':'')+(d.t==='pur'?'<div class="mu" style="margin:2px 2px 8px">Stock goes up and the purchase price of each item is updated.</div>':d.t==='pret'?'<div class="mu" style="margin:2px 2px 8px">Stock goes down and the amount is taken off what you owe the supplier.</div>':'<div class="mu" style="margin:2px 2px 8px">No stock or balance change until it is converted to a Sale.</div>')+'<button class="b" style="width:100%" onclick="saveDoc()">'+(d.edit?'Save changes':'Save')+'</button></div>'}
 function docInfo(){var e=$('#dinfo'),d=ddraft;if(!e||!d)return;var p=findP(d.name);if(p){if(p.phone&&!d.phone){d.phone=p.phone;var x=$('#dph');if(x)x.value=p.phone}e.innerHTML='Existing party · '+balTxt(bal(p))}else e.textContent=(d.name||'').trim()?'New party, will be created when you save':''}
 function docFill(v){var i=findI(v);if(i){var pr=(ddraft.t==='pur'||ddraft.t==='pret')?(+i.buy||+i.rate||0):i.rate;$('#drt').value=pr;$('#dut').value=i.unit}}
@@ -3517,11 +3517,11 @@ function dkDMode(m){ddraft.mode=m;var tot=0;ddraft.lines.forEach(function(l){tot
 function dkDocMenu(){mItems('Print / share options',[['Save & Print',"dkDocThen(function(d){printDoc(d.id)})"],['Save & send on WhatsApp',"dkDocThen(function(d){docWA(d.id)})"]])}
 function dkDoc(){var d=ddraft,c=DT[d.t],tot=0,qt=0,rows='',pur=d.t==='pur',ed=d.edit?docById(d.edit):null;
  if(d.dt===undefined){var z=dkDT(ed?ed.date:0);d.dt=z.dt;d.tm=z.tm}
- d.lines.forEach(function(l,k){tot+=l.amt;qt+=+l.qty||0;rows+='<tr><td class="rn"><span class="no">'+(k+1)+'</span><button type="button" class="tr" title="Click delete icon to delete row" onclick="ddraft.lines.splice('+k+',1);render()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v7M14 10v7"/></svg></button></td><td>'+delnIn(k,'name',l.name,'text','il4')+'</td><td style="width:200px"><input value="'+esc(l.desc||'')+'" onchange="dkDDesc('+k+',this.value)"></td><td style="width:100px">'+delnIn(k,'qty',l.qty,'number')+'</td><td style="width:110px">'+delnIn(k,'unit',l.unit,'text')+'</td><td style="width:130px">'+delnIn(k,'rate',l.rate,'number')+'</td><td class="n" style="width:130px;padding-right:12px">'+money(l.amt)+'</td>'+(pur&&gdOn()?'<td style="width:170px">'+delnIn(k,'loc',l.loc||d.gd||'','text','gdl')+'</td>':'')+(pur&&bcOn()?'<td style="width:170px">'+bcCell(l,k)+'</td>':'')+'<td></td></tr>'});
+ d.lines.forEach(function(l,k){tot+=l.amt;qt+=+l.qty||0;rows+='<tr><td class="rn"><span class="no">'+(k+1)+'</span><button type="button" class="tr" title="Click delete icon to delete row" onclick="ddraft.lines.splice('+k+',1);render()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v7M14 10v7"/></svg></button></td><td>'+delnIn(k,'name',l.name,'text','il4')+'</td><td style="width:200px"><input value="'+esc(l.desc||'')+'" onchange="dkDDesc('+k+',this.value)"></td><td style="width:100px">'+delnIn(k,'qty',l.qty,'number')+'</td><td style="width:110px">'+delnIn(k,'unit',l.unit,'text')+'</td><td style="width:130px">'+delnIn(k,'rate',l.rate,'number')+'</td><td class="n" style="width:130px;padding-right:12px">'+money(l.amt)+'</td>'+(pur&&gdOn()?'<td style="width:170px">'+delnIn(k,'loc',l.loc||d.gd||'','text','gdl')+'</td>':'')+(pur&&bcOn()?'<td style="width:170px">'+bcCell(l,k)+'</td>':'')+(pur&&mrpOn()?'<td style="width:200px">'+mrpCell(l,k)+'</td>':'')+'<td></td></tr>'});
  setTimeout(docInfo,0);var no=ed?ed.no:docNo(d.t),cash=d.mode==='cash';
- var cols=[['ITEM'],['DESCRIPTION',200],['QTY',100],['UNIT',110],[(d.t==='pur'||d.t==='pret')?'PURCHASE PRICE':'PRICE/UNIT',130,1],['AMOUNT',130,1]];if(pur&&gdOn())cols.push(['GODOWN / BLOCK',170]);if(pur&&bcOn())cols.push(['BARCODE',170]);
- var entry='<tr><td style="text-align:center;color:#7b8194">'+(d.lines.length+1)+'</td><td><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><input id="dit" list="il4" placeholder="Type item name" autocomplete="off" oninput="docFill(this.value)"></td><td><input id="dds"></td><td><input id="dqt" type="number" inputmode="decimal"></td><td><input id="dut" placeholder="NONE"></td><td><input id="drt" type="number" inputmode="decimal" style="text-align:right" onkeydown="if(event.key===\'Enter\')addDocLine()"></td><td></td>'+(pur&&gdOn()?'<td><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+(pur&&bcOn()?'<td></td>':'')+'<td></td></tr>';
- var foot='<tr class="ft"><td></td><td><button class="ab" onclick="addDocLine()">ADD ROW</button></td><td class="n">TOTAL</td><td>'+qt+'</td><td></td><td></td><td class="n" style="padding-right:12px">'+money(tot)+'</td>'+(pur&&gdOn()?'<td></td>':'')+(pur&&bcOn()?'<td></td>':'')+'<td></td></tr>';
+ var cols=[['ITEM'],['DESCRIPTION',200],['QTY',100],['UNIT',110],[(d.t==='pur'||d.t==='pret')?'PURCHASE PRICE':'PRICE/UNIT',130,1],['AMOUNT',130,1]];if(pur&&gdOn())cols.push(['GODOWN / BLOCK',170]);if(pur&&bcOn())cols.push(['BARCODE',170]);if(pur&&mrpOn())cols.push(['MRP',200]);
+ var entry='<tr><td style="text-align:center;color:#7b8194">'+(d.lines.length+1)+'</td><td><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><input id="dit" list="il4" placeholder="Type item name" autocomplete="off" oninput="docFill(this.value)"></td><td><input id="dds"></td><td><input id="dqt" type="number" inputmode="decimal"></td><td><input id="dut" placeholder="NONE"></td><td><input id="drt" type="number" inputmode="decimal" style="text-align:right" onkeydown="if(event.key===\'Enter\')addDocLine()"></td><td></td>'+(pur&&gdOn()?'<td><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+(pur&&bcOn()?'<td></td>':'')+(pur&&mrpOn()?mrpEntry():'')+'<td></td></tr>';
+ var foot='<tr class="ft"><td></td><td><button class="ab" onclick="addDocLine()">ADD ROW</button></td><td class="n">TOTAL</td><td>'+qt+'</td><td></td><td></td><td class="n" style="padding-right:12px">'+money(tot)+'</td>'+(pur&&gdOn()?'<td></td>':'')+(pur&&bcOn()?'<td></td>':'')+(pur&&mrpOn()?'<td></td>':'')+'<td></td></tr>';
  var hint=pur?'Stock goes up and the purchase price of each item is updated.':d.t==='pret'?'Stock goes down and the amount is taken off what you owe the supplier.':'No stock or balance change until it is converted to a Sale.';
  var tg=pur?'<div class="dkw" id="dktg"><span class="'+(cash?'':'on')+'">Credit</span><button type="button" class="dks2'+(cash?' cash':'')+'" onclick="dkDMode(\''+(cash?'credit':'cash')+'\')"><b></b></button><span class="'+(cash?'on':'')+'">Cash</span></div>':'';
  return '<div class="dks">'+dkTabs(esc((d.name||'').trim()||(ed?'Edit ':'New ')+c.s),"ddraft=null;sub=null;render()","newDoc('"+d.t+"')")+dkHd((ed?'Edit ':'')+c.s,tg)
@@ -7676,7 +7676,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      works with a USB / Bluetooth barcode gun with no setup: just scan while the sale screen is open.
    - Each scan adds 1 of that item to the bill (scanning again adds +1 to the same row). Phone and PC have their own design. */
 (function(){
- var cam=null,lastCode='',lastAt=0,recent=[],toastT=null,kb={s:'',t:0,el:null,v:''};
+ var cam=null,lastCode='',lastAt=0,lastSeen=0,recent=[],toastT=null,kb={s:'',t:0,el:null,v:''};
  function $q(s){return document.querySelector(s)}
  function saleOpen(){return !!($q('#bi')&&$q('#bq')&&$q('#br'))&&typeof draft!=='undefined'&&draft&&Array.isArray(draft.lines)}
  function norm(c){return String(c==null?'':c).trim()}
@@ -7690,12 +7690,12 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   x.textContent=t;x.className='show'+(bad?' bad':'');clearTimeout(toastT);toastT=setTimeout(function(){x.className=''},2600)}
  /* ---------- put a scanned item on the bill ---------- */
  function addToBill(it){
-  var l=(draft.lines||[]).find(function(x){return x.name===it.name&&+x.rate===+it.rate&&!x.desc}),q;
+  var l=null,q;
   if(l){l.qty=rn((+l.qty||0)+1);l.amt=rn(l.qty*(+l.rate||0));q=l.qty;render()}
   else{
    ['bi','bq','bu','br','bs','bds2'].forEach(function(i){var e=document.getElementById(i);if(e)e.value=''});
    var k=document.getElementById('bk');if(k)k.checked=false;
-   $q('#bi').value=it.name;$q('#bq').value=1;$q('#br').value=it.rate||0;var u=document.getElementById('bu');if(u)u.value=it.unit||'pcs';
+   $q('#bi').value=it.name;$q('#bq').value=1;$q('#br').value=(window.scanPrice?scanPrice(it):it.rate)||0;var ds=document.getElementById('bds2');if(ds)ds.value=(window.scanNote?scanNote(it):'');var u=document.getElementById('bu');if(u)u.value=it.unit||'pcs';
    var n0=draft.lines.length;addLine2();if(draft.lines.length===n0)return false;q=1}
   var left=rn((+it.qty||0)-q);
   return {q:q,left:left}}
@@ -7720,7 +7720,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* ---------- camera ---------- */
  function loadZX(){return new Promise(function(ok,no){if(window.ZXing)return ok();var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';s.onload=ok;s.onerror=function(){no(new Error('Could not load the scanner. Check the internet.'))};document.head.appendChild(s)})}
  function closeCam(){var o=document.getElementById('bco');if(cam){cam.dead=1;try{cam.reader&&cam.reader.reset()}catch(e){}try{cam.stream&&cam.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}cam=null}if(o)o.remove();document.body.classList.remove('bcon')}
- function got(code,once,cb){code=norm(code);if(!code)return;var n=Date.now();if(code===lastCode&&n-lastAt<1600)return;lastCode=code;lastAt=n;
+ function got(code,once,cb,camera){code=norm(code);if(!code)return;var n=Date.now();if(camera){var sn=lastSeen;lastSeen=n;if(code===lastCode&&n-sn<900)return}else if(code===lastCode&&n-lastAt<400)return;lastCode=code;lastAt=n;
   if(once){closeCam();cb(code)}else cb(code)}
  window.bcScan=function(opt){
   opt=opt||{};closeCam();
@@ -7730,7 +7730,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    '<div class="bcf"><div class="bcrow"><input id="bcman" placeholder="Type or scan a code" autocomplete="off" inputmode="text"><button class="b bcgo">'+(sale?'Add':'Use')+'</button></div>'+
    '<div class="bcrow2"><button class="s" id="bctorch" style="display:none">Torch</button><span class="mu">'+(sale?'Keeps scanning. Press Done when finished.':'Point the camera at the barcode.')+'</span></div><div id="bclist" class="bcl"></div></div></div>';
   document.body.appendChild(o);document.body.classList.add('bcon');
-  var handler=function(c){got(c,!sale,function(x){if(sale)saleScan(x);else opt.onCode(x)})};
+  var handler=function(c){got(c,!sale,function(x){if(sale)saleScan(x);else opt.onCode(x)},1)};
   o.querySelector('.bcx').onclick=closeCam;
   var man=o.querySelector('#bcman'),go=function(){var v=norm(man.value);man.value='';if(v){lastCode='';handler(v)}};
   o.querySelector('.bcgo').onclick=go;man.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go()}});
@@ -7899,9 +7899,31 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 /* FEATURES: Settings switches (barcode / dispatch / salesman), salesman on every sale item, auto barcode on purchase bills */
 (function(){
  function on(k){return (D.ps||{})[k]!==0}
+ window.mrpOn=function(){return on('f_bc')&&on('f_mrp')};
+ window.scanPrice=function(it){var d=+(D.ps||{}).scd||0;return(on('f_mrp')&&+it.mrp>0)?Math.round(it.mrp*(1-d/100)*100)/100:it.rate};
+ window.scanNote=function(it){var d=+(D.ps||{}).scd||0;return(on('f_mrp')&&+it.mrp>0&&d>0)?'MRP '+it.mrp+' - '+d+'%':''};
  window.gdOn=function(){return on('f_gd')};window.bcOn=function(){return on('f_bc')};
  window.bcCell=function(l,k){var i=findI(l.name),c=l.bc||(i&&i.bc)||'';
   return c?'<span style="font-size:13px">'+esc(String(c))+'</span>':'<span class="mu" style="font-size:12px">Auto on Save</span> <button type="button" class="s" style="padding:3px 8px;font-size:12px" onclick="bcRowMake('+k+')">Make</button>'};
+ function parseMrp(t){t=String(t||'').trim();if(!t)return 0;var v=0,n=function(x){x=parseFloat(String(x).replace(/,/g,''));return x>0&&x<10000000?x:0};
+  try{var j=JSON.parse(t);if(j&&typeof j==='object'){for(var k in j){if(/^(mrp|m\.?r\.?p|price|maxprice|retailprice)$/i.test(k)&&n(j[k]))return n(j[k])}}}catch(e){}
+  try{var u=new URL(t);var q=u.searchParams;['mrp','MRP','price','Price','p'].some(function(k){if(n(q.get(k))){v=n(q.get(k));return 1}});if(v)return v}catch(e){}
+  var m=t.match(/(?:m\.?\s?r\.?\s?p\.?|max(?:imum)?\.?\s*retail\s*price|price)[^0-9\n]{0,15}([0-9][0-9,]*(?:\.[0-9]+)?)/i)||t.match(/(?:₹|rs\.?|inr)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i);
+  return m?n(m[1]):0}
+ function readMrp(done){if(!window.bcScan){alert('Scanner is not available.');return}
+  bcScan({once:true,title:'Scan the QR code on the box to read MRP',onCode:function(c){var v=parseMrp(c);
+   if(!v){var a=prompt('Scanned: '+String(c).slice(0,90)+'\n\nThis code has no MRP inside. Type the MRP:','');v=parseFloat(a);if(!(v>0))return}
+   done(v)}})}
+ window.mrpCell=function(l,k){var ph=(window.isM&&isM());
+  return '<span style="white-space:nowrap"><input type="number" inputmode="decimal" value="'+esc(l.mrp||'')+'" placeholder="MRP" style="width:78px" onchange="mrpSet('+k+',this.value)"><button type="button" class="s" style="padding:4px 8px;margin-left:4px" onclick="mrpScan('+k+')">'+(ph?'📷 MRP':'MRP')+'</button></span>'};
+ window.mrpEntry=function(){var ph=(window.isM&&isM());
+  return '<td style="white-space:nowrap"><input id="dmr" type="number" inputmode="decimal" placeholder="MRP" style="width:78px"><button type="button" class="s" style="padding:4px 8px;margin-left:4px" onclick="mrpScanEntry()">'+(ph?'📷 MRP':'MRP')+'</button></td>'};
+ window.mrpSet=function(k,v){var l=ddraft.lines[k];if(l){l.mrp=+v>0?+v:'';render()}};
+ window.mrpScan=function(k){readMrp(function(v){var l=ddraft.lines[k];if(l){l.mrp=v;render()}})};
+ window.mrpScanEntry=function(){readMrp(function(v){var e=document.getElementById('dmr');if(e)e.value=v})};
+ var _al=window.addDocLine;
+ if(typeof _al==='function')window.addDocLine=addDocLine=function(){var e=document.getElementById('dmr'),v=e?+e.value:0,n0=(window.ddraft&&ddraft.lines||[]).length;
+  var r=_al.apply(this,arguments);try{if(v>0&&ddraft&&ddraft.lines.length>n0)ddraft.lines[ddraft.lines.length-1].mrp=v}catch(x){}return r};
  window.bcRowMake=function(k){var l=ddraft.lines[k];if(!l)return;l.bc=make();render()};
  var _op=window.op;window.op=op=function(k){return(k==='trn'&&!on('f_dsp'))?false:_op.apply(this,arguments)};
  function SMS(){D.sms=D.sms||[];return D.sms}
@@ -7941,6 +7963,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(typeof sTab!=='undefined'&&sTab!=='gen')return h;
   var s='<div class="sec"><h3>Features (turn on / off)</h3><div class="hint">Switch off what you do not use. It disappears from the app. Your old data stays safe.</div>'
    +ck('f_bc','Barcode (scan, make, print labels)','Barcode fields, Scan button and label printing. A new barcode is made automatically for new items in a purchase bill.')
+   +ck('f_mrp','MRP and scan discount','MRP column in purchase bills (scan the box QR). A scanned item in a sale gets MRP minus the discount % below.')
+   +(on('f_mrp')?'<div class="ck" style="cursor:default"><span style="flex:1">Scan discount on MRP (%)</span><input type="number" inputmode="decimal" min="0" max="100" style="width:72px;margin:0" value="'+esc(String((D.ps||{}).scd||0))+'" onchange="setP(\'scd\',Math.max(0,Math.min(100,+this.value||0)))"></div>':'')
    +ck('f_gd','Godown / Block','Godown column in purchase bills. Switch off if you do not track godowns.')
    +ck('f_dsp','Dispatch (tick boxes, remaining dispatch)','Tick boxes for items sent, the Remaining dispatch block on Home, and dispatch history.')
    +ck('f_sm','Salesman on sale items','Choose a salesman on each item of a sale. Use Same for all to copy one salesman to every item.');
@@ -7953,10 +7977,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function make(){var c,t=0;do{var b='2';for(var i=0;i<11;i++)b+=Math.floor(Math.random()*10);c=b+chk(b);t++}while(used(c)&&t<50);return c}
  var _sd=window.saveDoc;
  window.saveDoc=saveDoc=function(){
-  var d=window.ddraft,pur=d&&d.t==='pur',names=pur?(d.lines||[]).map(function(l){return [l.name,l.bc]}):[],n0=(D.docs||[]).length;
+  var d=window.ddraft,pur=d&&d.t==='pur',names=pur?(d.lines||[]).map(function(l){return [l.name,l.bc,l.mrp]}):[],n0=(D.docs||[]).length;
   var r=_sd.apply(this,arguments);
   try{if(pur&&on('f_bc')&&(D.docs||[]).length>n0||(pur&&on('f_bc')&&d.edit)){
-   var c=0;names.forEach(function(nm){var i=findI(nm[0]);if(i&&!String(i.bc||'').trim()){i.bc=nm[1]||make();c++}});
+   var c=0,c2=0;names.forEach(function(nm){var i=findI(nm[0]);if(!i)return;if(!String(i.bc||'').trim()){i.bc=nm[1]||make();c++}if(on('f_mrp')&&+nm[2]>0&&(+i.rate!==+nm[2]||+i.mrp!==+nm[2])){i.rate=+nm[2];i.mrp=+nm[2];c2++}});if(c2&&!c)save();
    if(c){save();setTimeout(function(){if(confirm(c+' item'+(c>1?'s':'')+' got a new barcode. Print labels now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
   return r};
 })();
