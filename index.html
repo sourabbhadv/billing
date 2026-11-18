@@ -8116,4 +8116,229 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   return r};
 })();
 </script>
+<script id="firms-step5">
+/* ---- FIRMS (step 5): login handling.
+   - First person to claim the existing data (Ashirwad Tiles) is asked once: "Are you the owner?"
+   - Every other new login simply sets up ITS OWN firm (details required). No list of other firms is shown.
+   PC = centred card, 2 columns. Mobile = bottom sheet, 1 column. ---- */
+(function(){
+ var st=document.createElement('style');
+ st.textContent='#fnw{position:fixed;inset:0;z-index:200;background:rgba(15,20,40,.55);display:flex;align-items:flex-end;justify-content:center}'
+ +'#fnw .fb{background:#fff;color:#1f2437;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-sizing:border-box;border-radius:16px 16px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px))}'
+ +'#fnw h3{margin:0 0 4px;font-size:19px}#fnw .mu{color:#7b8194;font-size:14px}'
+ +'#fnw label{display:block;font-size:12.5px;color:#7b8194;margin:10px 0 3px}'
+ +'#fnw input,#fnw textarea{width:100%;box-sizing:border-box;font-size:16px;padding:11px 12px;border:1px solid #cfd5e3;border-radius:8px;background:#f7f9fc;margin:0;font-family:inherit}'
+ +'#fnw textarea{resize:none;height:64px}'
+ +'#fnw .fg{display:block}#fnw .em{padding:9px 12px;background:#eaf2fe;color:#1a56b8;border-radius:8px;font-size:14px;margin:8px 0;word-break:break-all}'
+ +'#fnw .fa{display:flex;gap:8px;margin-top:14px}#fnw .fa button{flex:1;min-height:46px;font-size:15px}#fnw .fa.col{flex-direction:column}'
+ +'#fnw .er{color:#e5333f;font-size:13.5px;min-height:18px;margin-top:6px}'
+ +'@media(min-width:900px){#fnw{align-items:center}#fnw .fb{border-radius:14px;max-width:640px;padding:22px 26px;box-shadow:0 10px 40px rgba(0,0,0,.25)}#fnw .fg{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}#fnw .fg .w{grid-column:1/-1}#fnw .fa{justify-content:flex-end}#fnw .fa.col{flex-direction:row}#fnw .fa button{flex:0 0 auto;min-width:130px;padding:10px 20px}}';
+ document.head.appendChild(st);
+ var openFor=null;
+ function F(){var p=PS();if(!p.firms||!p.firms.length)p.firms=[{id:'f1',name:''},{id:'f2',name:''}];if(!p.emails)p.emails={};return p}
+ function email(){var s=window.__sbSess;return String((s&&s.user&&s.user.email)||'').toLowerCase()}
+ function close(){var x=document.getElementById('fnw');if(x)x.remove();openFor=null}
+ function show(h){close();var d=document.createElement('div');d.id='fnw';d.innerHTML='<div class="fb">'+h+'</div>';document.body.appendChild(d)}
+ function hasData(){return !!(D.items.length||D.bills.length||D.parties.length)}
+ /* owner of the existing data (asked only once) */
+ function ownerAsk(em){
+  openFor=em;
+  show('<h3>Welcome</h3><div class="mu">This app already has data of <b>'+esc(D.shop||'your firm')+'</b>. Are you the owner of this data?</div><div class="em">'+esc(em)+'</div>'
+  +'<div class="fa col"><button class="s" onclick="fnNewFirm(\''+esc(em)+'\')">No, I am a new firm</button><button class="b" onclick="fnOwner()">Yes, this is my firm</button></div>')}
+ window.fnOwner=function(){
+  var p=F(),em=openFor||email(),f=p.firms[0];if(!f)return;
+  if(!String(f.name||'').trim())f.name=D.shop||'My firm';
+  p.owner=em;p.emails[em]=f.id;if(!f.em)f.em=em;save();close();try{render()}catch(e){}};
+ /* a new person: only his own firm details */
+ window.fnNewFirm=function(em){
+  openFor=em||'';
+  var login=!!em;
+  show('<h3>'+(login?'Set up your firm':'Add a new firm')+'</h3><div class="mu">'+(login?'Welcome! Please tell us about your firm to start.':'Type the details of the firm.')+'</div>'
+  +(login?'<div class="em">'+esc(em)+'</div>':'')
+  +'<div class="fg"><div class="w"><label>Firm name *</label><input id="fnn" placeholder="Firm name" autocomplete="off"></div>'
+  +'<div><label>Phone number</label><input id="fnp" type="tel" inputmode="tel" placeholder="Phone"></div><div><label>GST number (optional)</label><input id="fng" placeholder="GSTIN"></div>'
+  +'<div class="w"><label>Address</label><textarea id="fna" placeholder="Shop address, city"></textarea></div></div>'
+  +'<div class="er" id="fne"></div><div class="fa">'+(login?'<button class="s" onclick="fnOut()">Log out</button>':'<button class="s" onclick="fnClose()">Cancel</button>')+'<button class="b" onclick="fnSave()">Save</button></div>')};
+ window.fnClose=close;
+ window.fnOut=function(){close();try{if(window.sbOut)sbOut(0)}catch(e){}};
+ window.fnSave=function(){
+  var p=F(),em=openFor||'',g=function(i){return((document.getElementById(i)||{}).value||'').trim()},er=document.getElementById('fne');
+  var nm=g('fnn');if(!nm){er.textContent='Please type the firm name.';return}
+  if(p.firms.some(function(x){return String(x.name||'').trim().toLowerCase()===nm.toLowerCase()})){er.textContent='A firm with this name already exists. Please type a different name.';return}
+  var f={id:uid(),name:nm,phone:g('fnp'),gst:g('fng'),addr:g('fna'),em:em};
+  var blank=p.firms.find(function(x){return !String(x.name||'').trim()&&x.id!=='f1'})||(hasData()?null:p.firms.find(function(x){return !String(x.name||'').trim()}));
+  if(blank){blank.name=f.name;blank.phone=f.phone;blank.gst=f.gst;blank.addr=f.addr;blank.em=f.em;f=blank}else p.firms.push(f);
+  if(em)p.emails[em]=f.id;
+  save();close();try{render()}catch(e){}
+  alert('Firm "'+f.name+'" is ready.')};
+ window.fmNew=function(){fnNewFirm('')};
+ function check(){
+  if(document.getElementById('fnw')||document.getElementById('lgn'))return;
+  var em=email();if(!em)return;
+  var p=F();if(p.emails[em]&&p.firms.some(function(x){return x.id===p.emails[em]}))return;
+  if(!p.owner&&hasData())ownerAsk(em);else fnNewFirm(em)}
+ setInterval(check,2000);setTimeout(check,1500);
+ var _v=vSettings;
+ vSettings=function(){var h=_v.apply(this,arguments);
+  return h.replace('<button class="s" onclick="fmAdd()">+ Add another firm</button>','<button class="s" onclick="fmNew()">+ New firm with details</button>')};
+})();
+</script>
+<script id="firms-step6">
+/* ---- FIRMS (step 6): Sale bill. Items of different firms (also when scanned with the barcode) can be in ONE sale screen.
+        On Save the app makes one bill per firm. Discount and amount received are shared in proportion.
+        A small box on the sale screen shows how the bills will split (PC and mobile each have their own spot). ---- */
+(function(){
+ var r2=function(x){return Math.round(x*100)/100};
+ function fname(id){var f=(PS().firms||[]).find(function(x){return x.id===id});return f?f.name:''}
+ function fidOf(l){var i=(l.iid&&I(l.iid))||findI(l.name),c=window.fmCur?fmCur():'all';return (i&&i.fm)||l.fm||(c!=='all'?c:'')}
+ /* group lines by firm; lines with no firm go with the first firm that has a name */
+ function groups(lines){
+  var g={},ord=[];
+  lines.forEach(function(l){var f=fidOf(l);if(!g[f]){g[f]=[];ord.push(f)}g[f].push(l)});
+  if(g['']&&ord.length>1){var t=ord.filter(function(f){return f})[0];g[t]=g[t].concat(g['']);ord=ord.filter(function(f){return f})}
+  return ord.map(function(f){return {f:f,lines:g[f]}})}
+ function sum(L){return L.reduce(function(a,l){return a+(+l.amt||0)},0)}
+ window.fmGroups=groups;
+ /* turn the bill just saved into one bill per firm */
+ function splitBill(b){
+  var gs=groups(b.lines);
+  if(gs.length<2){b.fm=gs.length?gs[0].f:'';return [b]}
+  var base=JSON.parse(JSON.stringify(b)),gross=sum(b.lines),disc=+b.disc||0,paid=+b.paid||0,net=Math.max(gross-disc,0);
+  var maxNo=D.bills.reduce(function(m,x){return Math.max(m,x.no)},0),out=[],dl=0,pl=0;
+  gs.forEach(function(g,k){
+   var s=sum(g.lines),last=k===gs.length-1;
+   var d=last?r2(disc-dl):r2(gross?disc*s/gross:0);dl+=d;
+   var tt=r2(Math.max(s-d,0));
+   var p=last?r2(paid-pl):r2(net?paid*tt/net:0);pl+=p;
+   var nb;
+   if(k===0)nb=b;else{nb=JSON.parse(JSON.stringify(base));nb.id='b'+uid();nb.no=++maxNo;D.bills.push(nb)}
+   nb.lines=JSON.parse(JSON.stringify(g.lines));nb.disc=d;nb.total=tt;nb.paid=p;nb.fm=g.f;out.push(nb)});
+  /* the payment that was saved "with bill" */
+  var note='With bill #'+base.no,px=null;
+  for(var i=D.pays.length-1;i>=0;i--){if(D.pays[i].note===note&&D.pays[i].pid===base.pid){px=D.pays[i];break}}
+  if(px){
+   var base0=px;
+   out.forEach(function(nb,k){
+    if(k===0){if(nb.paid>0)base0.amt=nb.paid;else D.pays.splice(D.pays.indexOf(base0),1)}
+    else if(nb.paid>0)D.pays.push({id:uid(),pid:nb.pid,date:nb.date,amt:nb.paid,note:'With bill #'+nb.no})})}
+  return out}
+ var _s=saveBill2;
+ saveBill2=window.saveBill2=function(){
+  var n0=D.bills.length,pre=(draft&&draft.lines)?groups(draft.lines).length:0,oa=null;
+  if(pre>1){try{oa=awGo;awGo=function(){return false}}catch(e){}}   /* no automatic WhatsApp for a bill that is about to be split */
+  try{_s.apply(this,arguments)}finally{if(oa)awGo=oa}
+  if(D.bills.length<=n0)return;
+  var b=D.bills[D.bills.length-1];
+  if(!b||!b.lines)return;
+  var out=splitBill(b);
+  save();
+  if(out.length>1){
+   last=out[0].no;render();
+   alert('Items of '+out.length+' firms were in this sale, so '+out.length+' bills were made:\n\n'+out.map(function(x){return '#'+x.no+'  '+(fname(x.fm)||'No firm')+'  '+money(x.total)}).join('\n'))}
+  else if(out[0].fm)save()};
+ /* ---- the box on the sale screen ---- */
+ var st=document.createElement('style');
+ st.textContent='#fmsum{background:#eaf2fe;color:#1a3f8f;border:1px solid #c6dcf8;border-radius:10px;font-size:14px;line-height:1.5;box-sizing:border-box}#fmsum b{color:#12286b}#fmsum .r{display:flex;justify-content:space-between;gap:10px}'
+ +'@media(max-width:899px){#fmsum{margin:8px 12px;padding:10px 12px}}'
+ +'@media(min-width:900px){#fmsum{margin:8px 0 8px auto;padding:10px 16px;max-width:460px}}';
+ document.head.appendChild(st);
+ function text(){
+  if(typeof draft==='undefined'||!draft||!draft.lines||!draft.lines.length||draft.edit!=null&&draft.edit!==undefined&&draft.edit!==false&&draft.edit!==0)return '';
+  var gs=groups(draft.lines);if(gs.length<2)return '';
+  return '<b>'+gs.length+' firms in this sale. Save will make '+gs.length+' bills:</b>'+gs.map(function(g){return '<div class="r"><span>'+esc(fname(g.f)||'No firm')+' · '+g.lines.length+' item'+(g.lines.length===1?'':'s')+'</span><b>'+money(sum(g.lines))+'</b></div>'}).join('')}
+ function put(){
+  var t=text(),e=document.getElementById('fmsum'),a=null;
+  if(isM()){a=document.querySelector('.sfad')}else{var f=document.querySelector('tfoot .ab');a=f&&f.closest('.card')}
+  if(!t||!a){if(e)e.remove();return}
+  if(e&&e.previousElementSibling!==a){e.remove();e=null}
+  if(!e){e=document.createElement('div');e.id='fmsum';a.insertAdjacentElement('afterend',e)}
+  if(e.innerHTML!==t)e.innerHTML=t}
+ var mt=null;
+ try{new MutationObserver(function(){clearTimeout(mt);mt=setTimeout(function(){try{put()}catch(e){}},150)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+})();
+</script>
+<script id="firms-step7">
+/* ---- FIRMS (step 7): firm switcher + per-firm view.
+   Pick one firm: every screen (items, parties, balances, bills, payments, totals) shows ONLY that firm.
+   Pick "All firms": everything is shown together. Old records with no firm count as the owner's first firm.
+   PC: switcher in the left sidebar. Mobile: switcher in the top bar. ---- */
+(function(){
+ var KEY='fmcf';
+ function names(){return window.firmList?firmList():[]}
+ function cf(){var v='all';try{v=localStorage.getItem(KEY)||'all'}catch(e){}
+  if(v!=='all'&&!names().some(function(f){return f.id===v}))return 'all';return v}
+ window.fmCur=cf;
+ function legacy(){var p=PS(),o=p.owner&&p.emails&&p.emails[p.owner];return o||(p.firms&&p.firms[0]&&p.firms[0].id)||'f1'}
+ function itemF(i){return (i&&i.fm)||legacy()}
+ var BM=null;
+ function billF(b){return b.fm||legacy()}
+ function docF(d){if(d.fm)return d.fm;var l=d.lines&&d.lines[0],i=l&&(l.iid?I(l.iid):findI(l.name));return (i&&i.fm)||legacy()}
+ function payF(x){
+  if(x.fm)return x.fm;
+  var n=null,m=/With bill #(\d+)/.exec(x.note||'');if(m)n=+m[1];else if(x.bn!=null)n=+x.bn;
+  if(n!=null){var b=BM[n];if(b)return billF(b)}
+  if(x.dn&&D.docs){var d=D.docs.find(function(z){return z.id===x.dn});if(d)return docF(d)}
+  return legacy()}
+ /* ---- swap the lists while a screen is drawn ---- */
+ var real=null,_svReal=null;
+ function setReal(){D.bills=real.b;D.pays=real.p;D.items=real.i;D.parties=real.pa;if(real.d!==undefined)D.docs=real.d}
+ function swap(c){
+  real={b:D.bills,p:D.pays,i:D.items,pa:D.parties,d:D.docs};
+  BM={};real.b.forEach(function(b){BM[b.no]=b});
+  var lg=legacy(),act={};
+  var nb=real.b.filter(function(b){return billF(b)===c}),np=real.p.filter(function(x){return payF(x)===c});
+  var nd=real.d?real.d.filter(function(d){return docF(d)===c}):real.d;
+  nb.forEach(function(b){act[b.pid]=1});np.forEach(function(x){act[x.pid]=1});(nd||[]).forEach(function(d){if(d.pid)act[d.pid]=1});
+  var any={};real.b.forEach(function(b){any[b.pid]=1});real.p.forEach(function(x){any[x.pid]=1});
+  D.bills=nb;D.pays=np;if(nd!==undefined)D.docs=nd;
+  D.items=real.i.filter(function(i){return itemF(i)===c});
+  D.parties=real.pa.filter(function(p){return act[p.id]||!any[p.id]||(lg===c&&+p.open)}).map(function(p){return lg===c?p:Object.assign({},p,{open:0})});
+  _svReal=save;
+  /* safety: anything saved while a firm is selected must save ALL the data, never only the selected firm */
+  save=function(){var t={b:D.bills,p:D.pays,i:D.items,pa:D.parties,d:D.docs};setReal();try{return _svReal.apply(this,arguments)}finally{D.bills=t.b;D.pays=t.p;D.items=t.i;D.parties=t.pa;if(t.d!==undefined)D.docs=t.d}};
+  try{BC=null}catch(e){}}
+ function unswap(){if(!real)return;setReal();save=_svReal;real=null;_svReal=null;try{BC=null}catch(e){}}
+ var _r=render;
+ render=window.render=function(){
+  var c=cf();
+  if(c==='all'){var r0=_r.apply(this,arguments);try{after()}catch(e){}return r0}
+  var r;swap(c);try{r=_r.apply(this,arguments)}finally{unswap()}
+  try{after()}catch(e){}return r};
+ /* ---- new payments remember their firm ---- */
+ var seen={};(D.pays||[]).forEach(function(x){if(x.id)seen[x.id]=1});
+ var _s0=save;
+ save=window.save=function(){
+  try{if(!real){var c=cf(),B={};D.bills.forEach(function(b){B[b.no]=b});
+   D.pays.forEach(function(x){if(!x.id||seen[x.id])return;seen[x.id]=1;if(x.fm)return;
+    var m=/With bill #(\d+)/.exec(x.note||''),n=m?+m[1]:(x.bn!=null?+x.bn:null);
+    if(n!=null&&B[n]){x.fm=billF(B[n]);return}
+    if(c!=='all')x.fm=c})}}catch(e){}
+  return _s0.apply(this,arguments)};
+ /* ---- the switcher ---- */
+ var st=document.createElement('style');
+ st.textContent='.fmsw{font:inherit;font-size:14px;font-weight:600;border-radius:8px;border:1px solid #cfd5e3;background:#fff;color:#1f2437;min-width:0;box-sizing:border-box}'
+ +'#fmswP{display:none;width:100%;margin:10px 0 2px;padding:8px 10px;background:#1d2160;color:#fff;border-color:#3b4190}#fmswP option{color:#1f2437}'
+ +'#fmswM{display:none;max-width:42vw;padding:7px 8px;margin-left:auto;flex:none}'
+ +'@media(min-width:900px){#fmswP{display:block}}@media(max-width:899px){#fmswM{display:block}}';
+ document.head.appendChild(st);
+ window.fmPick=function(v){try{localStorage.setItem(KEY,v)}catch(e){}openP=null;openB=null;viewB=null;openI=null;render()};
+ function opts(c){return '<option value="all"'+(c==='all'?' selected':'')+'>All firms</option>'+names().map(function(f){return '<option value="'+esc(f.id)+'"'+(c===f.id?' selected':'')+'>'+esc(f.name)+'</option>'}).join('')}
+ function mount(){
+  var c=cf(),F=names(),ok=F.length>=2;
+  ['fmswP','fmswM'].forEach(function(id){var e=document.getElementById(id);if(e&&!ok)e.remove()});
+  if(!ok)return;
+  var h=document.querySelector('header'),t=document.getElementById('mtop');
+  [['fmswP',h],['fmswM',t]].forEach(function(a){
+   if(!a[1])return;var e=document.getElementById(a[0]),o=opts(c);
+   if(!e){e=document.createElement('select');e.id=a[0];e.className='fmsw';e.title='Firm';e.onchange=function(){fmPick(this.value)};a[1].appendChild(e)}
+   if(e.parentNode!==a[1])a[1].appendChild(e);
+   if(e.innerHTML!==o)e.innerHTML=o;if(e.value!==c)e.value=c})}
+ /* a new item / purchase line starts in the firm that is selected */
+ function after(){
+  mount();var c=cf();if(c==='all')return;
+  ['sfm','dfm'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value&&!(id==='sfm'&&iform&&iform.id))e.value=c})}
+ var mt=null;try{new MutationObserver(function(){clearTimeout(mt);mt=setTimeout(function(){try{mount()}catch(e){}},150)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+ setTimeout(function(){try{render()}catch(e){}},300);
+})();
+</script>
 </body></html>
