@@ -3271,7 +3271,7 @@ function sbAsk(){return;try{
 var _ss0=startSync;startSync=function(db){window.sbLive=1;return _ss0(db)};
 var _lb0=loginBox;loginBox=function(){_lb0();
  var r=document.querySelector('#lgn .row');
- if(r)r.insertAdjacentHTML('beforebegin','<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:14px;cursor:pointer"><input type="checkbox" id="ltr" style="width:auto;margin:3px 0 0"><span><b>This is my own device</b> — keep me signed in.<br><span class="mu">Leave this unticked on a shared or public computer or phone. You will then be signed out when you close the browser or after 30 minutes of no use.</span></span></label>');
+ if(r)r.insertAdjacentHTML('beforebegin','<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:14px;cursor:pointer"><input type="checkbox" id="ltr" checked style="width:auto;margin:3px 0 0"><span><b>This is my own device</b> — keep me signed in.<br><span class="mu">Leave this unticked on a shared or public computer or phone. You will then be signed out when you close the browser or after 30 minutes of no use.</span></span></label>');
  var m=window.__sbMsg||sessionStorage.getItem('sbMsg'),lm=document.getElementById('lm');if(m&&lm){lm.textContent=m;try{sessionStorage.removeItem('sbMsg')}catch(e){}window.__sbMsg=null}};
 var _da0=doAuth;doAuth=function(up){var c=document.getElementById('ltr');sbMark(!!(c&&c.checked));_da0(up)};
 var _sbAct=0;function sbAct(){var n=Date.now();if(n-_sbAct<15000)return;_sbAct=n;try{localStorage.setItem('sbLast',String(n))}catch(e){}}
@@ -7183,12 +7183,13 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     error_callback:function(e){var t=e&&e.type,b=t==='popup_failed_to_open'||t==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':t==='popup_closed'?'The Google window was closed before it finished. Press Start again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press Sync now.'),{blocked:b}))}});
    c.requestAccessToken({prompt:(first&&ls('gdLinked')!=='1')?'consent':''})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
+ var lastErr='';function armTapE(e){if(e&&e.message&&!e.blocked)lastErr=String(e.message);armTap()}
  function armTap(){
-  needTap=true;setStatus('Tap once anywhere to keep live sync running');
+  needTap=true;setStatus(lastErr?('Tap anywhere to try again. Last problem: '+lastErr):'Tap once anywhere to keep live sync running');
   if(armed)return;armed=true;
   document.addEventListener('click',function h(){document.removeEventListener('click',h,true);armed=false;
    if(!on||tokOk())return;
-   getTok(false).then(function(){go('reconnect')},function(e){setStatus(e&&e.blocked?'Tap Sync now to reconnect':String(e.message||e));armTap()})},true)}
+   getTok(false).then(function(){go('reconnect')},function(e){armTapE(e)})},true)}
  /* renew in the background BEFORE the hour ends, with no tap (works where the browser allows it; a tap anywhere is the backup) */
  var lastBg=0;
  setInterval(function(){
@@ -7314,7 +7315,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  var n404=0;
  function go(why){
   if(!on||busy||!(window.PLAN&&PLAN.pro()))return Promise.resolve();
-  if(!tokOk()){if(!needTap)getTok(false).then(function(){go(why)},function(e){armTap()});else armTap();return Promise.resolve()}
+  if(!tokOk()){if(!needTap)getTok(false).then(function(){lastErr='';go(why)},function(e){armTapE(e)});else armTap();return Promise.resolve()}
   busy=true;setStatus('Syncing...');
   return round(why).then(function(res){busy=false;n404=0;
    if(res==='race'){setStatus('Another device saved at the same moment, merging...');setTimeout(function(){go('force')},400);return}
@@ -7331,7 +7332,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* ---------- when to run ---------- */
  function schedule(){
   if(suppress||!on)return;ls('lvDirty','1');
-  if(!tokOk()){setStatus('Saved on this device. Reconnect Google Drive to upload.');if(!needTap)getTok(false).then(function(){go('save')},function(){armTap()});else armTap();return}
+  if(!tokOk()){setStatus('Saved on this device. Reconnect Google Drive to upload.');if(!needTap)getTok(false).then(function(){lastErr='';go('save')},function(e){armTapE(e)});else armTap();return}
   if(timer)clearTimeout(timer);timer=setTimeout(function(){timer=null;go('save')},PUSH_DELAY)}
  function poll(){
   clearTimeout(pollT);
