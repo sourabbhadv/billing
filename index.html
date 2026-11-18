@@ -7728,7 +7728,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   o.innerHTML='<div class="bcp"><div class="bch"><b>'+(opt.title||(sale?'Scan items for this bill':'Scan barcode'))+'</b><button class="bcx" aria-label="Close">'+(sale?'Done':'Close')+'</button></div>'+
    '<div class="bcv"><video playsinline muted autoplay></video><div class="bcr"><i></i></div><div class="bcmsg"></div><div class="bcerr"></div></div>'+
    '<div class="bcf"><div class="bcrow"><input id="bcman" placeholder="Type or scan a code" autocomplete="off" inputmode="text"><button class="b bcgo">'+(sale?'Add':'Use')+'</button></div>'+
-   '<div class="bcrow2"><button class="s" id="bctorch" style="display:none">Torch</button><span class="mu">'+(sale?'Keeps scanning. Press Done when finished.':'Point the camera at the barcode.')+'</span></div><div id="bclist" class="bcl"></div></div></div>';
+   (sale&&(D.ps||{}).f_mrp!==0&&(D.ps||{}).f_bc!==0?'<div class="bcrow2"><span class="mu">Discount on MRP</span><input id="bcdisc" type="number" inputmode="decimal" min="0" max="100" style="width:72px;margin:0 6px" value="'+((D.ps||{}).scd||0)+'" oninput="D.ps=D.ps||{};D.ps.scd=Math.max(0,Math.min(100,+this.value||0));save()"><span class="mu">% (items with an MRP)</span></div>':'')+'<div class="bcrow2"><button class="s" id="bctorch" style="display:none">Torch</button><span class="mu">'+(sale?'Keeps scanning. Press Done when finished.':'Point the camera at the barcode.')+'</span></div><div id="bclist" class="bcl"></div></div></div>';
   document.body.appendChild(o);document.body.classList.add('bcon');
   var handler=function(c){got(c,!sale,function(x){if(sale)saleScan(x);else opt.onCode(x)},1)};
   o.querySelector('.bcx').onclick=closeCam;
