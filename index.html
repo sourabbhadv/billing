@@ -8264,10 +8264,21 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    PC: switcher in the left sidebar. Mobile: switcher in the top bar. ---- */
 (function(){
  var KEY='fmcf';
+ /* ---- a login that is NOT the owner can only work inside its own firm ---- */
+ function rawNames(){return (PS().firms||[]).filter(function(f){return String(f.name||'').trim()})}
+ function restricted(){
+  var s=window.__sbSess,em=String((s&&s.user&&s.user.email)||'').toLowerCase(),p=PS();
+  if(!em||!p.owner||em===p.owner)return null;
+  var id=p.emails&&p.emails[em];
+  return (id&&rawNames().some(function(f){return f.id===id}))?id:'none'}
+ window.fmRestricted=restricted;
+ var _fl=window.firmList;
+ window.firmList=function(){var L=_fl?_fl():rawNames(),r=restricted();return r?L.filter(function(f){return f.id===r}):L};
  function names(){return window.firmList?firmList():[]}
- function cf(){var v='all';try{v=localStorage.getItem(KEY)||'all'}catch(e){}
+ function cf(){var r=restricted();if(r)return r;var v='all';try{v=localStorage.getItem(KEY)||'all'}catch(e){}
   if(v!=='all'&&!names().some(function(f){return f.id===v}))return 'all';return v}
  window.fmCur=cf;
+ window.fmLegacy=function(){return legacy()};
  function legacy(){var p=PS(),o=p.owner&&p.emails&&p.emails[p.owner];return o||(p.firms&&p.firms[0]&&p.firms[0].id)||'f1'}
  function itemF(i){return (i&&i.fm)||legacy()}
  var BM=null;
@@ -8279,6 +8290,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(n!=null){var b=BM[n];if(b)return billF(b)}
   if(x.dn&&D.docs){var d=D.docs.find(function(z){return z.id===x.dn});if(d)return docF(d)}
   return legacy()}
+ window.fmBillF=function(b){return billF(b)};window.fmDocF=function(d){return docF(d)};
  /* ---- swap the lists while a screen is drawn ---- */
  var real=null,_svReal=null;
  function setReal(){D.bills=real.b;D.pays=real.p;D.items=real.i;D.parties=real.pa;if(real.d!==undefined)D.docs=real.d}
@@ -8337,6 +8349,14 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    add.forEach(function(y){D.pays.push(y)});
    if(msg.length)setTimeout(function(){alert('This payment was shared between the firms (by what is pending):\n\n'+msg.join('\n'))},50)}}catch(e){}
   return _s0.apply(this,arguments)};
+ var _vS=vSettings;
+ vSettings=function(){
+  var r=restricted();
+  if(r&&sTab==='firms'){
+   var f=(PS().firms||[]).find(function(x){return x.id===r})||{};
+   var row=function(l,v){return v?'<div class="row" style="padding:6px 0"><span class="mu">'+l+'</span><b>'+esc(v)+'</b></div>':''};
+   return '<h2 style="font-size:20px;margin:6px 0">Settings</h2><div class="pills" style="display:flex"><button class="s" onclick="sTab=\'gen\';render()">&larr; Back</button></div><div class="card" style="max-width:600px"><b>Your firm</b>'+row('Name',f.name)+row('Phone',f.phone)+row('GST',f.gst)+row('Address',f.addr)+'<div class="mu" style="margin-top:8px">Only the owner of the app can change firm details.</div></div>'}
+  return _vS.apply(this,arguments)};
  /* ---- the switcher ---- */
  var st=document.createElement('style');
  st.textContent='.fmsw{font:inherit;font-size:14px;font-weight:600;border-radius:8px;border:1px solid #cfd5e3;background:#fff;color:#1f2437;min-width:0;box-sizing:border-box}'
@@ -8392,6 +8412,46 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    host.appendChild(t)}}
  var mt=null;try{new MutationObserver(function(){clearTimeout(mt);mt=setTimeout(function(){try{paint()}catch(e){}},200)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
  var _r=render;render=window.render=function(){var r=_r.apply(this,arguments);try{paint()}catch(e){}return r};
+})();
+</script>
+<script id="firms-step9">
+/* ---- FIRMS (step 9): Print / Share picture / WhatsApp of a bill use the bill's OWN firm
+        (name, address, phone, GST). The owner's first firm keeps the original print settings and logo.
+        Other firms get their own details from the new-firm form and no logo/bank of another firm. ---- */
+(function(){
+ var ctx=null,_PS=PS;
+ function firmOf(id){return ((_PS().firms)||[]).find(function(f){return f.id===id})}
+ PS=window.PS=function(){
+  var o=_PS();
+  if(!ctx||(window.fmLegacy&&ctx===fmLegacy()))return o;
+  var f=firmOf(ctx);if(!f||!String(f.name||'').trim())return o;
+  return Object.assign({},o,{name:f.name,tag:'',addr:f.addr||'',phone:f.phone||'',email:f.email||'',extra:f.gst?'GST: '+f.gst:'',logo:'',bank:''})};
+ function run(fid,fn,keepShop){
+  var prev=ctx,sh=D.shop,f=fid?firmOf(fid):null,over=keepShop&&f&&String(f.name||'').trim()&&fid!==fmLegacy();
+  ctx=fid;if(over)D.shop=f.name;
+  var done=function(){ctx=prev;if(over)D.shop=sh},r;
+  try{r=fn()}catch(e){done();throw e}
+  if(r&&typeof r.then==='function'){r.then(done,done)}else done();
+  return r}
+ function bf(no){var b=D.bills.find(function(x){return x.no===no});return b?fmBillF(b):null}
+ function wrapNo(name,shop){var o=window[name];if(typeof o!=='function')return;
+  window[name]=function(no){var a=arguments,self=this,fid=bf(+no);return fid?run(fid,function(){return o.apply(self,a)},shop):o.apply(self,a)};
+  try{eval(name+'=window[name]')}catch(e){}}
+ wrapNo('printBill');wrapNo('shareBill');wrapNo('wa',true);
+ /* documents (estimate / order / purchase) */
+ (function(){var o=window.printDoc;if(typeof o!=='function')return;
+  window.printDoc=function(id){var a=arguments,self=this,d=window.docById&&docById(id),fid=d?fmDocF(d):null;return fid?run(fid,function(){return o.apply(self,a)}):o.apply(self,a)};
+  try{printDoc=window.printDoc}catch(e){}})();
+ /* the old print path (Save & Print) writes the page from the title "Bill N" */
+ (function(){var o=printHtml;
+  printHtml=window.printHtml=function(title,body){var m=/^Bill (\d+)/.exec(title||''),fid=m?bf(+m[1]):null,self=this,a=arguments;
+   return fid?run(fid,function(){return o.apply(self,a)}):o.apply(self,a)}})();
+ /* Save & Print on a sale that splits: print the other firm bills too (PC only; on a phone each bill is opened from its own button) */
+ (function(){var o=window.saveAndPrint;if(typeof o!=='function')return;
+  var w=function(){var n0=D.bills.length,r=o.apply(this,arguments),n1=D.bills.length;
+   if(n1-n0>1&&!isM()){var L=D.bills.slice(n0,n1-1);L.forEach(function(b,k){setTimeout(function(){try{printBill(b.no)}catch(e){}},700*(k+1))})}
+   return r};
+  window.saveAndPrint=w;try{saveAndPrint=w}catch(e){}})();
 })();
 </script>
 </body></html>
