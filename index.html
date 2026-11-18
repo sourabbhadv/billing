@@ -7301,16 +7301,21 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
      if(r.chR){return writeFile(t,folder,id,build()).then(function(j){return commit(t,j,note||(r.chL?'merged':'saved'))})}
      lastStamp=st;snapshotBase();return r.chL?'pulled':'same'})})
   }).then(function(res){ls('lvStamp',lastStamp);ls('lvDirty',null);ls('lvAt',String(Date.now()));return res})}
+ var n404=0;
  function go(why){
   if(!on||busy||!(window.PLAN&&PLAN.pro()))return Promise.resolve();
   if(!tokOk()){if(!needTap)getTok(false).then(function(){go(why)},function(e){armTap()});else armTap();return Promise.resolve()}
   busy=true;setStatus('Syncing...');
-  return round(why).then(function(res){busy=false;
+  return round(why).then(function(res){busy=false;n404=0;
    if(res==='race'){setStatus('Another device saved at the same moment, merging...');setTimeout(function(){go('force')},400);return}
    setStatus((res==='pulled'||res==='merged'?'Updated from another device ':'Synced ')+stamp()+(res&&res.length>12?' \u2022 '+res:''));paint()},
    function(e){busy=false;
     if(e&&e.status===401){armTap()}
-    else if(e&&e.status===404){fileId=null;ls('lvFile',null);setStatus('Live file was removed from Drive, creating it again...');setTimeout(function(){go('force')},500)}
+    else if(e&&e.status===404){
+     /* a saved file or folder id that this Google account cannot see (removed, or from another account): forget BOTH so they are found or made again. Stop after 3 tries instead of looping. */
+     fileId=null;ls('lvFile',null);folder=null;ls('gdFolder',null);
+     if(++n404>3){n404=0;setStatus('Could not find or create the live file in this Google Drive. Press Sync now. If it repeats, disconnect and connect Google Drive again.')}
+     else{setStatus('Live file was not found in Drive, setting it up again...');setTimeout(function(){go('force')},800)}}
     else setStatus('Saved on this device. Drive upload will retry. '+(e&&e.message||''));paint()})}
 
  /* ---------- when to run ---------- */
