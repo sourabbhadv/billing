@@ -7895,4 +7895,60 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  var r0=window.render;if(typeof r0==='function'){window.render=render=function(){var x=r0.apply(this,arguments);btn();return x}}
 })();
 </script>
+<script id="features-salesman">
+/* FEATURES: Settings switches (barcode / dispatch / salesman), salesman on every sale item, auto barcode on purchase bills */
+(function(){
+ function on(k){return (D.ps||{})[k]!==0}
+ function SMS(){D.sms=D.sms||[];return D.sms}
+ var st=document.createElement('style');
+ st.textContent='.nobc .bcm,.nobc #bcdk,.nobc .bcsc,.nobc [onclick*="bcLabels"],.nobc [onclick*="bcMake"]{display:none!important}.nodsp [onclick*="dhOpen"]{display:none!important}.smw{display:flex;gap:4px;align-items:center;margin:4px 0}.smw select{min-width:110px;max-width:150px;margin:0;padding:4px;font-size:13px}.smw button{padding:4px 6px;font-size:12px;white-space:nowrap}';
+ document.head.appendChild(st);
+ function cls(){var b=document.body;if(!b)return;b.classList.toggle('nobc',!on('f_bc'));b.classList.toggle('nodsp',!on('f_dsp'));
+  if(!on('f_bc')){var e=document.getElementById('sbc');if(e&&e.parentElement&&e.parentElement.style.display!=='none')e.parentElement.style.display='none'}}
+ setInterval(cls,700);
+ /* dispatch off: no tick boxes, no Remaining dispatch block */
+ var _sc=window.sentCell;
+ window.sentCell=sentCell=function(l,k){
+  var d=on('f_dsp')?_sc.apply(this,arguments):'';
+  return on('f_sm')?smCell(l,k)+d:d};
+ var _vp=window.vPendDisp;
+ if(typeof _vp==='function')window.vPendDisp=vPendDisp=function(){return on('f_dsp')?_vp.apply(this,arguments):''};
+ /* salesman picker on each sale item */
+ function smCell(l,k){
+  if(!window.draft||!draft.lines||draft.lines[k]!==l)return '';
+  if(!l.sm&&draft.smAll)l.sm=draft.smAll;
+  var o='<option value="">Salesman</option>'+SMS().slice().sort().map(function(n){return '<option'+(l.sm===n?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'<option value="__new">+ Add salesman</option>';
+  return '<div class="smw" onclick="event.stopPropagation()"><select onchange="smSet('+k+',this.value)">'+o+'</select>'+(l.sm&&draft.lines.length>1?'<button type="button" class="s" onclick="smAll('+k+')">Same for all</button>':'')+'</div>'}
+ window.smSet=function(k,v){var l=draft.lines[k];if(!l)return;
+  if(v==='__new'){var n=(prompt('New salesman name')||'').trim();if(!n){render();return}if(SMS().indexOf(n)<0)SMS().push(n);save();v=n}
+  l.sm=v;if(draft.smAll&&draft.smAll!==v)draft.smAll='';render()};
+ window.smAll=function(k){var n=draft.lines[k]&&draft.lines[k].sm;if(!n)return;draft.smAll=n;draft.lines.forEach(function(x){x.sm=n});render()};
+ window.smDel=function(i){var n=SMS()[i];if(n&&confirm('Remove salesman "'+n+'" from the list? Old bills keep the name.')){SMS().splice(i,1);save();render()}};
+ window.smAdd=function(){var n=(prompt('New salesman name')||'').trim();if(n&&SMS().indexOf(n)<0){SMS().push(n);save();render()}};
+ /* Settings: turn features on / off */
+ var _vs=window.vSettings;
+ window.vSettings=vSettings=function(){
+  var h=_vs.apply(this,arguments);
+  if(typeof sTab!=='undefined'&&sTab!=='gen')return h;
+  var s='<div class="sec"><h3>Features (turn on / off)</h3><div class="hint">Switch off what you do not use. It disappears from the app. Your old data stays safe.</div>'
+   +ck('f_bc','Barcode (scan, make, print labels)','Barcode fields, Scan button and label printing. A new barcode is made automatically for new items in a purchase bill.')
+   +ck('f_dsp','Dispatch (tick boxes, remaining dispatch)','Tick boxes for items sent, the Remaining dispatch block on Home, and dispatch history.')
+   +ck('f_sm','Salesman on sale items','Choose a salesman on each item of a sale. Use Same for all to copy one salesman to every item.');
+  if(on('f_sm')){s+='<div class="hint" style="margin-top:8px">Salesmen</div>'+SMS().map(function(n,i){return '<div class="ck" style="cursor:default"><span style="flex:1">'+esc(n)+'</span><a style="color:#d33;cursor:pointer" onclick="smDel('+i+')">Remove</a></div>'}).join('')+'<button class="s" style="margin-top:6px" onclick="smAdd()">+ Add salesman</button>'}
+  s+='</div>';
+  return h.slice(0,-6)+s+'</div>'};
+ /* barcode for new items of a purchase bill */
+ var Lc=['0001101','0011001'];function chk(d){var s=0;for(var i=0;i<12;i++)s+=(+d[i])*(i%2?3:1);return String((10-s%10)%10)}
+ function used(c){return (D.items||[]).some(function(i){return String(i.bc==null?'':i.bc).trim()===c})}
+ function make(){var c,t=0;do{var b='2';for(var i=0;i<11;i++)b+=Math.floor(Math.random()*10);c=b+chk(b);t++}while(used(c)&&t<50);return c}
+ var _sd=window.saveDoc;
+ window.saveDoc=saveDoc=function(){
+  var d=window.ddraft,pur=d&&d.t==='pur',names=pur?(d.lines||[]).map(function(l){return l.name}):[],n0=(D.docs||[]).length;
+  var r=_sd.apply(this,arguments);
+  try{if(pur&&on('f_bc')&&(D.docs||[]).length>n0||(pur&&on('f_bc')&&d.edit)){
+   var c=0;names.forEach(function(nm){var i=findI(nm);if(i&&!String(i.bc||'').trim()){i.bc=make();c++}});
+   if(c){save();setTimeout(function(){if(confirm(c+' item'+(c>1?'s':'')+' got a new barcode. Print labels now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
+  return r};
+})();
+</script>
 </body></html>
