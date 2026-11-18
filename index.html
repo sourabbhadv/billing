@@ -8454,4 +8454,47 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   window.saveAndPrint=w;try{saveAndPrint=w}catch(e){}})();
 })();
 </script>
+
+<script id="firms-step10">
+/* ---- FIRMS (step 10): hide Backup / Restore and sync controls from restricted firm logins.
+   This is an interface/access guard only; it does not change backup files, Drive data or sync storage. ---- */
+(function(){
+ function locked(){try{return typeof window.fmRestricted==='function'&&!!window.fmRestricted()}catch(e){return false}}
+ var css=document.createElement('style');
+ css.id='firms-step10-style';
+ css.textContent='body.fm-restricted #t-bk,body.fm-restricted #gdTop,body.fm-restricted #bkpend,body.fm-restricted #gdpend{display:none!important}';
+ document.head.appendChild(css);
+ function clean(){
+  var on=locked();
+  document.body.classList.toggle('fm-restricted',on);
+  if(!on)return;
+  ['t-bk','gdTop','bkpend','gdpend'].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()});
+ }
+ /* Do not allow direct navigation to the backup/sync page by URL or script either. */
+ if(typeof window.nav==='function'){
+  var oldNav=window.nav;
+  window.nav=function(k){if(k==='bk'&&locked()){clean();alert('Backup and sync are available only to the owner.');return}return oldNav.apply(this,arguments)};
+  try{nav=window.nav}catch(e){}
+ }
+ /* The page contains offline backup, Google Drive backup and live sync together. */
+ if(typeof window.vBk==='function'){
+  var oldBk=window.vBk;
+  window.vBk=function(){if(locked())return '<div class="card" style="max-width:600px"><b>Backup and sync</b><p class="mu">This section is available only to the owner of the app.</p></div>';return oldBk.apply(this,arguments)};
+  try{vBk=window.vBk}catch(e){}
+ }
+ /* Remove the mobile More-screen entry, if that layout is being used. */
+ if(typeof window.vMore==='function'){
+  var oldMore=window.vMore;
+  window.vMore=function(){var h=oldMore.apply(this,arguments);if(!locked())return h;
+   return String(h).replace(/<div class="mr"[^>]*>\s*<span>(?:Backup\s*\/\s*Restore|Google Drive Backup[^<]*)[\s\S]*?<\/div>/gi,'')};
+  try{vMore=window.vMore}catch(e){}
+ }
+ /* Mutation observer also catches controls mounted later by backup/sync scripts. */
+ clean();
+ try{new MutationObserver(function(){clean()}).observe(document.documentElement,{childList:true,subtree:true})}catch(e){}
+ document.addEventListener('DOMContentLoaded',clean);
+ window.addEventListener('pageshow',clean);
+})();
+</script>
+
 </body></html>
