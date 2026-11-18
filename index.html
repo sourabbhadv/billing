@@ -8304,15 +8304,38 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(c==='all'){var r0=_r.apply(this,arguments);try{after()}catch(e){}return r0}
   var r;swap(c);try{r=_r.apply(this,arguments)}finally{unswap()}
   try{after()}catch(e){}return r};
- /* ---- new payments remember their firm ---- */
+ /* ---- new payments remember their firm ----
+    one firm selected -> that firm. All firms -> the firm of its bill; otherwise it is shared between the firms
+    where the party still has money pending (biggest pending first, never more than the pending of a firm). ---- */
  var seen={};(D.pays||[]).forEach(function(x){if(x.id)seen[x.id]=1});
+ var r2=function(v){return Math.round(v*100)/100};
+ function pendBy(pid,skip){
+  var P={},lg=legacy(),pp=(D.parties||[]).find(function(z){return z.id===pid});
+  D.bills.forEach(function(b){if(b.pid===pid&&!b.x){var f=billF(b);P[f]=(P[f]||0)+(+b.total||0)}});
+  if(pp&&+pp.open)P[lg]=(P[lg]||0)+(+pp.open);
+  D.pays.forEach(function(y){if(y!==skip&&y.pid===pid&&!y.x&&seen[y.id]){var f=payF(y);P[f]=(P[f]||0)-(+y.amt||0)}});
+  return P}
+ function alloc(x){
+  var P=pendBy(x.pid,x),L=Object.keys(P).filter(function(f){return P[f]>0.009}).sort(function(a,b){return P[b]-P[a]}),rem=+x.amt||0,out=[];
+  if(!L.length)return [{f:legacy(),amt:rem}];
+  L.forEach(function(f){if(rem<=0)return;var t=Math.min(rem,r2(P[f]));if(t>0){out.push({f:f,amt:t});rem=r2(rem-t)}});
+  if(rem>0.009)out[0].amt=r2(out[0].amt+rem);
+  return out}
  var _s0=save;
  save=window.save=function(){
-  try{if(!real){var c=cf(),B={};D.bills.forEach(function(b){B[b.no]=b});
-   D.pays.forEach(function(x){if(!x.id||seen[x.id])return;seen[x.id]=1;if(x.fm)return;
+  try{if(!real){var c=cf(),B={};D.bills.forEach(function(b){B[b.no]=b});BM=B;var add=[],msg=[];
+   D.pays.forEach(function(x){if(!x.id||seen[x.id])return;
+    if(x.fm){seen[x.id]=1;return}
     var m=/With bill #(\d+)/.exec(x.note||''),n=m?+m[1]:(x.bn!=null?+x.bn:null);
-    if(n!=null&&B[n]){x.fm=billF(B[n]);return}
-    if(c!=='all')x.fm=c})}}catch(e){}
+    if(n!=null&&B[n]){x.fm=billF(B[n]);seen[x.id]=1;return}
+    if(c!=='all'){x.fm=c;seen[x.id]=1;return}
+    var al=alloc(x);seen[x.id]=1;
+    x.fm=al[0].f;x.amt=al[0].amt;
+    for(var k=1;k<al.length;k++){var y=Object.assign({},x,{id:uid(),fm:al[k].f,amt:al[k].amt});seen[y.id]=1;add.push(y)}
+    if(al.length>1){var pa=(D.parties||[]).find(function(z){return z.id===x.pid});
+     msg.push((pa?pa.name:'Party')+': '+al.map(function(q){var f=(PS().firms||[]).find(function(z){return z.id===q.f});return (f?f.name:'Firm')+' ₹'+q.amt}).join(' + '))}});
+   add.forEach(function(y){D.pays.push(y)});
+   if(msg.length)setTimeout(function(){alert('This payment was shared between the firms (by what is pending):\n\n'+msg.join('\n'))},50)}}catch(e){}
   return _s0.apply(this,arguments)};
  /* ---- the switcher ---- */
  var st=document.createElement('style');
@@ -8339,6 +8362,36 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   ['sfm','dfm'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value&&!(id==='sfm'&&iform&&iform.id))e.value=c})}
  var mt=null;try{new MutationObserver(function(){clearTimeout(mt);mt=setTimeout(function(){try{mount()}catch(e){}},150)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
  setTimeout(function(){try{render()}catch(e){}},300);
+})();
+</script>
+<script id="firms-step8">
+/* ---- FIRMS (step 8): in "All firms" every bill shows its firm name (PC rows and mobile cards) ---- */
+(function(){
+ var PAL=['#1a56b8','#b3541e','#17803f','#8a2fb0','#a8284a'];
+ var st=document.createElement('style');
+ st.textContent='.fmtag{display:inline-block;font-size:11px;font-weight:600;line-height:1.5;padding:0 7px;margin-left:6px;border-radius:999px;color:#fff;white-space:nowrap;vertical-align:middle}'
+ +'@media(max-width:899px){.fmtag{font-size:11px;padding:0 8px;margin:3px 0 0 0;display:inline-block}}';
+ document.head.appendChild(st);
+ function paint(){
+  var all=!window.fmCur||fmCur()==='all',F=(window.firmList?firmList():[]);
+  var old=document.querySelectorAll('.fmtag');
+  if(!all||F.length<2){for(var i=0;i<old.length;i++)old[i].remove();return}
+  var lg=(function(){var p=PS(),o=p.owner&&p.emails&&p.emails[p.owner];return o||(p.firms&&p.firms[0]&&p.firms[0].id)||'f1'})();
+  var by={};D.bills.forEach(function(b){by[b.no]=b});
+  var els=document.querySelectorAll('#v [onclick*="viewB="]');
+  for(var k=0;k<els.length;k++){
+   var e=els[k],m=/viewB=(\d+)/.exec(e.getAttribute('onclick')||'');if(!m)continue;
+   var b=by[+m[1]];if(!b)continue;
+   var fid=b.fm||lg,ix=F.findIndex(function(f){return f.id===fid}),nm=ix>=0?F[ix].name:'';if(!nm)continue;
+   var host=e;
+   if(e.tagName==='TR'){host=e.cells[3]||e.cells[2]||e.cells[0]}   /* Party column on PC */
+   var t=host.querySelector(':scope > .fmtag');
+   if(t){if(t.textContent!==nm)t.textContent=nm;continue}
+   if(host.querySelector('.fmtag'))continue;
+   t=document.createElement('span');t.className='fmtag';t.textContent=nm;t.style.background=PAL[ix%PAL.length];
+   host.appendChild(t)}}
+ var mt=null;try{new MutationObserver(function(){clearTimeout(mt);mt=setTimeout(function(){try{paint()}catch(e){}},200)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+ var _r=render;render=window.render=function(){var r=_r.apply(this,arguments);try{paint()}catch(e){}return r};
 })();
 </script>
 </body></html>
