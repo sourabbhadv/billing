@@ -903,7 +903,7 @@ function vDocForm(){var d=ddraft,c=DT[d.t],tot=0,rows='';
  d.lines.forEach(function(l,k){tot+=l.amt;rows+='<tr><td>'+(k+1)+'</td><td style="min-width:160px">'+delnIn(k,'name',l.name,'text','il4')+'</td><td style="width:90px">'+delnIn(k,'qty',l.qty,'number')+'</td><td style="width:90px">'+delnIn(k,'unit',l.unit,'text')+'</td><td style="width:110px">'+delnIn(k,'rate',l.rate,'number')+'</td><td style="text-align:right">'+money(l.amt)+'</td>'+(d.t==='pur'?'<td style="min-width:150px">'+delnIn(k,'loc',l.loc||d.gd||'','text','gdl')+'</td>':'')+'<td><button class="s" onclick="ddraft.lines.splice('+k+',1);render()">✕</button></td></tr>'});
  setTimeout(docInfo,0);var no=d.edit?docById(d.edit).no:docNo(d.t);
  return '<button class="s" onclick="ddraft=null;sub=null;render()">← Back</button><h2 style="font-size:20px;margin:8px 0">'+(d.edit?'Edit ':'New ')+c.s+'</h2><div class="card">'+partyList('pl4')+'<div class="split" style="grid-template-columns:1fr 1fr 200px;gap:10px"><div><input id="dn" list="pl4" placeholder="'+c.pl+' name *" autocomplete="off" value="'+esc(d.name)+'" oninput="ddraft.name=this.value;docInfo()"><div id="dinfo" class="mu"></div></div><div><input id="dph" type="tel" placeholder="Phone number" value="'+esc(d.phone)+'" oninput="ddraft.phone=this.value"></div><div class="mu" style="text-align:right">No: <b>'+no+'</b><br>Date: <b>'+(d.edit?dt(docById(d.edit).date):new Date().toLocaleDateString('en-IN'))+'</b></div></div></div>'+
- (d.t==='pur'?'<div class="card">'+gdList()+'<label class="mu"><b>Godown / Block where goods are unloaded</b> (printed on the sale bill so dispatch staff know where to find the goods)</label><input id="dgd" list="gdl" autocomplete="off" placeholder="e.g. Godown 1, Block A" value="'+esc(d.gd||'')+'" oninput="gdIn(this.value)"></div>':'')+'<div class="card" style="overflow-x:auto"><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><table class="tbl"><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>'+(d.t==='pur'||d.t==='pret'?'Purchase price':'Price/Unit')+'</th><th>Amount</th>'+(d.t==='pur'?'<th>Godown / Block</th>':'')+'<th></th></tr>'+rows+'<tr><td>+</td><td style="min-width:160px"><input id="dit" list="il4" placeholder="Item name" autocomplete="off" oninput="docFill(this.value)"></td><td style="width:80px"><input id="dqt" type="number" inputmode="decimal" placeholder="Qty"></td><td style="width:90px"><input id="dut" placeholder="Unit"></td><td style="width:100px"><input id="drt" type="number" inputmode="decimal" placeholder="Rate"></td><td></td>'+(d.t==='pur'?'<td style="min-width:150px"><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+'<td><button class="s addb" onclick="addDocLine()">Add</button></td></tr></table></div>'+
+ (d.t==='pur'?gdDL():'')+'<div class="card" style="overflow-x:auto"><datalist id="il4">'+D.items.map(function(i){return '<option value="'+esc(i.name)+'">'}).join('')+'</datalist><table class="tbl"><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>'+(d.t==='pur'||d.t==='pret'?'Purchase price':'Price/Unit')+'</th><th>Amount</th>'+(d.t==='pur'?'<th>Godown / Block</th>':'')+'<th></th></tr>'+rows+'<tr><td>+</td><td style="min-width:160px"><input id="dit" list="il4" placeholder="Item name" autocomplete="off" oninput="docFill(this.value)"></td><td style="width:80px"><input id="dqt" type="number" inputmode="decimal" placeholder="Qty"></td><td style="width:90px"><input id="dut" placeholder="Unit"></td><td style="width:100px"><input id="drt" type="number" inputmode="decimal" placeholder="Rate"></td><td></td>'+(d.t==='pur'?'<td style="min-width:150px"><input id="dlc" list="gdl" autocomplete="off" placeholder="'+(d.gd?'Same: '+esc(d.gd):'Godown / Block')+'"></td>':'')+'<td><button class="s addb" onclick="addDocLine()">Add</button></td></tr></table></div>'+
  '<div class="card" style="max-width:420px;margin-left:auto"><div class="row"><b>Total</b><b>'+money(tot)+'</b></div>'+(c.paid?'<input id="dpd" type="number" inputmode="decimal" placeholder="Paid now (optional)" value="'+esc(d.paid)+'">':'')+(d.t==='pur'?'<div class="mu" style="margin:2px 2px 8px">Stock goes up and the purchase price of each item is updated.</div>':d.t==='pret'?'<div class="mu" style="margin:2px 2px 8px">Stock goes down and the amount is taken off what you owe the supplier.</div>':'<div class="mu" style="margin:2px 2px 8px">No stock or balance change until it is converted to a Sale.</div>')+'<button class="b" style="width:100%" onclick="saveDoc()">'+(d.edit?'Save changes':'Save')+'</button></div>'}
 function docInfo(){var e=$('#dinfo'),d=ddraft;if(!e||!d)return;var p=findP(d.name);if(p){if(p.phone&&!d.phone){d.phone=p.phone;var x=$('#dph');if(x)x.value=p.phone}e.innerHTML='Existing party · '+balTxt(bal(p))}else e.textContent=(d.name||'').trim()?'New party, will be created when you save':''}
 function docFill(v){var i=findI(v);if(i){var pr=(ddraft.t==='pur'||ddraft.t==='pret')?(+i.buy||+i.rate||0):i.rate;$('#drt').value=pr;$('#dut').value=i.unit}}
@@ -2092,7 +2092,7 @@ function locTag(l){var x=itemLoc(l);return x?' <span style="color:#1a56b8;font-w
 function locLine(l){var x=itemLoc(l);return x?'<div style="color:#1a56b8;font-weight:600;margin-top:2px">📍 Godown / Block: '+esc(x)+'</div>':''}
 function gdNames(){var m={},a=[];function add(v){v=String(v||'').trim();if(v&&!m[v.toLowerCase()]){m[v.toLowerCase()]=1;a.push(v)}}
  (PS().gds||[]).forEach(add);D.items.forEach(function(i){add(i.loc)});(D.docs||[]).forEach(function(d){if(d.t==='pur'){add(d.gd);d.lines.forEach(function(l){add(l.loc)})}});return a.sort(NCMP)}
-function gdList(){return '<datalist id="gdl">'+gdNames().map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>'}
+function gdDL(){return '<datalist id="gdl">'+gdNames().map(function(n){return '<option value="'+esc(n)+'">'}).join('')+'</datalist>'}
 function gdIn(v){if(ddraft)ddraft.gd=v}
 var _bhG=billHtml;
 billHtml=function(b){var h=_bhG(b);if(!op('hloc'))return h;
@@ -3527,7 +3527,7 @@ function dkDoc(){var d=ddraft,c=DT[d.t],tot=0,qt=0,rows='',pur=d.t==='pur',ed=d.
  return '<div class="dks">'+dkTabs(esc((d.name||'').trim()||(ed?'Edit ':'New ')+c.s),"ddraft=null;sub=null;render()","newDoc('"+d.t+"')")+dkHd((ed?'Edit ':'')+c.s,tg)
  +'<div class="dkc" style="grid-template-columns:minmax(190px,270px) minmax(190px,270px) minmax(170px,1fr) minmax(240px,330px)"><div>'+dkF(c.pl+' *','<input id="dn" list="pl4" autocomplete="off" value="'+esc(d.name)+'" oninput="ddraft.name=this.value;docInfo()">')+partyList('pl4')+'<div id="dinfo" class="bal"></div></div><div></div><div>'+dkF('Phone No.','<input id="dph" type="tel" style="max-width:200px" value="'+esc(d.phone||'')+'" oninput="ddraft.phone=this.value">')+'</div>'+dkInfo(no,c.s+' No.',d,'ddraft')+'</div>'
  +dkGrid(cols,rows,entry,foot)
- +'<div class="dkb" style="grid-template-columns:330px 1fr 360px"><div>'+(pur?gdList()+dkF('Godown / Block where goods are unloaded','<input id="dgd" list="gdl" autocomplete="off" placeholder="e.g. Godown 1, Block A" value="'+esc(d.gd||'')+'" oninput="gdIn(this.value)">')+'<div class="dkn">Printed on the sale bill so dispatch staff know where to find the goods.</div>':'')+'</div><div class="dkn">'+hint+'</div><div class="dkr"><span>Total</span><div class="tot">'+money(tot)+'</div>'+(c.paid?'<span>Paid</span><input id="dpd" type="number" inputmode="decimal" placeholder="0" value="'+esc(d.paid||'')+'" oninput="ddraft.paid=this.value">':'')+'</div></div>'
+ +'<div class="dkb" style="grid-template-columns:330px 1fr 360px"><div>'+(pur?gdDL():'')+'</div><div class="dkn">'+hint+'</div><div class="dkr"><span>Total</span><div class="tot">'+money(tot)+'</div>'+(c.paid?'<span>Paid</span><input id="dpd" type="number" inputmode="decimal" placeholder="0" value="'+esc(d.paid||'')+'" oninput="ddraft.paid=this.value">':'')+'</div></div>'
  +'<div class="dkf"><button class="ic" title="Save and send on WhatsApp" onclick="dkDocThen(function(x){docWA(x.id)})">&#8599;</button><span class="pr"><button onclick="dkDocThen(function(x){printDoc(x.id)})">Print</button><button style="padding:0 10px;border-left:1px solid #e3e7ee" onclick="dkDocMenu()">&#9662;</button></span><button class="sv" onclick="saveDoc()">'+(ed?'Save changes':'Save')+'</button></div></div>'}
 var _vdfM=vDocForm;vDocForm=function(){return isM()?_vdfM.apply(this,arguments):dkDoc()};
 var _adlM=addDocLine;addDocLine=function(){if(isM())return _adlM.apply(this,arguments);if(dkDocFlush()){render();setTimeout(function(){var e=$('#dit');if(e)e.focus()},0)}};
@@ -7844,6 +7844,53 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  var sr=window.sbReady;
  if(typeof sr==='function'){window.sbReady=sbReady=function(ss){var x=sr.apply(this,arguments);drive();labels();who();try{render()}catch(e){}return x}}
  setInterval(function(){drive();labels();who()},2000);
+})();
+</script>
+<script id="bc-gen">
+/* BARCODE MAKER: "Make" in the item form gives a new EAN-13 code; "Print barcode labels" (Items page) prints a sheet of labels. */
+(function(){
+ var L=['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'],
+ G=['0100111','0110011','0011011','0100001','0011101','0111001','0000101','0010001','0001001','0010111'],
+ R=['1110010','1100110','1101100','1000010','1011100','1001110','1010000','1000100','1001000','1110100'],
+ P=['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'];
+ function chk(d12){var s=0;for(var i=0;i<12;i++)s+=(+d12[i])*(i%2?3:1);return String((10-s%10)%10)}
+ function valid(c){c=String(c||'').trim();return /^\d{13}$/.test(c)&&chk(c.slice(0,12))===c[12]}
+ function used(c){return (D.items||[]).some(function(i){return String(i.bc==null?'':i.bc).trim()===c})}
+ function make(){var c,t=0;do{var b='2';for(var i=0;i<11;i++)b+=Math.floor(Math.random()*10);c=b+chk(b);t++}while(used(c)&&t<50);return c}
+ function svg(c){var b='101',p=P[+c[0]];
+  for(var i=0;i<6;i++)b+=(p[i]==='L'?L:G)[+c[i+1]];b+='01010';for(var j=7;j<13;j++)b+=R[+c[j]];b+='101';
+  var x=9,r='',w=0;for(var k=0;k<b.length;k++){if(b[k]==='1')w++;if(w&&(b[k]==='0'||k===b.length-1)){r+='<rect x="'+(x+k-w+(b[k]==='1'?1:0))+'" y="2" width="'+w+'" height="46"/>';w=0}}
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113 60" preserveAspectRatio="xMidYMid meet"><g fill="#000">'+r+'</g><g font-family="Arial,sans-serif" font-size="10" text-anchor="middle"><text x="4" y="58">'+c[0]+'</text><text x="33" y="58" textLength="40">'+c.slice(1,7)+'</text><text x="80" y="58" textLength="40">'+c.slice(7)+'</text></g></svg>'}
+ window.bcMake=function(){var e=document.getElementById('sbc');if(!e)return;if(e.value&&!confirm('Replace the current barcode with a new one?'))return;e.value=make()};
+ var _v=window.vItemForm;
+ if(typeof _v==='function'){vItemForm=window.vItemForm=function(){var h=_v.apply(this,arguments);return h.replace('>Scan</button></div>','>Scan</button><button type="button" class="s bcsc" onclick="bcMake()">Make</button></div>')}}
+ var sel={},q='';
+ function rows(){var a=(D.items||[]).filter(function(i){return !q||String(i.name||'').toLowerCase().indexOf(q)>=0}).slice(0,150);
+  return a.map(function(i){var c=String(i.bc||'').trim();return '<label style="display:flex;gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--bd)"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(sel[i.id]?'checked ':'')+'onchange="bcSel(\''+i.id+'\',this.checked)"><span style="flex:1;min-width:0">'+esc(i.name)+'</span><span style="font-size:12px;color:var(--mu)">'+(c?esc(c):'no barcode yet')+'</span></label>'}).join('')||'<div style="padding:10px;color:var(--mu)">No items found.</div>'}
+ window.bcSel=function(id,on){if(on)sel[id]=1;else delete sel[id];cnt()};
+ function cnt(){var e=document.getElementById('bclc');if(e)e.textContent=Object.keys(sel).length+' selected'}
+ window.bcFilter=function(v){q=String(v||'').toLowerCase();var e=document.getElementById('bcll');if(e)e.innerHTML=rows()};
+ window.bcAll=function(on){(D.items||[]).forEach(function(i){if(!q||String(i.name||'').toLowerCase().indexOf(q)>=0){if(on)sel[i.id]=1;else delete sel[i.id]}});bcFilter(q);cnt()};
+ window.bcClose=function(){var o=document.getElementById('bclm');if(o)o.remove()};
+ window.bcLabels=function(){bcClose();sel={};q='';var o=document.createElement('div');o.id='bclm';o.style.cssText='position:fixed;inset:0;background:rgba(16,19,56,.6);z-index:170;display:flex;align-items:center;justify-content:center;padding:12px';
+  o.innerHTML='<div class="card" style="width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;margin:0"><b style="font-size:16px">Print barcode labels</b><div class="mu" style="margin:4px 0 8px">Tick the items. Items without a barcode get a new one automatically.</div><input placeholder="Search item" oninput="bcFilter(this.value)" style="margin:0 0 6px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><button class="s" onclick="bcAll(1)">Select all</button><button class="s" onclick="bcAll(0)">Clear</button><span id="bclc" class="mu" style="margin-left:auto">0 selected</span></div><div id="bcll" style="overflow:auto;flex:1;min-height:120px">'+rows()+'</div><div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><label class="mu">Labels per item <input id="bcn" type="number" min="1" max="500" value="1" style="width:70px;display:inline-block;margin:0"></label><span style="margin-left:auto"></span><button class="s" onclick="bcClose()">Close</button><button class="b" onclick="bcPrint()">Print</button></div></div>';
+  document.body.appendChild(o)};
+ window.bcPrint=function(){
+  var ids=Object.keys(sel);if(!ids.length)return alert('Tick at least one item.');
+  var n=Math.max(1,Math.min(500,+(document.getElementById('bcn')||{}).value||1)),made=0,skip=[],cells=[];
+  (D.items||[]).forEach(function(i){if(!sel[i.id])return;var c=String(i.bc||'').trim();
+   if(!c){c=make();i.bc=c;made++}
+   if(!valid(c)){skip.push(i.name);return}
+   for(var k=0;k<n;k++)cells.push('<div class="lb"><div class="nm">'+esc(i.name)+'</div>'+svg(c)+'</div>')});
+  if(made)save();
+  if(!cells.length)return alert('These items have a different kind of barcode that cannot be printed here. Open the item, clear the Barcode box, press Make, and Save.');
+  if(skip.length)alert('Not printed (different barcode kind): '+skip.slice(0,8).join(', ')+(skip.length>8?' and more':'')+'.');
+  var w=window.open('','_blank');if(!w)return alert('Allow pop-ups for this site, then press Print again.');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Barcode labels</title><style>@page{size:A4;margin:8mm}body{margin:0;font-family:Arial,sans-serif}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}.lb{border:1px dashed #bbb;height:30mm;padding:1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden;break-inside:avoid}.nm{font-size:8pt;font-weight:700;line-height:1.1;max-height:2.2em;overflow:hidden;text-align:center}.lb svg{width:100%;height:20mm}</style></head><body><div class="g">'+cells.join('')+'</div></body></html>');
+  w.document.close();setTimeout(function(){try{w.focus();w.print()}catch(e){}},500);bcClose()};
+ function btn(){try{if(typeof pg==='undefined'||pg!=='items'||(typeof iform!=='undefined'&&iform))return;var v=document.getElementById('v');if(!v||document.getElementById('bclb'))return;
+  var d=document.createElement('div');d.id='bclb';d.style.cssText='display:flex;justify-content:flex-end;padding:6px 0';d.innerHTML='<button class="s" onclick="bcLabels()">Print barcode labels</button>';v.insertBefore(d,v.firstChild)}catch(e){}}
+ var r0=window.render;if(typeof r0==='function'){window.render=render=function(){var x=r0.apply(this,arguments);btn();return x}}
 })();
 </script>
 </body></html>
