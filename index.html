@@ -7831,15 +7831,21 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   document.querySelectorAll('[onclick="sbOut(0)"]').forEach(function(e){
    if(e.classList.contains('mr')){var s=e.firstElementChild;if(s&&s.textContent!==t)s.textContent=t}
    else if(e.tagName==='BUTTON'&&/^(Log out|Sign in)$/.test(e.textContent.trim())&&e.textContent.trim()!==t)e.textContent=t})}catch(x){}}
+ function who(){try{var sy=document.getElementById('sy');if(!sy)return;var w=document.getElementById('whoami');
+  if(!w){w=document.createElement('span');w.id='whoami';w.style.cssText='margin-left:6px;font-weight:600';sy.insertAdjacentElement('afterend',w)}
+  var e=window.__sbSess&&window.__sbSess.user&&window.__sbSess.user.email;
+  w.textContent=e?'\u00b7 \uD83D\uDD12 '+e:'\u00b7 not signed in'}catch(x){}}
+ (function(){try{var q=location.search+'&'+location.hash.replace(/^#/,''),m=q.match(/error_description=([^&]+)/);
+  if(m){var t=decodeURIComponent(m[1].replace(/\+/g,' '));setTimeout(function(){alert('Google sign-in problem: '+t)},800);try{history.replaceState(null,'',location.pathname)}catch(e){}}}catch(x){}})();
  function drive(){try{
   var m=gmail();if(!m)return;
   if((localStorage.getItem('gdEmail')||'').toLowerCase()!==m){if(window.gdSetEm)window.gdSetEm(m);else localStorage.setItem('gdEmail',m)}
   document.querySelectorAll('input[placeholder="Your Gmail address"]').forEach(function(i){i.value=m;i.readOnly=true;i.title='Locked to the Google account you signed in with'})}catch(x){}}
  var r0=window.render;
- if(typeof r0==='function'){window.render=render=function(){var x=r0.apply(this,arguments);drive();labels();return x}}
+ if(typeof r0==='function'){window.render=render=function(){var x=r0.apply(this,arguments);drive();labels();who();return x}}
  var sr=window.sbReady;
- if(typeof sr==='function'){window.sbReady=sbReady=function(ss){var x=sr.apply(this,arguments);drive();labels();try{render()}catch(e){}return x}}
- setInterval(function(){drive();labels()},2000);
+ if(typeof sr==='function'){window.sbReady=sbReady=function(ss){var x=sr.apply(this,arguments);drive();labels();who();try{render()}catch(e){}return x}}
+ setInterval(function(){drive();labels();who()},2000);
 })();
 </script>
 </body></html>
