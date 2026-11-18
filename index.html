@@ -7121,11 +7121,20 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    c.requestAccessToken({prompt:(first&&ls('gdLinked')!=='1')?'consent':''})})})})}
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
  function armTap(){
-  needTap=true;setStatus('Tap anywhere to reconnect Google Drive (needed about once an hour)');
+  needTap=true;setStatus('Tap once anywhere to keep live sync running');
   if(armed)return;armed=true;
   document.addEventListener('click',function h(){document.removeEventListener('click',h,true);armed=false;
    if(!on||tokOk())return;
    getTok(false).then(function(){go('reconnect')},function(e){setStatus(e&&e.blocked?'Tap Sync now to reconnect':String(e.message||e));armTap()})},true)}
+ /* renew in the background BEFORE the hour ends, with no tap (works where the browser allows it; a tap anywhere is the backup) */
+ var lastBg=0;
+ setInterval(function(){
+  if(!on||busy||document.hidden||!exp)return;
+  var left=exp-Date.now();
+  if(left>6*60000||Date.now()-lastBg<75000)return;
+  lastBg=Date.now();
+  getTok(false).then(function(){needTap=false;setStatus('Connected '+stamp())},function(){/* browser needs a tap: the next tap anywhere renews */})},15000);
+ document.addEventListener('visibilitychange',function(){if(document.hidden||!on||busy||!exp)return;if(exp-Date.now()<6*60000){lastBg=Date.now();getTok(false).then(function(){needTap=false},function(){})}});
  /* renew a little BEFORE it expires, inside a tap, so a busy shop never notices */
  document.addEventListener('click',function(){if(on&&tok&&!needTap&&exp-Date.now()<4*60000&&exp-Date.now()>0&&!busy){getTok(false).catch(function(){})}},true);
 
@@ -7497,12 +7506,14 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  /* mobile: Log out button always visible in the top bar of the main screens (Home, Dashboard, Items, Parties, More) */
  (function(){
   var cs=document.createElement('style');
-  cs.textContent='@media(max-width:899px){#mtop button.mlo{width:auto!important;height:36px!important;border-radius:18px!important;padding:0 12px!important;font-size:13px!important;font-weight:700;background:#fdeaec!important;color:#c4162a!important;white-space:nowrap;margin-left:2px}}@media(min-width:900px){#mtop button.mlo{display:none}}';
+  cs.textContent='@media(max-width:899px){#mtop button.mlo{width:auto!important;height:36px!important;border-radius:18px!important;padding:0 12px!important;font-size:13px!important;font-weight:700;background:#fdeaec!important;color:#c4162a!important;white-space:nowrap;margin-left:2px}#mtop button.mlo.in{background:#e3eefe!important;color:#1a56b8!important}}@media(min-width:900px){#mtop button.mlo{display:none}}';
   document.head.appendChild(cs);
   function addLo(){try{
    var t=document.getElementById('mtop');if(!t||t.querySelector('.mlo')||!t.querySelector('.mlogo'))return;
-   if(!(window.__sbSess&&window.__sbSess.user))return;
-   var b=document.createElement('button');b.className='mlo';b.textContent='Log out';b.setAttribute('aria-label','Log out');b.onclick=function(e){e.stopPropagation();sbOut(0)};
+   var signed=!!(window.__sbSess&&window.__sbSess.user);
+   if(!signed&&!window.SB)return;
+   var b=document.createElement('button');b.className='mlo'+(signed?'':' in');b.textContent=signed?'Log out':'Log in';b.setAttribute('aria-label',signed?'Log out':'Log in');
+   b.onclick=function(e){e.stopPropagation();if(signed)sbOut(0);else if(!document.getElementById('lgn'))loginBox()};
    t.appendChild(b)}catch(e){}}
   if(typeof window.mBar==='function'){var _mb=window.mBar;window.mBar=mBar=function(){var r=_mb.apply(this,arguments);addLo();return r}}
  })();
