@@ -16,7 +16,7 @@
    When another account signs in on the same device, the owner's data is moved aside (safe copy, nothing deleted)
    and the new account sees only its own data. When the owner signs in again, the data comes back. */
 (function(){
- var KEYS=['sb','lvBase','lvFile','lvStamp','lvOn','lvTok','gdFolder','gdDay','gdAt','gdErr','gdLinked','gdOn','gdEmail','sbLic','bkLocalAt','bkFileDay'];
+ var KEYS=['sb','lvBase','lvFile','lvStamp','lvOn','lvTok','gdFolder','gdDay','gdAt','gdErr','gdLinked','gdOn','gdEmail','gdWho','sbLic','bkLocalAt','bkFileDay'];
  var hold=0,bypass=0,busy=0;
  function LS(k){try{return localStorage.getItem(k)}catch(e){return null}}
  var _si=Storage.prototype.setItem;
@@ -6948,7 +6948,9 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   if(!cid())return Promise.reject(new Error('First paste your Google Client ID (open One-time setup).'));
   return lockMail().then(function(lock){return loadGsi().then(function(){return new Promise(function(res,rej){
    var hint=lock||em()||undefined;
-   function accept(t,r){tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');res(tok)}
+   function accept(t,r,w){tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');
+    if(w){LS('gdWho',w)}else{whoIs(t).then(function(x){if(x){LS('gdWho',x);try{paint()}catch(e){}}})}
+    res(tok)}
    var c=google.accounts.oauth2.initTokenClient({client_id:cid(),scope:SCOPE,login_hint:hint,hint:hint,
     callback:function(r){
      if(!(r&&r.access_token))return rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'));
@@ -6956,7 +6958,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
      whoIs(r.access_token).then(function(w){
       if(!w){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
       if(w!==lock)return rej(wrongAcct(r.access_token,lock));
-      accept(r.access_token,r)})},
+      accept(r.access_token,r,w)})},
     error_callback:function(e){rej(new Error(e&&e.type==='popup_blocked_by_browser'?'The browser blocked the Google window. Press Back up now.':'Google sign-in was closed.'))}});
    c.requestAccessToken({prompt:(ask&&LS('gdLinked')!=='1')?'consent':''})})})})}
 
@@ -7019,7 +7021,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   if(on&&!cid()){alert('First paste your Google Client ID (open One-time setup).');paint();return}
   LS('gdOn',on?'1':'0');if(on)window.gdNow();else paint()};
  window.gdNow=function(){
-  run(true).then(function(r){if(r)LS('gdOn','1');paint();if(r)alert('Backup saved in your Google Drive.')},function(e){paint();alert(String(e&&e.message||e))})};
+  run(true).then(function(r){if(r)LS('gdOn','1');paint();if(r)alert('Backup saved in your Google Drive'+(LS('gdWho')?' ('+LS('gdWho')+')':'')+'.')},function(e){paint();alert(String(e&&e.message||e))})};
  window.gdList=function(){
   say('gdSt','Reading your Google Drive...');
   getTok(true).then(function(t){return folderId(t).then(function(f){return listFiles(t,f)})}).then(function(l){files=l;paint()},function(e){LS('gdErr',String(e&&e.message||e));paint()})};
@@ -7034,15 +7036,16 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  window.gdOff=function(){
   if(!confirm('Disconnect Google Drive? Your backups already in Drive stay there.'))return;
   try{if(tok&&window.google)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
-  tok=null;files=null;['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr'].forEach(function(k){LS(k,null)});hidePend();paint()};
+  tok=null;files=null;['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho'].forEach(function(k){LS(k,null)});hidePend();paint()};
  window.gdSetup=function(){var e=document.getElementById('gdSetup');if(e)e.style.display=e.style.display==='none'?'block':'none'};
 
  /* ---------- screens ---------- */
  function stat(){
   var err=LS('gdErr'),on=LS('gdOn')==='1',d=LS('gdDay');
-  if(err)return '<span class="red">'+esc(err)+'</span>';
+  var who=LS('gdWho'),wl=who?'<div style="margin:0 0 6px">Backing up to Google account: <b>'+esc(who)+'</b></div>':'';
+  if(err)return wl+'<span class="red">'+esc(err)+'</span>';
   if(!LS('gdLinked'))return 'Not connected yet. Add your Gmail and Client ID, then press Back up now.';
-  return (on?'Daily backup is ON. ':'Daily backup is OFF. ')+(d?'Last backup: <b>'+(d===today()?'today':esc(d))+'</b> ('+ago(+LS('gdAt'))+').':'No backup made yet.')}
+  return wl+(on?'Daily backup is ON. ':'Daily backup is OFF. ')+(d?'Last backup: <b>'+(d===today()?'today':esc(d))+'</b> ('+ago(+LS('gdAt'))+').':'No backup made yet.')}
  function steps(){return '<div class="gdsteps"><b>One-time setup (about 5 minutes, free)</b><br>'+
   '1. Open <b>console.cloud.google.com</b> with your Gmail and make a <b>New project</b> (name: Billing Backup).<br>'+
   '2. Search <b>Google Drive API</b> and press <b>Enable</b>.<br>'+
