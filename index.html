@@ -7169,7 +7169,9 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function whoIs(t){return fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){return String((j&&j.user&&j.user.emailAddress)||'').toLowerCase()}).catch(function(){return ''})}
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  function wrongAcct(t,lock,got){try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Drive backup must use the same Google account you signed in with ('+lock+'). Google gave: '+(got||'unknown')+'. Please choose that account.')}
- function getTok(first){
+ var _inf=null;function getTok(first){/* only ONE Google window at a time: a second request joins the first, so they cannot close each other */
+  if(_inf)return _inf;var p=getTok0(first);_inf=p;var clr=function(){if(_inf===p)_inf=null};p.then(clr,clr);setTimeout(clr,90000);return p}
+ function getTok0(first){
   if(tokOk())return Promise.resolve(tok);
   var _run=function(lock){return new Promise(function(res,rej){
    var hint=lock||email()||undefined;
