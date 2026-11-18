@@ -7866,30 +7866,33 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.bcMake=function(){var e=document.getElementById('sbc');if(!e)return;if(e.value&&!confirm('Replace the current barcode with a new one?'))return;e.value=make()};
  var _v=window.vItemForm;
  if(typeof _v==='function'){vItemForm=window.vItemForm=function(){var h=_v.apply(this,arguments);return h.replace('>Scan</button></div>','>Scan</button><button type="button" class="s bcsc" onclick="bcMake()">Make</button></div>')}}
- var sel={},q='';
- function rows(){var a=(D.items||[]).filter(function(i){return !q||String(i.name||'').toLowerCase().indexOf(q)>=0}).slice(0,150);
-  return a.map(function(i){var c=String(i.bc||'').trim();return '<label style="display:flex;gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--bd)"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(sel[i.id]?'checked ':'')+'onchange="bcSel(\''+i.id+'\',this.checked)"><span style="flex:1;min-width:0">'+esc(i.name)+'</span><span style="font-size:12px;color:var(--mu)">'+(c?esc(c):'no barcode yet')+'</span></label>'}).join('')||'<div style="padding:10px;color:var(--mu)">No items found.</div>'}
+ var sel={},q='',po=false;
+ function left(i){return Math.max(0,Math.round((+i.bn||0)-(+i.bp||0)))}
+ window.bcPO=function(v){po=!!v;bcFilter(q)};
+ function rows(){var a=(D.items||[]).filter(function(i){return (!q||String(i.name||'').toLowerCase().indexOf(q)>=0)&&(!po||left(i)>0)}).slice(0,150);
+  return a.map(function(i){var c=String(i.bc||'').trim();return '<label style="display:flex;gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--bd)"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(sel[i.id]?'checked ':'')+'onchange="bcSel(\''+i.id+'\',this.checked)"><span style="flex:1;min-width:0">'+esc(i.name)+'<br><span style="font-size:12px;color:var(--mu)">'+(c?esc(c):'no barcode yet')+' · printed '+(+i.bp||0)+' · left '+left(i)+'</span></span><input id="bcq_'+i.id+'" type="number" min="1" max="500" value="'+(left(i)||1)+'" title="Labels to print" style="width:64px;margin:0"></label>'}).join('')||'<div style="padding:10px;color:var(--mu)">No items found.</div>'}
  window.bcSel=function(id,on){if(on)sel[id]=1;else delete sel[id];cnt()};
  function cnt(){var e=document.getElementById('bclc');if(e)e.textContent=Object.keys(sel).length+' selected'}
  window.bcFilter=function(v){q=String(v||'').toLowerCase();var e=document.getElementById('bcll');if(e)e.innerHTML=rows()};
  window.bcAll=function(on){(D.items||[]).forEach(function(i){if(!q||String(i.name||'').toLowerCase().indexOf(q)>=0){if(on)sel[i.id]=1;else delete sel[i.id]}});bcFilter(q);cnt()};
  window.bcClose=function(){var o=document.getElementById('bclm');if(o)o.remove()};
- window.bcLabels=function(){bcClose();sel={};q='';var o=document.createElement('div');o.id='bclm';o.style.cssText='position:fixed;inset:0;background:rgba(16,19,56,.6);z-index:170;display:flex;align-items:center;justify-content:center;padding:12px';
-  o.innerHTML='<div class="card" style="width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;margin:0"><b style="font-size:16px">Print barcode labels</b><div class="mu" style="margin:4px 0 8px">Tick the items. Items without a barcode get a new one automatically.</div><input placeholder="Search item" oninput="bcFilter(this.value)" style="margin:0 0 6px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><button class="s" onclick="bcAll(1)">Select all</button><button class="s" onclick="bcAll(0)">Clear</button><span id="bclc" class="mu" style="margin-left:auto">0 selected</span></div><div id="bcll" style="overflow:auto;flex:1;min-height:120px">'+rows()+'</div><div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><label class="mu">Labels per item <input id="bcn" type="number" min="1" max="500" value="1" style="width:70px;display:inline-block;margin:0"></label><span style="margin-left:auto"></span><button class="s" onclick="bcClose()">Close</button><button class="b" onclick="bcPrint()">Print</button></div></div>';
-  document.body.appendChild(o)};
+ window.bcLabels=function(){bcClose();sel={};q='';po=false;(D.items||[]).forEach(function(i){if(left(i)>0){sel[i.id]=1;po=true}});var o=document.createElement('div');o.id='bclm';o.style.cssText='position:fixed;inset:0;background:rgba(16,19,56,.6);z-index:170;display:flex;align-items:center;justify-content:center;padding:12px';
+  o.innerHTML='<div class="card" style="width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;margin:0"><b style="font-size:16px">Print barcode labels</b><div class="mu" style="margin:4px 0 8px">Tick the items and set how many labels each. The app remembers how many are printed and how many are left.</div><label class="mu" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" style="width:18px;height:18px;margin:0" '+(po?'checked ':'')+'onchange="bcPO(this.checked)">Only items with labels left</label><input placeholder="Search item" oninput="bcFilter(this.value)" style="margin:0 0 6px"><div style="display:flex;gap:8px;align-items:center;margin-bottom:4px"><button class="s" onclick="bcAll(1)">Select all</button><button class="s" onclick="bcAll(0)">Clear</button><span id="bclc" class="mu" style="margin-left:auto">0 selected</span></div><div id="bcll" style="overflow:auto;flex:1;min-height:120px">'+rows()+'</div><div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><span class="mu">Change the number in each row to print fewer or more.</span><span style="margin-left:auto"></span><button class="s" onclick="bcClose()">Close</button><button class="b" onclick="bcPrint()">Print</button></div></div>';
+  document.body.appendChild(o);cnt()};
  window.bcPrint=function(){
   var ids=Object.keys(sel);if(!ids.length)return alert('Tick at least one item.');
-  var n=Math.max(1,Math.min(500,+(document.getElementById('bcn')||{}).value||1)),made=0,skip=[],cells=[];
+  var made=0,skip=[],cells=[],done=[];
   (D.items||[]).forEach(function(i){if(!sel[i.id])return;var c=String(i.bc||'').trim();
    if(!c){c=make();i.bc=c;made++}
    if(!valid(c)){skip.push(i.name);return}
+   var n=Math.max(1,Math.min(500,+(document.getElementById('bcq_'+i.id)||{}).value||1));done.push([i,n]);
    for(var k=0;k<n;k++)cells.push('<div class="lb"><div class="nm">'+esc(i.name)+'</div>'+svg(c)+'</div>')});
   if(made)save();
   if(!cells.length)return alert('These items have a different kind of barcode that cannot be printed here. Open the item, clear the Barcode box, press Make, and Save.');
   if(skip.length)alert('Not printed (different barcode kind): '+skip.slice(0,8).join(', ')+(skip.length>8?' and more':'')+'.');
   var w=window.open('','_blank');if(!w)return alert('Allow pop-ups for this site, then press Print again.');
   w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Barcode labels</title><style>@page{size:A4;margin:8mm}body{margin:0;font-family:Arial,sans-serif}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}.lb{border:1px dashed #bbb;height:30mm;padding:1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden;break-inside:avoid}.nm{font-size:8pt;font-weight:700;line-height:1.1;max-height:2.2em;overflow:hidden;text-align:center}.lb svg{width:100%;height:20mm}</style></head><body><div class="g">'+cells.join('')+'</div></body></html>');
-  w.document.close();setTimeout(function(){try{w.focus();w.print()}catch(e){}},500);bcClose()};
+  w.document.close();done.forEach(function(x){x[0].bp=(+x[0].bp||0)+x[1]});save();setTimeout(function(){try{w.focus();w.print()}catch(e){}},500);bcClose()};
  function btn(){try{if(typeof pg==='undefined'||pg!=='items'||(typeof iform!=='undefined'&&iform))return;var v=document.getElementById('v');if(!v||document.getElementById('bclb'))return;
   var d=document.createElement('div');d.id='bclb';d.style.cssText='display:flex;justify-content:flex-end;padding:6px 0';d.innerHTML='<button class="s" onclick="bcLabels()">Print barcode labels</button>';v.insertBefore(d,v.firstChild)}catch(e){}}
  var r0=window.render;if(typeof r0==='function'){window.render=render=function(){var x=r0.apply(this,arguments);btn();return x}}
@@ -7983,11 +7986,11 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function make(){var c,t=0;do{var b='2';for(var i=0;i<11;i++)b+=Math.floor(Math.random()*10);c=b+chk(b);t++}while(used(c)&&t<50);return c}
  var _sd=window.saveDoc;
  window.saveDoc=saveDoc=function(){
-  var d=window.ddraft,pur=d&&d.t==='pur',names=pur?(d.lines||[]).map(function(l){return [l.name,l.bc,l.mrp]}):[],n0=(D.docs||[]).length;
+  var d=window.ddraft,pur=d&&d.t==='pur',names=pur?(d.lines||[]).map(function(l){return [l.name,l.bc,l.mrp,l.qty]}):[],n0=(D.docs||[]).length;
   var r=_sd.apply(this,arguments);
   try{if(pur&&on('f_bc')&&(D.docs||[]).length>n0||(pur&&on('f_bc')&&d.edit)){
-   var c=0,c2=0;names.forEach(function(nm){var i=findI(nm[0]);if(!i)return;if(!String(i.bc||'').trim()){i.bc=nm[1]||make();c++}if(on('f_mrp')&&+nm[2]>0&&(+i.rate!==+nm[2]||+i.mrp!==+nm[2])){i.rate=+nm[2];i.mrp=+nm[2];c2++}});if(c2&&!c)save();
-   if(c){save();setTimeout(function(){if(confirm(c+' item'+(c>1?'s':'')+' got a new barcode. Print labels now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
+   var c=0,c2=0,tot=0,nw=(D.docs||[]).length>n0;names.forEach(function(nm){var i=findI(nm[0]);if(!i)return;if(nw&&+nm[3]>0){i.bn=(+i.bn||0)+(+nm[3]);tot+=(+nm[3])}if(!String(i.bc||'').trim()){i.bc=nm[1]||make();c++}if(on('f_mrp')&&+nm[2]>0&&(+i.rate!==+nm[2]||+i.mrp!==+nm[2])){i.rate=+nm[2];i.mrp=+nm[2];c2++}});if((c2||tot)&&!c)save();
+   if(c||tot){save();setTimeout(function(){if(confirm((tot?tot+' label'+(tot>1?'s':'')+' to print for this purchase.':c+' new barcode'+(c>1?'s':'')+'.')+' Open the label printing screen now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
   return r};
 })();
 </script>
