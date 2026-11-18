@@ -8498,3 +8498,86 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 </script>
 
 </body></html>
+
+<script id="firms-step11">
+/* ---- FIRMS (step 11): split a purchase containing items from multiple firms.
+   The existing purchase form already records each line's firm (step 4).
+   After the normal save/stock update, create one purchase document per firm and
+   split any payment made with that purchase in the same proportions. ---- */
+(function(){
+  var round2=function(n){return Math.round((+n||0)*100)/100};
+  function legacy(){return window.fmLegacy?fmLegacy():'f1'}
+  function validFirm(id){return (PS().firms||[]).some(function(f){return f.id===id})}
+  function lineFirm(line){
+    var item=(line.iid&&I(line.iid))||findI(line.name),id=line.fm||(item&&item.fm)||legacy();
+    return validFirm(id)?id:legacy();
+  }
+  function firmName(id){var f=(PS().firms||[]).find(function(x){return x.id===id});return f?f.name:'Firm'}
+  function splitPurchase(doc){
+    var groups={},order=[];
+    (doc.lines||[]).forEach(function(line){
+      var id=lineFirm(line);
+      line.fm=id;
+      if(!groups[id]){groups[id]=[];order.push(id)}
+      groups[id].push(line);
+    });
+    if(!order.length)return false;
+    var gross={};order.forEach(function(id){gross[id]=round2(groups[id].reduce(function(s,l){return s+(+l.amt||(+l.qty||0)*(+l.rate||0));},0))});
+    var total=order.reduce(function(s,id){return s+gross[id]},0);
+    var maxNo=(D.docs||[]).filter(function(d){return d.t==='pur'}).reduce(function(m,d){return Math.max(m,+d.no||0)},0);
+    var docs={},made=[];
+    order.forEach(function(id,k){
+      var part;
+      if(k===0){part=doc;part.lines=groups[id];}
+      else{
+        part=JSON.parse(JSON.stringify(doc));
+        part.id='d'+uid();part.no=++maxNo;part.lines=groups[id];D.docs.push(part);
+      }
+      part.fm=id;
+      part.total=gross[id];
+      if(typeof gdMain==='function')part.gd=gdMain(part);
+      docs[id]=part;made.push(part);
+    });
+    /* Split every payment attached to the original purchase. The last firm gets
+       the rounding remainder so the sum remains exactly equal to the original. */
+    var linked=(D.pays||[]).filter(function(p){return p.dn===doc.id&&p.out&&!p.x});
+    linked.forEach(function(payment){
+      var original=+payment.amt||0,used=0;
+      order.forEach(function(id,k){
+        var amount=k===order.length-1?round2(original-used):round2(total?original*gross[id]/total:0);
+        used=round2(used+amount);
+        var part=docs[id];
+        if(k===0){
+          payment.fm=id;payment.dn=part.id;payment.amt=amount;
+          payment.note=String(payment.note||'With purchase #'+doc.no).replace(/purchase #\d+/i,'purchase #'+part.no);
+        }else if(amount>0){
+          var copy=Object.assign({},payment,{id:uid(),fm:id,dn:part.id,amt:amount,
+            note:String(payment.note||'With purchase #'+doc.no).replace(/purchase #\d+/i,'purchase #'+part.no)});
+          D.pays.push(copy);
+        }
+      });
+    });
+    return made;
+  }
+  var originalSave=window.saveDoc;
+  if(typeof originalSave!=='function')return;
+  window.saveDoc=function(){
+    var isPurchase=!!(ddraft&&ddraft.t==='pur'),isEdit=!!(ddraft&&ddraft.edit),before={};
+    if(isPurchase&&!isEdit)(D.docs||[]).forEach(function(d){before[d.id]=1});
+    var result=originalSave.apply(this,arguments);
+    if(!isPurchase||isEdit||ddraft)return result;
+    var created=(D.docs||[]).filter(function(d){return d.t==='pur'&&!before[d.id]});
+    if(!created.length)return result;
+    var doc=created[created.length-1];
+    var made=splitPurchase(doc);
+    if(made&&made.length){
+      save();
+      if(made.length>1){
+        alert('Items of '+made.length+' firms were in this purchase, so '+made.length+' purchase records were made:\n\n'+made.map(function(d){return '#'+d.no+'  '+firmName(d.fm)+'  '+money(d.total)}).join('\n'));
+      }
+    }
+    return result;
+  };
+  try{saveDoc=window.saveDoc}catch(e){}
+})();
+</script>
