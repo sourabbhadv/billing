@@ -541,7 +541,7 @@ function sbReady(ss){
 }
 function loginBox(){
  var m=document.createElement('div');m.id='lgn';m.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
- m.innerHTML="<div class='card' style='width:100%;max-width:380px'><b>Sign in</b><p class='mu'>Use the email and password we gave you for your Pro plan.</p><input id='le' type='email' placeholder='Email' autocomplete='username'><input id='lp' type='password' placeholder='Password (6+ characters)' autocomplete='current-password'><div class='row' style='margin-top:8px'><button class='b' onclick='doAuth(0)'>Sign in</button><button class='s' onclick='cancelLogin()'>Cancel</button></div><div style='text-align:center;margin:12px 0 4px;font-size:13px;opacity:.7'>or</div><button class='s' style='width:100%' onclick='googleAuth()'>Sign in with Google</button><div id='lm' style='margin-top:10px;color:var(--rd);font-size:14px'></div></div>";
+ m.innerHTML="<div class='card' style='width:100%;max-width:380px'><b>Sign in</b><p class='mu'>Sign in with your Google account to use your Pro plan.</p><div class='row' style='margin-top:8px;gap:8px'><button class='b' style='flex:1;padding:12px' onclick='googleAuth()'>Sign in with Google</button><button class='s' onclick='cancelLogin()'>Cancel</button></div><div id='lm' style='margin-top:10px;color:var(--rd);font-size:14px'></div></div>";
  document.body.appendChild(m);
  ['le','lp'].forEach(function(i){var x=document.getElementById(i);if(x)x.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doAuth(0)}})});
  var f=document.getElementById('le');if(f&&!f.value)try{f.focus()}catch(e){}
