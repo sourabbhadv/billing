@@ -6952,7 +6952,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lmC=v;return v})};function _pre(){try{loadGsi().catch(function(){});lockMail()}catch(e){}}setTimeout(_pre,1500);setInterval(_pre,5000);
  function whoIs(t){return fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){return String((j&&j.user&&j.user.emailAddress)||'').toLowerCase()}).catch(function(){return ''})}
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
- function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Drive backup must use the same Google account you signed in with ('+lock+'). Google gave: '+(got||'unknown')+'. Please choose that account. [v3]')}
+ function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Wrong Google account. This app needs '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. If Google keeps picking the wrong one, open this app in a private (incognito) tab and try there.')}
  function getTok(ask){
   if(tok&&Date.now()<tokExp-60000)return Promise.resolve(tok);
   if(!cid())return Promise.reject(new Error('First paste your Google Client ID (open One-time setup).'));
@@ -6970,7 +6970,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
       if(normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));
       accept(r.access_token,r,w)})},
     error_callback:function(e){var t=e&&e.type;rej(new Error(t==='popup_failed_to_open'||t==='popup_blocked_by_browser'?'The browser blocked the Google window. Allow pop-ups for this site, then press Back up now again.':t==='popup_closed'?'The Google window was closed before it finished. Press again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press again.'))}});
-   c.requestAccessToken({prompt:(ask&&LS('gdLinked')!=='1')?'consent select_account':(function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':''})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
+   c.requestAccessToken({prompt:ask?((LS('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
 
  /* ---------- Google Drive calls ---------- */
  function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
@@ -7168,7 +7168,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lmC=v;return v})};function _pre(){try{loadGsi().catch(function(){});lockMail()}catch(e){}}setTimeout(_pre,1500);setInterval(_pre,5000);
  function whoIs(t){return fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){return String((j&&j.user&&j.user.emailAddress)||'').toLowerCase()}).catch(function(){return ''})}
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
- function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Drive backup must use the same Google account you signed in with ('+lock+'). Google gave: '+(got||'unknown')+'. Please choose that account. [v3]')}
+ function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Wrong Google account. This app needs '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. If Google keeps picking the wrong one, open this app in a private (incognito) tab and try there.')}
  var _inf=null;function getTok(first){/* only ONE Google window at a time: a second request joins the first, so they cannot close each other */
   if(_inf)return _inf;var p=getTok0(first);_inf=p;var clr=function(){if(_inf===p)_inf=null};p.then(clr,clr);setTimeout(clr,90000);return p}
  function getTok0(first){
@@ -7185,7 +7185,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
       if(normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));
       accept(r.access_token,r)})},
     error_callback:function(e){var t=e&&e.type,b=t==='popup_failed_to_open'||t==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':t==='popup_closed'?'The Google window was closed before it finished. Press Start again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press Sync now.'),{blocked:b}))}});
-   c.requestAccessToken({prompt:(first&&ls('gdLinked')!=='1')?'consent select_account':(function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':''})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
+   c.requestAccessToken({prompt:first?((ls('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
  var lastErr='';function armTapE(e){if(e&&e.message&&!e.blocked)lastErr=String(e.message);armTap()}
  function armTap(){
