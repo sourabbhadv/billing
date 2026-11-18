@@ -7526,9 +7526,9 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   n=n||0;
   return fetchLic().then(function(){
    if(st.pro){rzpBusy=0;bsay('Payment received. Pro plan is ON.');try{render()}catch(e){}return}
-   if(n>=30){rzpBusy=0;bsay('Payment received. Pro is taking longer than usual. Press "Check my license" above in a minute. If it does not switch on, contact us with your payment ID.',1);return}
-   bsay('Payment received. Activating your Pro plan...');
-   return new Promise(function(r){setTimeout(r,3000)}).then(function(){return waitLic(n+1)})})}
+   if(n>=200){rzpBusy=0;bsay('Payment received. Pro is taking longer than usual. Press "Check my license" above in a few minutes. If it does not switch on, contact us with your payment ID.',1);return}
+   bsay('Payment received. Activating your Pro plan... this can take up to 15 minutes. You can keep using the app.');
+   return new Promise(function(r){setTimeout(r,n<30?3000:5000)}).then(function(){return waitLic(n+1)})})}
  window.planBuy=function(kind){
   if(rzpBusy)return;
   Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){return (r&&r.data&&r.data.session)||window.__sbSess||null},function(){return window.__sbSess||null}).then(function(ss){
@@ -7827,14 +7827,12 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   return g?String(u.email||'').toLowerCase():''}
  function labels(){try{
   var t=window.__sbSess?'Log out':'Sign in';
-  document.querySelectorAll('.lgo').forEach(function(b){if(b.textContent!==t)b.textContent=t});
+  document.querySelectorAll('nav button.lgo').forEach(function(b){if(b.textContent!==t)b.textContent=t});
   document.querySelectorAll('[onclick="sbOut(0)"]').forEach(function(e){
    if(e.classList.contains('mr')){var s=e.firstElementChild;if(s&&s.textContent!==t)s.textContent=t}
    else if(e.tagName==='BUTTON'&&/^(Log out|Sign in)$/.test(e.textContent.trim())&&e.textContent.trim()!==t)e.textContent=t})}catch(x){}}
- function who(){try{var sy=document.getElementById('sy');if(!sy)return;var w=document.getElementById('whoami');
-  if(!w){w=document.createElement('span');w.id='whoami';w.style.cssText='margin-left:6px;font-weight:600';sy.insertAdjacentElement('afterend',w)}
-  var e=window.__sbSess&&window.__sbSess.user&&window.__sbSess.user.email;
-  w.textContent=e?'\u00b7 \uD83D\uDD12 '+e:'\u00b7 not signed in'}catch(x){}}
+ function who(){try{var w=document.getElementById('whoami');if(w)w.remove();var sy=document.getElementById('sy');
+  if(sy){var e=window.__sbSess&&window.__sbSess.user&&window.__sbSess.user.email;sy.title=e?('Signed in: '+e):'Not signed in'}}catch(x){}}
  (function(){try{var q=location.search+'&'+location.hash.replace(/^#/,''),m=q.match(/error_description=([^&]+)/);
   if(m){var t=decodeURIComponent(m[1].replace(/\+/g,' '));setTimeout(function(){alert('Google sign-in problem: '+t)},800);try{history.replaceState(null,'',location.pathname)}catch(e){}}}catch(x){}})();
  function drive(){try{
