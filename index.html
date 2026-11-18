@@ -7110,7 +7110,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   '.gdm input[type=email],.gdm input[type=text]{width:100%;background:#fff;border:1px solid #cfd5e3;border-radius:8px;padding:12px;font-size:15px;margin:6px 0}'+
   '.gdm details{border-top:1px solid #eef0f5;margin-top:6px;padding:12px 0 2px;font-size:14px}.gdm summary{font-weight:600;color:#1f2437}.gdm .gdrow{margin:4px 0 8px}'+
   '.gdm .gdsteps{color:#4a5068;font-size:13px;line-height:1.65;margin-top:8px}'+
-  '#gdpend{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:12;white-space:nowrap;box-shadow:0 4px 14px rgba(26,115,232,.45)}}'+
+  '#gdpend{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(136px + env(safe-area-inset-bottom,0px));z-index:12;white-space:nowrap;box-shadow:0 4px 14px rgba(26,115,232,.45)}}'+
   '@media(min-width:900px){#gdpend{position:fixed;right:18px;bottom:18px;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.25)}.gdd .gdsteps{line-height:1.7;color:#4a5068}}';
  document.head.appendChild(st);
 })();
@@ -7340,14 +7340,26 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  window.addEventListener('beforeunload',function(){/* nothing to flush: every change is already saved on this device and marked dirty */});
  var oldSave=window.save;window.save=function(){var r=oldSave.apply(this,arguments);try{schedule()}catch(e){}return r};
 
+ /* PRO = live sync is ON by itself: when a Pro account is signed in with Google on any device, start it without anyone pressing Start.
+    (If the browser blocks Google's window, "Tap once anywhere" connects it. Pressing Stop turns it off on this device until Start is pressed again.) */
+ var autoBusy=false;
+ function autoOn(){
+  if(on||autoBusy||ls('lvOff')==='1'||!(window.PLAN&&PLAN.pro())||document.hidden)return;
+  autoBusy=true;
+  lockMail().then(function(lk){
+   if(!lk||on||!client())return;
+   on=true;ls('lvOn','1');ls('lvDirty','1');setStatus('Starting live sync...');poll();go('force');paint()
+  }).then(function(){autoBusy=false},function(){autoBusy=false})}
+ setInterval(autoOn,4000);setTimeout(autoOn,1500);document.addEventListener('visibilitychange',function(){if(!document.hidden)autoOn()});
+
  /* ---------- buttons ---------- */
  window.lvStart=function(){
   if(!(window.PLAN&&PLAN.pro()))return PLAN.lock('Live sync on several devices');
   if(!client()){alert('First paste your Google Client ID (Backup > Google Drive Backup > One-time setup).');return}
   setStatus('Connecting to Google Drive...');
-  getTok(true).then(function(){on=true;ls('lvOn','1');ls('lvDirty','1');poll();return go('force')},function(e){on=false;setStatus(e&&e.blocked?'The browser blocked the Google window. Press Start again.':String(e.message||e));paint()})};
+  getTok(true).then(function(){on=true;ls('lvOn','1');ls('lvOff',null);ls('lvDirty','1');poll();return go('force')},function(e){on=false;setStatus(e&&e.blocked?'The browser blocked the Google window. Press Start again.':String(e.message||e));paint()})};
  window.lvSyncNow=function(){if(!(window.PLAN&&PLAN.pro()))return PLAN.lock('Live sync on several devices');if(!on)return window.lvStart();getTok(false).then(function(){return go('force')},function(e){setStatus(String(e.message||e))})};
- window.lvStop=function(){if(!confirm('Stop live sync on this device? Your data stays here and in Drive.'))return;on=false;ls('lvOn',null);ls('lvTok',null);tok=null;exp=0;var h=$id('sy');if(h)h.textContent='';setStatus('Live sync is off on this device.');paint()};
+ window.lvStop=function(){if(!confirm('Stop live sync on this device? Your data stays here and in Drive.'))return;on=false;ls('lvOn',null);ls('lvOff','1');ls('lvTok',null);tok=null;exp=0;var h=$id('sy');if(h)h.textContent='';setStatus('Live sync is off on this device.');paint()};
  function ago(t){if(!t)return 'never';var m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':new Date(t).toLocaleString('en-IN')}
  function isP(){return window.innerWidth<900}
  function cardM(){return '<div class="mg"><div class="mgt">Live sync (several phones / computers)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</div>'+
@@ -7593,6 +7605,241 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  document.head.appendChild(css);
  check().then(function(){if(!st.ready)apply(null)});
  if(window.__sbSess)fetchLic().then(function(){try{render()}catch(e){}});
+})();
+</script>
+<script id="fy-close">
+/* CLOSE FINANCIAL YEAR (1 April to 31 March). Two choices:
+   1) Keep everything: only saves a named year-end backup file and notes the year as closed.
+   2) Start new year: saves the backup file, then removes that year's finished bills, payments and documents,
+      and moves every party's balance into its Opening balance. Stock, godown records and unfinished work are kept. */
+(function(){
+ var FY={sy:null,mode:'keep',saved:false};
+ function pad(n){return n<10?'0'+n:''+n}
+ function lab(sy){return 'FY '+sy+'-'+String(sy+1).slice(2)}
+ function endOf(sy){return new Date(sy+1,2,31,23,59,59,999).getTime()}
+ function opts(){var n=new Date(),cur=n.getMonth()>=3?n.getFullYear():n.getFullYear()-1;return [cur-1,cur-2,cur-3]}
+ function dated(r,end){var t=+r.date;return t>0&&t<=end}
+ function pending(b){if(b.x)return false;return (b.lines||[]).some(function(l){try{return rem(l)>0}catch(e){return false}})}
+ function openDoc(d){return d.st==='open'&&(d.t==='est'||d.t==='so'||d.t==='chal')}
+ function plan(sy){
+  var end=endOf(sy),keepB=[],keepP=[],keepD=[],cb=0,cp=0,cd=0,pend=0;
+  (D.bills||[]).forEach(function(b){if(dated(b,end)&&!pending(b))cb++;else{keepB.push(b);if(dated(b,end))pend++}});
+  (D.pays||[]).forEach(function(x){if(dated(x,end))cp++;else keepP.push(x)});
+  (D.docs||[]).forEach(function(d){if(dated(d,end)&&!openDoc(d))cd++;else keepD.push(d)});
+  return {end:end,keepB:keepB,keepP:keepP,keepD:keepD,cb:cb,cp:cp,cd:cd,pend:pend}}
+ function ensure(){if(FY.sy==null)FY.sy=opts()[0]}
+ window.fyCard=function(){ensure();
+  var p=plan(FY.sy),done=(D.fyDone||[]).map(function(x){return esc(x.fy)+' (closed '+new Date(x.at).toLocaleDateString('en-IN')+')'}).join(', ');
+  var sel='<select id="fysel" onchange="fyPick(this.value)" style="width:100%;margin:6px 0">'+opts().map(function(y){return '<option value="'+y+'"'+(y===FY.sy?' selected':'')+'>'+lab(y)+'  (1 Apr '+y+' to 31 Mar '+(y+1)+')</option>'}).join('')+'</select>';
+  var keep=FY.mode==='keep';
+  return '<div class="card"><b>Close financial year</b><p class="mu">Step 1 saves a backup file of ALL your data. Then choose what the app should do.</p>'+sel+
+   '<label style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;cursor:pointer"><input type="radio" name="fym" '+(keep?'checked':'')+' onclick="fyMode(\'keep\')" style="width:20px;height:20px;margin:2px 0 0"><span><b>Keep everything</b> (safest)<br><span class="mu">All old bills stay in the app and in reports. Only the backup file is saved and the year is marked closed.</span></span></label>'+
+   '<label style="display:flex;gap:10px;align-items:flex-start;margin:10px 0;cursor:pointer"><input type="radio" name="fym" '+(keep?'':'checked')+' onclick="fyMode(\'new\')" style="width:20px;height:20px;margin:2px 0 0"><span><b>Start a fresh year</b><br><span class="mu">Removes that year\'s finished bills, payments and documents. Every party\'s balance is carried forward as Opening balance. Stock is not changed. Bills with goods still to be sent stay.</span></span></label>'+
+   (keep?'':'<div class="mu" style="background:#fff7e6;border:1px solid #f0d9a8;border-radius:8px;padding:8px;margin:6px 0">This will remove <b>'+p.cb+'</b> bills, <b>'+p.cp+'</b> payments and <b>'+p.cd+'</b> documents dated up to 31 Mar '+(FY.sy+1)+'.'+(p.pend?' <b>'+p.pend+'</b> bill(s) with goods still to be sent are kept.':'')+' With live sync on, other devices will remove them too. The backup file is the only full copy of the old year, so keep it safe. Bill numbers start again from 1.</div>')+
+   '<button class="b" style="width:100%;margin-top:6px" onclick="fyBackup()">1. Save '+lab(FY.sy)+' backup file</button>'+
+   '<button class="'+(FY.saved?'b':'s')+'" style="width:100%;margin-top:8px" onclick="fyRun()">2. '+(keep?'Mark '+lab(FY.sy)+' as closed':'Close '+lab(FY.sy)+' and start new year')+'</button>'+
+   (done?'<div class="mu" style="margin-top:8px">Closed so far: '+done+'</div>':'')+'</div>'};
+ window.fyPick=function(v){FY.sy=+v;FY.saved=false;render()};
+ window.fyMode=function(m){FY.mode=m;render()};
+ window.fyBackup=function(){ensure();
+  saveFile(lab(FY.sy).replace(' ','')+'-year-end-backup-'+new Date().toISOString().slice(0,10)+'.json',new Blob([JSON.stringify(D)],{type:'application/json'}));
+  FY.saved=true;setTimeout(function(){alert('The backup file is being saved to this device. Check your Downloads (or Files) and keep it safe, then press button 2.');render()},400)};
+ function closeKeep(){D.fyDone=(D.fyDone||[]).concat([{fy:lab(FY.sy),at:Date.now(),mode:'keep'}]);save();FY.saved=false;render();alert(lab(FY.sy)+' is marked as closed. Nothing was removed.')}
+ function closeNew(){
+  var p=plan(FY.sy),oldB=D.bills,oldP=D.pays,oldD=D.docs,oldOpen={},before={};
+  D.docs=D.docs||[];
+  D.parties.forEach(function(x){oldOpen[x.id]=x.open;before[x.id]=bal(x)});
+  D.bills=p.keepB;D.pays=p.keepP;D.docs=p.keepD;BC=null;
+  var rest={};D.parties.forEach(function(x){rest[x.id]=bal(x)-(+x.open||0)});
+  D.parties.forEach(function(x){x.open=Math.round((before[x.id]-rest[x.id])*100)/100});BC=null;
+  var bad=D.parties.filter(function(x){return Math.abs(bal(x)-before[x.id])>0.01});
+  if(bad.length){D.bills=oldB;D.pays=oldP;D.docs=oldD;D.parties.forEach(function(x){x.open=oldOpen[x.id]});BC=null;alert('Stopped: balances did not match for '+bad.length+' party(s), so NOTHING was changed. Please send us your backup file.');return}
+  D.fyDone=(D.fyDone||[]).concat([{fy:lab(FY.sy),at:Date.now(),mode:'new',removed:{bills:p.cb,pays:p.cp,docs:p.cd}}]);
+  save();FY.saved=false;FY.mode='keep';render();
+  alert(lab(FY.sy)+' is closed. Balances of all parties were carried forward as Opening balance. Removed: '+p.cb+' bills, '+p.cp+' payments, '+p.cd+' documents.')}
+ window.fyRun=function(){ensure();
+  if(!FY.saved)return alert('First press button 1 to save the backup file.');
+  if(!confirm('Did the backup file of '+lab(FY.sy)+' save on this device? Without it the old bills cannot be brought back.'))return;
+  if(FY.mode==='keep')return closeKeep();
+  if(!confirm('Close '+lab(FY.sy)+' and start a fresh year? Old finished bills, payments and documents of that year will be removed from the app.'))return;
+  closeNew()};
+ var _v=window.vBk||vBk;
+ vBk=function(){return _v.apply(this,arguments)+fyCard()};
+})();
+</script>
+<script id="barcode-scanner">
+/* BARCODE SCANNER
+   - Items: every item can have a Barcode (Items > Add / Edit item > Barcode, with a Scan button).
+   - Sale bill: PHONE gets a "Scan barcode" button (camera, keeps scanning). PC gets a SCAN button and also
+     works with a USB / Bluetooth barcode gun with no setup: just scan while the sale screen is open.
+   - Each scan adds 1 of that item to the bill (scanning again adds +1 to the same row). Phone and PC have their own design. */
+(function(){
+ var cam=null,lastCode='',lastAt=0,recent=[],toastT=null,kb={s:'',t:0,el:null,v:''};
+ function $q(s){return document.querySelector(s)}
+ function saleOpen(){return !!($q('#bi')&&$q('#bq')&&$q('#br'))&&typeof draft!=='undefined'&&draft&&Array.isArray(draft.lines)}
+ function norm(c){return String(c==null?'':c).trim()}
+ function byCode(c){c=norm(c);if(!c)return null;return (D.items||[]).find(function(i){return norm(i.bc)===c})||null}
+ function rn(n){return Math.round(n*100)/100}
+ /* ---------- feedback ---------- */
+ function beep(ok){try{var A=window.AudioContext||window.webkitAudioContext,a=new A(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=ok?1040:300;g.gain.value=.08;o.start();setTimeout(function(){o.stop();a.close()},ok?90:260)}catch(e){}try{if(navigator.vibrate)navigator.vibrate(ok?40:[60,40,60])}catch(e){}}
+ function toast(t,bad){var o=document.getElementById('bco'),m=o&&o.querySelector('.bcmsg');
+  if(m){m.textContent=t;m.className='bcmsg show'+(bad?' bad':'');clearTimeout(toastT);toastT=setTimeout(function(){m.className='bcmsg'},2600);return}
+  var x=document.getElementById('bctoast');if(!x){x=document.createElement('div');x.id='bctoast';document.body.appendChild(x)}
+  x.textContent=t;x.className='show'+(bad?' bad':'');clearTimeout(toastT);toastT=setTimeout(function(){x.className=''},2600)}
+ /* ---------- put a scanned item on the bill ---------- */
+ function addToBill(it){
+  var l=(draft.lines||[]).find(function(x){return x.name===it.name&&+x.rate===+it.rate&&!x.desc}),q;
+  if(l){l.qty=rn((+l.qty||0)+1);l.amt=rn(l.qty*(+l.rate||0));q=l.qty;render()}
+  else{
+   ['bi','bq','bu','br','bs','bds2'].forEach(function(i){var e=document.getElementById(i);if(e)e.value=''});
+   var k=document.getElementById('bk');if(k)k.checked=false;
+   $q('#bi').value=it.name;$q('#bq').value=1;$q('#br').value=it.rate||0;var u=document.getElementById('bu');if(u)u.value=it.unit||'pcs';
+   var n0=draft.lines.length;addLine2();if(draft.lines.length===n0)return false;q=1}
+  var left=rn((+it.qty||0)-q);
+  return {q:q,left:left}}
+ function saleScan(code){
+  var it=byCode(code);
+  if(!it){beep(0);toast('Code '+code+' is not linked to any item',1);notFound(code);return}
+  var r=addToBill(it);
+  if(!r){beep(0);toast('Could not add '+it.name+'. Enter price and quantity.',1);return}
+  beep(1);recent.unshift(it.name+' × '+r.q);recent=recent.slice(0,3);
+  toast('Added: '+it.name+' × '+r.q+(r.left<=0?'  (stock '+r.left+')':''),r.left<0);paintRecent()}
+ function paintRecent(){var e=document.getElementById('bclist');if(e)e.innerHTML=recent.map(function(t){return '<div>✔ '+esc(t)+'</div>'}).join('')}
+ /* ---------- unknown code: link it or make a new item ---------- */
+ function notFound(code){
+  var d=document.getElementById('bcnf');if(d)d.remove();
+  d=document.createElement('div');d.id='bcnf';
+  d.innerHTML='<div class="bcnfb"><b>New barcode</b><div class="mu" style="margin:4px 0 8px">'+esc(code)+'</div><input id="bcln" list="il" placeholder="Link to an existing item (type name)" autocomplete="off"><div class="bcbtns"><button class="b" id="bclk">Link</button><button class="s" id="bcnw">New item</button><button class="s" id="bcsk">Skip</button></div></div>';
+  document.body.appendChild(d);
+  d.querySelector('#bcsk').onclick=function(){d.remove()};
+  d.querySelector('#bclk').onclick=function(){var n=norm(d.querySelector('#bcln').value),it=(D.items||[]).find(function(i){return i.name===n});if(!it)return alert('Pick an item from the list');
+   it.bc=code;save();d.remove();saleScan(code)};
+  d.querySelector('#bcnw').onclick=function(){d.remove();closeCam();try{nav('items')}catch(e){}iform={bc:code};render()}}
+ /* ---------- camera ---------- */
+ function loadZX(){return new Promise(function(ok,no){if(window.ZXing)return ok();var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';s.onload=ok;s.onerror=function(){no(new Error('Could not load the scanner. Check the internet.'))};document.head.appendChild(s)})}
+ function closeCam(){var o=document.getElementById('bco');if(cam){cam.dead=1;try{cam.reader&&cam.reader.reset()}catch(e){}try{cam.stream&&cam.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}cam=null}if(o)o.remove();document.body.classList.remove('bcon')}
+ function got(code,once,cb){code=norm(code);if(!code)return;var n=Date.now();if(code===lastCode&&n-lastAt<1600)return;lastCode=code;lastAt=n;
+  if(once){closeCam();cb(code)}else cb(code)}
+ window.bcScan=function(opt){
+  opt=opt||{};closeCam();
+  var sale=!opt.once,o=document.createElement('div');o.id='bco';
+  o.innerHTML='<div class="bcp"><div class="bch"><b>'+(opt.title||(sale?'Scan items for this bill':'Scan barcode'))+'</b><button class="bcx" aria-label="Close">'+(sale?'Done':'Close')+'</button></div>'+
+   '<div class="bcv"><video playsinline muted autoplay></video><div class="bcr"><i></i></div><div class="bcmsg"></div><div class="bcerr"></div></div>'+
+   '<div class="bcf"><div class="bcrow"><input id="bcman" placeholder="Type or scan a code" autocomplete="off" inputmode="text"><button class="b bcgo">'+(sale?'Add':'Use')+'</button></div>'+
+   '<div class="bcrow2"><button class="s" id="bctorch" style="display:none">Torch</button><span class="mu">'+(sale?'Keeps scanning. Press Done when finished.':'Point the camera at the barcode.')+'</span></div><div id="bclist" class="bcl"></div></div></div>';
+  document.body.appendChild(o);document.body.classList.add('bcon');
+  var handler=function(c){got(c,!sale,function(x){if(sale)saleScan(x);else opt.onCode(x)})};
+  o.querySelector('.bcx').onclick=closeCam;
+  var man=o.querySelector('#bcman'),go=function(){var v=norm(man.value);man.value='';if(v){lastCode='';handler(v)}};
+  o.querySelector('.bcgo').onclick=go;man.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go()}});
+  if(!isM()){try{man.focus()}catch(e){}}
+  paintRecent();
+  var err=function(t){var e=o.querySelector('.bcerr');if(e){e.textContent=t;e.style.display='block'}};
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){err('The camera needs the secure (https) web address. You can still type or scan a code below.');return}
+  var c={dead:0};cam=c;
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false}).then(function(st){
+   if(c.dead){st.getTracks().forEach(function(t){t.stop()});return}
+   c.stream=st;var v=o.querySelector('video');v.srcObject=st;try{v.play()}catch(e){}
+   try{var tr=st.getVideoTracks()[0],cp=tr.getCapabilities&&tr.getCapabilities();if(cp&&cp.torch){var tb=o.querySelector('#bctorch'),on=false;tb.style.display='';tb.onclick=function(){on=!on;tr.applyConstraints({advanced:[{torch:on}]}).catch(function(){})}}}catch(e){}
+   if('BarcodeDetector' in window){
+    var det;try{det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','codabar','qr_code']})}catch(e){det=new BarcodeDetector()}
+    (function loop(){if(c.dead)return;if(v.readyState>=2){det.detect(v).then(function(r){if(c.dead)return;if(r&&r.length)handler(r[0].rawValue)}).catch(function(){}).then(function(){setTimeout(loop,140)})}else setTimeout(loop,200)})()
+   }else{
+    loadZX().then(function(){if(c.dead)return;var rd=new ZXing.BrowserMultiFormatReader();c.reader=rd;rd.decodeFromStream(st,v,function(r){if(c.dead)return;if(r)handler(r.getText())})}).catch(function(e){err(e.message||'Scanner could not start')})}
+  },function(e){err(/denied|permission|notallowed/i.test(String(e&&(e.name||e.message)))?'Camera is blocked. Allow the camera for this site in your browser settings. You can still type or scan a code below.':'Could not open the camera. You can still type or scan a code below.')})}
+ /* ---------- USB / Bluetooth barcode gun (types very fast, then Enter) ---------- */
+ document.addEventListener('keydown',function(e){
+  if(e.ctrlKey||e.altKey||e.metaKey)return;
+  var n=Date.now();
+  if(e.key==='Enter'){
+   var s=kb.s;kb.s='';
+   if(s.length>=4&&n-kb.t<80){
+    var open=!!document.getElementById('bco');
+    if(!open&&!saleOpen())return;
+    e.preventDefault();e.stopPropagation();
+    if(kb.el&&'value' in kb.el&&kb.el.id!=='bcman'){try{kb.el.value=kb.v}catch(x){}}
+    if(open){var m=document.getElementById('bcman');if(m)m.value='';lastCode=''}
+    if(saleOpen())saleScan(s);
+   }
+   return}
+  if(e.key.length!==1)return;
+  if(n-kb.t>50||!kb.s){kb.s='';kb.el=e.target;kb.v=e.target&&'value' in e.target?e.target.value:''}
+  kb.s+=e.key;kb.t=n},true);
+ /* ---------- item form: Barcode field with Scan button ---------- */
+ var _vif=window.vItemForm||vItemForm;
+ vItemForm=function(){var h=_vif.apply(this,arguments),i=iform&&iform.id?I(iform.id):null,v=i?i.bc:(iform&&iform.bc)||'';
+  var fld='<div class="bcfld"><input id="sbc" placeholder="Barcode (scan or type)" autocomplete="off" value="'+esc(v||'')+'"><button type="button" class="s bcsc" onclick="bcScanItem()">Scan</button></div>';
+  return h.indexOf('<input id="sg"')>=0?h.replace('<input id="sg"',fld+'<input id="sg"'):h};
+ window.bcScanItem=function(){bcScan({once:true,title:'Scan the item barcode',onCode:function(c){var e=document.getElementById('sbc');if(e){e.value=c;try{e.focus()}catch(x){}}}})};
+ var _si=saveItem;
+ saveItem=function(){var e=document.getElementById('sbc'),v=e?norm(e.value):null,id=iform&&iform.id;
+  if(v){var o=(D.items||[]).find(function(x){return norm(x.bc)===v&&x.id!==id});if(o)return alert('This barcode is already used for "'+o.name+'".')}
+  var n0=D.items.length,r=_si.apply(this,arguments);
+  if(v!==null){var t=id?I(id):(D.items.length>n0?D.items[D.items.length-1]:null);if(t&&norm(t.bc)!==v){t.bc=v;save()}}
+  return r};
+ /* ---------- buttons on the sale screen ---------- */
+ function inject(){
+  if(!saleOpen())return;
+  if(isM()){var a=$q('.sfad');if(a&&!a.querySelector('.bcm')){var b=document.createElement('button');b.type='button';b.className='bcm';b.innerHTML='<span>📷</span> Scan barcode';b.onclick=function(){bcScan()};a.insertBefore(b,a.firstChild)}}
+  else{var f=$q('tfoot .ab');if(f&&!document.getElementById('bcdk')){var s=document.createElement('button');s.type='button';s.id='bcdk';s.className='ab bcdk';s.textContent='SCAN';s.title='Scan with the camera. A barcode gun works without pressing this.';s.onclick=function(){bcScan()};f.parentNode.appendChild(s)}
+   var h=$q('#bi');if(h&&!h.getAttribute('data-bc')){h.setAttribute('data-bc','1');h.placeholder='Type item name or scan barcode'}}}
+ var _r=render;render=function(){var r=_r.apply(this,arguments);try{inject()}catch(e){}return r};
+ var mt=null;try{new MutationObserver(function(){clearTimeout(mt);mt=setTimeout(function(){try{inject()}catch(e){}},120)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+ /* ---------- design: phone and PC are separate ---------- */
+ var css=document.createElement('style');css.textContent=
+ '#bctoast{position:fixed;left:50%;transform:translateX(-50%);z-index:210;background:#101338;color:#fff;border-radius:999px;padding:10px 18px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}#bctoast.show{opacity:1}#bctoast.bad{background:#e8213a}'+
+ '#bco{position:fixed;inset:0;z-index:180}#bco .bcv{position:relative;background:#000;overflow:hidden}#bco video{width:100%;height:100%;object-fit:cover;display:block}'+
+ '#bco .bcr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}#bco .bcr i{width:72%;height:34%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.38);animation:bcp 1.6s ease-in-out infinite}@keyframes bcp{50%{border-color:#1a73e8}}'+
+ '#bco .bcmsg{position:absolute;left:12px;right:12px;bottom:12px;background:#101338;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;text-align:center;opacity:0;transition:opacity .2s}#bco .bcmsg.show{opacity:1}#bco .bcmsg.bad{background:#e8213a}'+
+ '#bco .bcerr{display:none;position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);color:#fff;text-align:center;font-size:14px;line-height:1.5}'+
+ '#bco .bcrow{display:flex;gap:8px}#bco .bcrow input{flex:1;min-width:0;margin:0}#bco .bcrow2{display:flex;gap:10px;align-items:center;margin-top:8px;font-size:12px}#bco .bcl{margin-top:6px;font-size:13px;color:#1b7a43;line-height:1.6}'+
+ '#bcnf{position:fixed;inset:0;z-index:190;background:rgba(16,19,56,.6);display:flex;align-items:center;justify-content:center;padding:16px}#bcnf .bcnfb{background:#fff;color:#1f2437;border-radius:12px;padding:16px;width:100%;max-width:380px}#bcnf input{width:100%}.bcbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}'+
+ '.bcfld{grid-column:1/-1;display:flex;gap:8px}.bcfld input{flex:1;min-width:0;margin:0}.bcfld .bcsc{flex:none}'+
+ /* PHONE */
+ '@media(max-width:899px){body.bcon{overflow:hidden}'+
+ '#bctoast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}'+
+ '#bco{background:#101338}#bco .bcp{height:100%;display:flex;flex-direction:column}'+
+ '#bco .bch{display:flex;align-items:center;justify-content:space-between;color:#fff;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top,0px));font-size:16px}'+
+ '#bco .bcx{background:#fff;color:#101338;border:0;border-radius:999px;padding:9px 18px;font-weight:700;font-size:14px}'+
+ '#bco .bcv{flex:1;min-height:0;border-radius:18px;margin:0 10px}'+
+ '#bco .bcf{background:#fff;border-radius:18px 18px 0 0;margin-top:10px;padding:12px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}'+
+ '#bco .bcrow input{padding:13px;font-size:16px}#bco .bcgo{padding:0 20px;border-radius:10px}'+
+ '.bcm{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:#1a73e8;color:#fff;border:0;border-radius:12px;padding:13px;font-size:16px;font-weight:700;margin:0 0 10px;box-shadow:0 3px 10px rgba(26,115,232,.35)}.bcm span{font-size:20px}}'+
+ /* PC */
+ '@media(min-width:900px){#bctoast{bottom:24px}'+
+ '#bco{background:rgba(16,19,56,.55);display:flex;align-items:center;justify-content:center}#bco .bcp{width:540px;max-width:92vw;background:#fff;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.3);overflow:hidden}'+
+ '#bco .bch{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e3e7ee;font-size:16px;color:#2d3350}'+
+ '#bco .bcx{height:38px;border-radius:999px;padding:0 20px;border:1px solid #e3e7ee;background:#fff;color:#3d4160;font-weight:600;font-size:14px}'+
+ '#bco .bcv{height:300px}'+
+ '#bco .bcf{padding:14px 18px 16px}#bco .bcrow input{height:40px;padding:0 14px;font-size:14px}#bco .bcgo{height:38px;border-radius:999px;padding:0 22px;background:#1565c0;color:#fff;border:0;font-weight:600}'+
+ '.bcdk{margin-left:8px;background:#1565c0!important;color:#fff!important}}';
+ document.head.appendChild(css);
+ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.getElementById('bco'))closeCam()});
+ window.__bc={byCode:byCode,saleScan:saleScan};
+})();
+</script>
+<script id="acct-label-fix">
+/* FIX: after Google sign-in (1) the Drive "Your Gmail address" box fills in and locks to the signed-in Google account,
+   (2) the bottom Sign in / Log out buttons and the More > Account row follow the real sign-in state. */
+(function(){
+ function gmail(){var s=window.__sbSess,u=s&&s.user;if(!u)return '';
+  var g=(u.app_metadata&&u.app_metadata.provider==='google')||(u.identities||[]).some(function(i){return i&&i.provider==='google'});
+  return g?String(u.email||'').toLowerCase():''}
+ function labels(){try{
+  var t=window.__sbSess?'Log out':'Sign in';
+  document.querySelectorAll('.lgo').forEach(function(b){if(b.textContent!==t)b.textContent=t});
+  document.querySelectorAll('[onclick="sbOut(0)"]').forEach(function(e){
+   if(e.classList.contains('mr')){var s=e.firstElementChild;if(s&&s.textContent!==t)s.textContent=t}
+   else if(e.tagName==='BUTTON'&&/^(Log out|Sign in)$/.test(e.textContent.trim())&&e.textContent.trim()!==t)e.textContent=t})}catch(x){}}
+ function drive(){try{
+  var m=gmail();if(!m)return;
+  if((localStorage.getItem('gdEmail')||'').toLowerCase()!==m){if(window.gdSetEm)window.gdSetEm(m);else localStorage.setItem('gdEmail',m)}
+  document.querySelectorAll('input[placeholder="Your Gmail address"]').forEach(function(i){i.value=m;i.readOnly=true;i.title='Locked to the Google account you signed in with'})}catch(x){}}
+ var r0=window.render;
+ if(typeof r0==='function'){window.render=render=function(){var x=r0.apply(this,arguments);drive();labels();return x}}
+ var sr=window.sbReady;
+ if(typeof sr==='function'){window.sbReady=sbReady=function(ss){var x=sr.apply(this,arguments);drive();labels();try{render()}catch(e){}return x}}
+ setInterval(function(){drive();labels()},2000);
 })();
 </script>
 </body></html>
