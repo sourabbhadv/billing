@@ -6972,7 +6972,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
  function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
- function getTok(ask,chooseAccount,requestedEmail){
+ function getTokInternal(ask,chooseAccount,requestedEmail){
+  var requestGeneration=__gdAuthGeneration;
   /* An explicit account-selection action must never reuse a cached token or an old account hint. */
   if(tok&&Date.now()<tokExp-60000&&!chooseAccount)return Promise.resolve(tok);
   if(chooseAccount){
@@ -6990,8 +6991,9 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    var cfg={client_id:cid(),scope:SCOPE,
     callback:function(r){
      if(!(r&&r.access_token))return rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'));
-     
+     if(requestGeneration!==__gdAuthGeneration){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('This Google sign-in was superseded by a newer account selection. Please finish the latest sign-in.'))}
      whoIs(r.access_token).then(function(w){
+      if(requestGeneration!==__gdAuthGeneration){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('This Google sign-in was superseded by a newer account selection. Please finish the latest sign-in.'))}
       if(!w){if(!lock)return accept(r.access_token,r);try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
       if(lock&&!chooseAccount&&normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));acctSw(w);
       accept(r.access_token,r,w)})},
@@ -7000,6 +7002,25 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    var c=google.accounts.oauth2.initTokenClient(cfg);
    var promptMode=chooseAccount?'select_account':(ask?((LS('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':''));
    c.requestAccessToken({prompt:promptMode})})};if(chooseAccount)return loadGsi().then(function(){return _run('')});if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
+ var __gdAuthPending=null,__gdAuthGeneration=0;
+ function getTok(ask,chooseAccount,requestedEmail){
+  /* One OAuth request shared by daily backup, live sync, restore and manual account selection. */
+  if(chooseAccount){
+   /* A manual account choice supersedes any background token request already in flight. */
+   __gdAuthGeneration++;
+   __gdAuthPending=null;
+  }
+  if(__gdAuthPending)return __gdAuthPending;
+  var p=getTokInternal(ask,chooseAccount,requestedEmail);
+  __gdAuthPending=p;
+  var clear=function(){if(__gdAuthPending===p)__gdAuthPending=null};
+  p.then(clear,clear);
+  return p
+ }
+ window.gdGetSharedDriveToken=function(first){
+  return getTok(!!first,false).then(function(){return tok})
+ };
+
 
  /* ---------- Google Drive calls ---------- */
  function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
@@ -7074,7 +7095,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    if(x.shop&&!D.shop)D.shop=x.shop;if(ch)save();
    impGo(x)}).then(null,function(e){alert(String(e&&e.message||e))})};
  window.gdResetForAccountChange=function(){
-  try{if(tok&&window.google)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
+  window.__gdAccountSwitching=true;
+  try{if(tok&&window.google&&google.accounts&&google.accounts.oauth2)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
   tok=null;tokExp=0;files=null;
   ['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho','gdAcct','gdWrongAcct','gdEmail','lvFile','lvTok','lvBase','lvStamp','lvOn'].forEach(function(k){LS(k,null)});
   LS('lvOff','1');LS('gdSkip',null);window.__gdTok=null;window.__lmC='';
@@ -7213,25 +7235,19 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
  function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
- var _inf=null;function getTok(first){/* only ONE Google window at a time: a second request joins the first, so they cannot close each other */
-  if(_inf)return _inf;var p=getTok0(first);_inf=p;var clr=function(){if(_inf===p)_inf=null};p.then(clr,clr);setTimeout(clr,90000);return p}
- function getTok0(first){
-  if(tokOk())return Promise.resolve(tok);
-  var _s=window.__gdTok,_lk=String(ls('gdWho')||'').toLowerCase();
-  if(_s&&_s.t&&_s.e>Date.now()+60000&&_lk&&normM(_s.w)===normM(_lk)){tok=_s.t;exp=_s.e;ls('lvTok',JSON.stringify({t:tok,e:exp,m:_lk}));ls('gdLinked','1');needTap=false;lastErr='';return Promise.resolve(tok)}
-  var _run=function(lock){return new Promise(function(res,rej){
-   var hint=lock||email()||undefined;
-   function accept(t,r){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;exp=Date.now()+(+r.expires_in||3600)*1000;ls('lvTok',JSON.stringify({t:tok,e:exp,m:lock}));ls('gdLinked','1');needTap=false;lastErr='';res(tok)}
-   var c=google.accounts.oauth2.initTokenClient({client_id:client(),scope:SCOPE,login_hint:hint,hint:hint,
-    callback:function(r){
-     if(!(r&&r.access_token))return rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'));
-     
-     whoIs(r.access_token).then(function(w){
-      if(!w){if(!lock)return accept(r.access_token,r);try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
-      if(lock&&normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));if(acctSw(w)){fileId=null;folder=null;base=loadBase();lastStamp=''}ls('gdWho',w);ls('gdEmail',w);window.__lmC=String(w).toLowerCase();
-      accept(r.access_token,r)})},
-    error_callback:function(e){var t=e&&e.type,b=t==='popup_failed_to_open'||t==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':t==='popup_closed'?'The Google window was closed before it finished. Press Start again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press Sync now.'),{blocked:b}))}});
-   c.requestAccessToken({prompt:first?((ls('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
+ function getTok(first){
+  /* Live sync uses the same OAuth request/token as daily backup.
+     A second TokenClient here caused competing Google account sessions. */
+  if(typeof window.gdGetSharedDriveToken!=='function')
+   return Promise.reject(new Error('Google Drive sign-in is still loading. Please try again.'));
+  return window.gdGetSharedDriveToken(!!first).then(function(t){
+   tok=t;exp=Date.now()+55*60*1000;
+   var who=String(ls('gdWho')||ls('gdAcct')||'').toLowerCase();
+   ls('lvTok',JSON.stringify({t:t,e:exp,m:who}));
+   needTap=false;lastErr='';
+   return t
+  })
+ }
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
  var lastErr='';function armTapE(e){if(e&&e.message&&!e.blocked)lastErr=String(e.message);armTap()}
  function armTap(){
@@ -9693,6 +9709,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   view='start';paintW()};
  window.gdwGo=function(){
   if(busy)return;
+  window.__gdAccountSwitching=true;
   if(typeof window.gdConnect!=='function')return say('Not ready yet. Wait a moment and press again.');
   busy=true;var b=document.getElementById('gdwGo');if(b)b.disabled=true;say('Opening Google...');
   var typed=String((document.getElementById('gdwE')||{}).value||'').trim().toLowerCase();
@@ -9703,7 +9720,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    busy=false;doneMail=w||LS('gdWho')||'';
    if(want&&nm(doneMail)!==nm(want)){view='diff';paintW();return}
    if(changing&&prevMail&&nm(doneMail)===nm(prevMail)){view='same';paintW();return}
-   changing=false;prevMail='';
+   changing=false;prevMail='';window.__gdAccountSwitching=false;
    try{if(window.SB&&SB.auth&&SB.auth.updateUser&&doneMail)SB.auth.updateUser({data:{drive_email:doneMail}})}catch(e){}   /* so the next device can suggest the same account */
    if(pro()&&typeof window.lvStart==='function'){try{window.lvStart()}catch(e){}}
    view='done';paintW()},
