@@ -6960,20 +6960,21 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
   if(window.google&&google.accounts&&google.accounts.oauth2)return res();
   var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;
   s.onload=function(){res()};s.onerror=function(){rej(new Error('Cannot reach Google. Check the internet.'))};document.head.appendChild(s)})}
-  /* ---------- same-account lock: when signed in with Google, Drive backup uses ONLY that Google account ---------- */
- function lockMail(){return Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){var ss=(r&&r.data&&r.data.session)||window.__sbSess,u=ss&&ss.user;if(!u)return '';var g=(u.app_metadata&&u.app_metadata.provider==='google')||(u.identities||[]).some(function(i){return i&&i.provider==='google'});return (g||/@(gmail|googlemail)\.com$/i.test(String(u.email||'')))?String(u.email||'').toLowerCase():''}).catch(function(){return ''})}
+  /* ---------- Drive account: the customer chooses it once (first-time setup); after that every device/refresh sticks to it ---------- */
+ function lockMailOld(){return Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){var ss=(r&&r.data&&r.data.session)||window.__sbSess,u=ss&&ss.user;if(!u)return '';var g=(u.app_metadata&&u.app_metadata.provider==='google')||(u.identities||[]).some(function(i){return i&&i.provider==='google'});return (g||/@(gmail|googlemail)\.com$/i.test(String(u.email||'')))?String(u.email||'').toLowerCase():''}).catch(function(){return ''})}
+ function lockMail(){var w=String(LS('gdWho')||LS('gdAcct')||'').toLowerCase();if(w)return Promise.resolve(w);if(LS('gdLinked')!=='1')return Promise.resolve('');return lockMailOld()}
 var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lmC=v;return v})};function _pre(){try{loadGsi().catch(function(){});lockMail()}catch(e){}}setTimeout(_pre,1500);setInterval(_pre,5000);
  function whoIs(t){return fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){return String((j&&j.user&&j.user.emailAddress)||'').toLowerCase()}).catch(function(){return ''})}
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
- function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Wrong Google account. This app needs '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. If Google keeps picking the wrong one, open this app in a private (incognito) tab and try there.')}
+ function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
  function getTok(ask){
   if(tok&&Date.now()<tokExp-60000)return Promise.resolve(tok);
   if(!cid())return Promise.reject(new Error('First paste your Google Client ID (open One-time setup).'));
   var _run=function(lock){return new Promise(function(res,rej){
    var hint=lock||em()||undefined;
    function accept(t,r,w){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');
-    if(w){LS('gdWho',w)}else{whoIs(t).then(function(x){if(x){LS('gdWho',x);try{paint()}catch(e){}}})}
+    if(w){LS('gdWho',w);LS('gdEmail',w);window.__lmC=String(w).toLowerCase();window.__gdTok={t:t,e:tokExp,w:w}}else{whoIs(t).then(function(x){if(x){LS('gdWho',x);try{paint()}catch(e){}}})}
     res(tok)}
    var c=google.accounts.oauth2.initTokenClient({client_id:cid(),scope:SCOPE,login_hint:hint,hint:hint,
     callback:function(r){
@@ -6981,7 +6982,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      
      whoIs(r.access_token).then(function(w){
       if(!w){if(!lock)return accept(r.access_token,r);try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
-      if(normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));acctSw(w);
+      if(lock&&normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));acctSw(w);
       accept(r.access_token,r,w)})},
     error_callback:function(e){var t=e&&e.type;rej(new Error(t==='popup_failed_to_open'||t==='popup_blocked_by_browser'?'The browser blocked the Google window. Allow pop-ups for this site, then press Back up now again.':t==='popup_closed'?'The Google window was closed before it finished. Press again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press again.'))}});
    c.requestAccessToken({prompt:ask?((LS('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
@@ -7041,6 +7042,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* ---------- actions ---------- */
  window.gdSetCid=function(v){LS('gdCid',(v||'').trim()||null);tok=null;LS('gdFolder',null);paint()};
  window.gdSetEm=function(v){LS('gdEmail',(v||'').trim()||null);tok=null};
+ window.gdConnect=function(){return getTok(true).then(function(){LS('gdOn','1');LS('gdSkip',null);paint();return LS('gdWho')||''})};
  window.gdToggle=function(on){
   if(on&&!cid()){alert('First paste your Google Client ID (open One-time setup).');paint();return}
   LS('gdOn',on?'1':'0');if(on)window.gdNow();else paint()};
@@ -7060,7 +7062,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.gdOff=function(){
   if(!confirm('Disconnect Google Drive? Your backups already in Drive stay there.'))return;
   try{if(tok&&window.google)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
-  tok=null;files=null;['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho','gdAcct','gdWrongAcct','lvFile','lvTok','lvBase','lvStamp'].forEach(function(k){LS(k,null)});hidePend();paint()};
+  tok=null;files=null;['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho','gdAcct','gdWrongAcct','lvFile','lvTok','lvBase','lvStamp'].forEach(function(k){LS(k,null)});LS('gdSkip','1');window.__gdTok=null;window.__lmC='';try{if(window.lvDisconnect)lvDisconnect()}catch(e){}hidePend();paint()};
  window.gdSetup=function(){var e=document.getElementById('gdSetup');if(e)e.style.display=e.style.display==='none'?'block':'none'};
 
  /* ---------- screens ---------- */
@@ -7068,7 +7070,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var err=LS('gdErr'),on=LS('gdOn')==='1',d=LS('gdDay');
   var who=LS('gdWho'),wl=who?'<div style="margin:0 0 6px">Backing up to Google account: <b>'+esc(who)+'</b></div>':'';
   if(err)return wl+'<span class="red">'+esc(err)+'</span>';
-  if(!LS('gdLinked'))return 'Not connected yet. Add your Gmail and Client ID, then press Back up now.';
+  if(!LS('gdLinked'))return 'Not connected yet. Press <b>Choose Drive account</b> and pick the Google account whose Drive should keep your backups.';
   return wl+(on?'Daily backup is ON. ':'Daily backup is OFF. ')+(d?'Last backup: <b>'+(d===today()?'today':esc(d))+'</b> ('+ago(+LS('gdAt'))+').':'No backup made yet.')}
  function steps(){return '<div class="gdsteps"><b>One-time setup (about 5 minutes, free)</b><br>'+
   '1. Open <b>console.cloud.google.com</b> with your Gmail and make a <b>New project</b> (name: Billing Backup).<br>'+
@@ -7082,7 +7084,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* phone design: same white cards, rows and pill buttons as the rest of the phone app */
  function cardM(){var on=LS('gdOn')==='1';
   return '<div class="mg gdm"><div class="mgt">Google Drive Backup</div><div id="gdSt" class="gdst">'+stat()+'</div>'+
-   '<button class="b gdfull" onclick="gdNow()">Back up to Google Drive now</button>'+
+   '<button class="b gdfull" onclick="gdNow()">Back up to Google Drive now</button>'+'<button class="s gdfull" style="margin-top:8px" onclick="gdwOpen(1)">'+(LS('gdWho')?'Change Drive account':'Choose Drive account')+'</button>'+
    '<div class="mr"><span>Back up every day</span><input type="checkbox" '+(on?'checked ':'')+'onchange="gdToggle(this.checked)"></div>'+
    '<div class="gdst" style="padding-top:10px">Saved in the same format as your Vyapar data file, so it can be restored here with one tap.</div>'+
    '<details class="gdd"><summary>Account and setup</summary>'+inputs()+'<div class="gdrow"><button class="s" onclick="gdOff()">Disconnect</button></div>'+steps()+'</details>'+
@@ -7093,7 +7095,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    '<p class="mu" style="margin:4px 0 8px">One backup file is saved in your Google Drive every day (folder: '+FOLDER+'), last '+KEEP+' days kept. It is in the same format as your Vyapar data file, so it can be restored here with one click. It runs when this page is open.</p>'+
    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+inputs().replace('type="email"','type="email" style="max-width:300px"').replace('type="text"','type="text" style="max-width:420px"')+'</div>'+
    '<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto;margin:0" '+(on?'checked ':'')+'onchange="gdToggle(this.checked)"> Back up to Google Drive every day</label>'+
-   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="gdNow()">Back up now</button><button class="s" onclick="gdList()">Show my Drive copies</button><button class="s" onclick="gdSetup()">One-time setup</button><button class="s" onclick="gdOff()">Disconnect</button></div>'+
+   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="gdNow()">Back up now</button><button class="s" onclick="gdwOpen(1)">'+(LS('gdWho')?'Change Drive account':'Choose Drive account')+'</button><button class="s" onclick="gdList()">Show my Drive copies</button><button class="s" onclick="gdSetup()">One-time setup</button><button class="s" onclick="gdOff()">Disconnect</button></div>'+
    '<div id="gdSt" class="mu" style="margin-top:8px">'+stat()+'</div>'+
    '<div id="gdSetup" class="mu" style="display:none;margin-top:8px">'+steps()+'</div>'+
    '<div style="margin-top:10px"><b>Copies in your Google Drive</b><div id="gdList" class="mu"></div></div></div>'}
@@ -7172,22 +7174,29 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function colsOf(a,b){var k=KNOWN.slice();[a,b].forEach(function(x){Object.keys(x||{}).forEach(function(c){if(k.indexOf(c)<0&&Array.isArray(x[c])&&x[c].length&&x[c].every(function(r){return r&&typeof r==='object'&&!Array.isArray(r)&&r.id!=null}))k.push(c)})});return k}
 
  /* ---------- status ---------- */
- function setStatus(t){lastMsg=t;var e=$id('lvSt');if(e)e.textContent=t;var h=$id('sy');if(h&&on)h.textContent='Live \u2022 '+t}
+ /* the left-side header stays CALM: background checks and merges from other devices never flash; only real problems or the person's own Sync now / Save show a message */
+ function hdrTxt(t){t=String(t||'');if(/^Another device saved/.test(t))return null;
+  if(/^(Updated from another device|Synced)/.test(t)){var m=/(\d{1,2}:\d{2}):\d{2}\s*([ap]m)?/i.exec(t);return 'Live \u2022 Synced'+(m?' '+m[1]+(m[2]?' '+m[2]:''):'')}
+  return 'Live \u2022 '+t}
+ function setStatus(t){lastMsg=t;var e=$id('lvSt');if(e)e.textContent=t;var h=$id('sy');if(h&&on){var ht=hdrTxt(t);if(ht&&h.textContent!==ht)h.textContent=ht}}
  function stamp(){return new Date().toLocaleTimeString('en-IN')}
 
  /* ---------- Google sign-in (token is kept across refresh for its 1 hour) ---------- */
  function loadGsi(){return new Promise(function(res,rej){if(window.google&&google.accounts&&google.accounts.oauth2)return res();var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=function(){res()};s.onerror=function(){rej(new Error('Cannot reach Google. Check the internet.'))};document.head.appendChild(s)})}
-  /* ---------- same-account lock: when signed in with Google, Drive backup uses ONLY that Google account ---------- */
- function lockMail(){return Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){var ss=(r&&r.data&&r.data.session)||window.__sbSess,u=ss&&ss.user;if(!u)return '';var g=(u.app_metadata&&u.app_metadata.provider==='google')||(u.identities||[]).some(function(i){return i&&i.provider==='google'});return (g||/@(gmail|googlemail)\.com$/i.test(String(u.email||'')))?String(u.email||'').toLowerCase():''}).catch(function(){return ''})}
+  /* ---------- Drive account: the customer chooses it once (first-time setup); after that every device/refresh sticks to it ---------- */
+ function lockMailOld(){return Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){var ss=(r&&r.data&&r.data.session)||window.__sbSess,u=ss&&ss.user;if(!u)return '';var g=(u.app_metadata&&u.app_metadata.provider==='google')||(u.identities||[]).some(function(i){return i&&i.provider==='google'});return (g||/@(gmail|googlemail)\.com$/i.test(String(u.email||'')))?String(u.email||'').toLowerCase():''}).catch(function(){return ''})}
+ function lockMail(){var w=String(ls('gdWho')||ls('gdAcct')||'').toLowerCase();if(w)return Promise.resolve(w);if(ls('gdLinked')!=='1')return Promise.resolve('');return lockMailOld()}
 var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lmC=v;return v})};function _pre(){try{loadGsi().catch(function(){});lockMail()}catch(e){}}setTimeout(_pre,1500);setInterval(_pre,5000);
  function whoIs(t){return fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()}).then(function(j){return String((j&&j.user&&j.user.emailAddress)||'').toLowerCase()}).catch(function(){return ''})}
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
- function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('Wrong Google account. This app needs '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. If Google keeps picking the wrong one, open this app in a private (incognito) tab and try there.')}
+ function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
  var _inf=null;function getTok(first){/* only ONE Google window at a time: a second request joins the first, so they cannot close each other */
   if(_inf)return _inf;var p=getTok0(first);_inf=p;var clr=function(){if(_inf===p)_inf=null};p.then(clr,clr);setTimeout(clr,90000);return p}
  function getTok0(first){
   if(tokOk())return Promise.resolve(tok);
+  var _s=window.__gdTok,_lk=String(ls('gdWho')||'').toLowerCase();
+  if(_s&&_s.t&&_s.e>Date.now()+60000&&_lk&&normM(_s.w)===normM(_lk)){tok=_s.t;exp=_s.e;ls('lvTok',JSON.stringify({t:tok,e:exp,m:_lk}));ls('gdLinked','1');needTap=false;lastErr='';return Promise.resolve(tok)}
   var _run=function(lock){return new Promise(function(res,rej){
    var hint=lock||email()||undefined;
    function accept(t,r){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;exp=Date.now()+(+r.expires_in||3600)*1000;ls('lvTok',JSON.stringify({t:tok,e:exp,m:lock}));ls('gdLinked','1');needTap=false;lastErr='';res(tok)}
@@ -7197,7 +7206,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      
      whoIs(r.access_token).then(function(w){
       if(!w){if(!lock)return accept(r.access_token,r);try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
-      if(normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));if(acctSw(w)){fileId=null;folder=null;base=loadBase();lastStamp=''}
+      if(lock&&normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));if(acctSw(w)){fileId=null;folder=null;base=loadBase();lastStamp=''}ls('gdWho',w);ls('gdEmail',w);window.__lmC=String(w).toLowerCase();
       accept(r.access_token,r)})},
     error_callback:function(e){var t=e&&e.type,b=t==='popup_failed_to_open'||t==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':t==='popup_closed'?'The Google window was closed before it finished. Press Start again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press Sync now.'),{blocked:b}))}});
    c.requestAccessToken({prompt:first?((ls('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
@@ -7332,12 +7341,12 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      lastStamp=st;snapshotBase();return r.chL?'pulled':'same'})})
   }).then(function(res){ls('lvStamp',lastStamp);ls('lvDirty',null);ls('lvAt',String(Date.now()));return res})}
  var n404=0;
- function go(why){
+ function go(why,quiet){
   if(!on||busy||!(window.PLAN&&PLAN.pro()))return Promise.resolve();
   if(!tokOk()){if(!needTap)getTok(false).then(function(){lastErr='';go(why)},function(e){armTapE(e)});else armTap();return Promise.resolve()}
-  busy=true;setStatus('Syncing...');
+  busy=true;if(!quiet&&why!=='poll'&&why!=='wake')setStatus('Syncing...');
   return round(why).then(function(res){busy=false;n404=0;
-   if(res==='race'){setStatus('Another device saved at the same moment, merging...');setTimeout(function(){go('force')},400);return}
+   if(res==='race'){setStatus('Another device saved at the same moment, merging...');setTimeout(function(){go('force',1)},400);return}
    setStatus((res==='pulled'||res==='merged'?'Updated from another device ':'Synced ')+stamp()+(res&&res.length>12?' \u2022 '+res:''));paint()},
    function(e){busy=false;
     if(e&&e.status===401){armTap()}
@@ -7381,16 +7390,17 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   setStatus('Connecting to Google Drive...');
   getTok(true).then(function(){on=true;ls('lvOn','1');ls('lvOff',null);ls('lvDirty','1');poll();return go('force')},function(e){on=false;setStatus(e&&e.blocked?'The browser blocked the Google window. Press Start again.':String(e.message||e));paint()})};
  window.lvSyncNow=function(){if(!(window.PLAN&&PLAN.pro()))return PLAN.lock('Live sync on several devices');if(!on)return window.lvStart();getTok(false).then(function(){return go('force')},function(e){setStatus(String(e.message||e))})};
+ window.lvDisconnect=function(){on=false;ls('lvOn',null);ls('lvOff','1');ls('lvTok',null);tok=null;exp=0;fileId=null;var h=$id('sy');if(h)h.textContent='';setStatus('Live sync is off on this device.');try{paint()}catch(e){}};
  window.lvStop=function(){if(!confirm('Stop live sync on this device? Your data stays here and in Drive.'))return;on=false;ls('lvOn',null);ls('lvOff','1');ls('lvTok',null);tok=null;exp=0;var h=$id('sy');if(h)h.textContent='';setStatus('Live sync is off on this device.');paint()};
  function ago(t){if(!t)return 'never';var m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':new Date(t).toLocaleString('en-IN')}
  function isP(){return window.innerWidth<900}
  function cardM(){return '<div class="mg"><div class="mgt">Live sync (several phones / computers)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</div>'+
-   '<div class="gdst" style="font-size:13px;color:#4a5068;line-height:1.45;padding:2px 0 10px">Keeps one live file in your Google Drive. Sign in with the <b>same Google account</b> on every device. Different from the daily backups.</div>'+
+   '<div class="gdst" style="font-size:13px;color:#4a5068;line-height:1.45;padding:2px 0 10px">Keeps one live file in your Google Drive. On every device connect the <b>same Google Drive account</b> (shown under Google Drive Backup). Different from the daily backups.</div>'+
    '<div class="mr"><span>Status</span><span id="lvSt" style="text-align:right;font-size:13px;color:#4a5068;max-width:60%">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</span></div>'+
    '<button class="b gdfull" style="width:100%;padding:13px;font-size:15px;margin:6px 0" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+
    (on?'<div class="mr" style="color:#d93025;font-weight:600" onclick="lvStop()"><span>Stop live sync on this device</span></div>':'')+'</div>'}
  function cardD(){return '<div class="card" style="max-width:760px"><b style="font-size:16px">Live sync (several devices)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</b>'+
-   '<p class="mu" style="margin:5px 0">Keeps one live file in your Google Drive ("'+FILE+'"). Sign in with the <b>same Google account</b> on every phone or computer. Each device checks about every 6 seconds while the app is open and merges bills and payments, so devices do not overwrite each other. This is separate from the daily backups below.</p>'+
+   '<p class="mu" style="margin:5px 0">Keeps one live file in your Google Drive ("'+FILE+'"). On every phone or computer connect the <b>same Google Drive account</b> (shown under Google Drive backup). Each device checks about every 6 seconds while the app is open and merges bills and payments, so devices do not overwrite each other. This is separate from the daily backups below.</p>'+
    '<div id="lvSt" class="mu" style="margin:8px 0">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</div>'+
    '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+(on?'<button class="s" onclick="lvStop()">Stop on this device</button>':'')+'</div></div>'}
  function paint(){var e=$id('lvSt');if(e)e.textContent=lastMsg||(on?'Starting...':'Off on this device')}
@@ -9567,6 +9577,11 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     if(f&&f.logo){if(!lg.querySelector('img')||lg.querySelector('img').getAttribute('src')!==f.logo)lg.innerHTML='<img src="'+f.logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'}
     else{var ch=(nm||'A').charAt(0).toUpperCase();if(lg.querySelector('img')||lg.textContent!==ch)lg.textContent=ch}}
    var mn=document.querySelector('#mtop .mnm b');if(mn&&mn.textContent!==nm)mn.textContent=nm;
+   /* laptop bill/purchase screens: the name at the top right follows the chosen firm too */
+   var dk=document.querySelectorAll('.dkh .firm');
+   for(var q=0;q<dk.length;q++){var fe=dk[q],tn=fe.lastChild,ic=fe.querySelector('i');
+    if(tn&&tn.nodeType===3){if(tn.nodeValue!==nm)tn.nodeValue=nm}
+    if(ic){var bg=(f&&f.logo)?'url("'+f.logo+'") center/cover':'';if(ic.style.background!==bg&&(f&&f.logo||ic.style.background))ic.style.background=bg}}
   }catch(e){}};
  var _r=render;render=function(){var r=_r.apply(this,arguments);window.fmHead();return r};
  if(typeof mBar==='function'){var _m=mBar;mBar=function(){var r=_m.apply(this,arguments);window.fmHead();return r}}
@@ -9574,6 +9589,88 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 })();
 </script>
 
+
+<script id="drive-setup">
+/* FIRST-TIME GOOGLE DRIVE SETUP: after sign-in, every customer chooses the Google account whose Drive keeps their
+   daily backup and live-sync file. It can differ from the sign-in account. Phone and laptop use the same screen. */
+(function(){
+ var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
+ var later=false,busy=false,view='start',doneMail='';
+ var E=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+ function pro(){try{return !!(window.PLAN&&PLAN.pro&&PLAN.pro())}catch(e){return false}}
+ function sess(){return window.__sbSess||null}
+ function otherDevice(){try{return String(sess().user.user_metadata.drive_email||'').toLowerCase()}catch(e){return ''}}
+ function connected(){return !!(LS('gdWho')||LS('gdAcct')||LS('gdLinked')==='1')}
+ var st=document.createElement('style');
+ st.textContent='#gdw{position:fixed;inset:0;z-index:70;background:var(--bg,#eef1f7);display:flex;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px))}'
+ +'#gdw .gdwc{margin:auto;width:100%;max-width:440px;box-sizing:border-box}'
+ +'#gdw .gdwi{width:52px;height:52px;border-radius:50%;background:#e8f0fe;color:#1a73e8;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:10px}'
+ +'#gdw h2{margin:0 0 6px;font-size:21px}#gdw p{margin:6px 0;line-height:1.45}'
+ +'#gdw .gdwl{margin:10px 0;padding-left:20px;line-height:1.6;font-size:14.5px}'
+ +'#gdw .gdwh,#gdw .gdww{border-radius:10px;padding:10px 12px;margin:10px 0;font-size:14px;line-height:1.45}'
+ +'#gdw .gdwh{background:#e8f0fe;color:#174ea6}#gdw .gdww{background:#fff4e5;color:#7a4b00}'
+ +'#gdw .gdwb{width:100%;min-height:48px;font-size:16px;margin-top:8px}'
+ +'#gdw .gdwo{width:100%;min-height:44px;margin-top:8px}'
+ +'#gdw .gdwm{min-height:20px;margin-top:10px;font-size:14px;color:var(--rd,#d93025)}'
+ +'#gdw .gdwt{display:block;margin:12px auto 0;background:none;border:0;color:#1a73e8;font-size:15px;padding:10px;cursor:pointer}'
+ +'#gdw .gdwr{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd,#e3e7ee);font-size:14.5px}'
+ +'@media(min-width:900px){#gdw .gdwc{max-width:520px;padding:28px}#gdw .gdwb{width:auto;min-width:260px}#gdw .gdwo{width:auto}}';
+ document.head.appendChild(st);
+ function paintW(){
+  var e=document.getElementById('gdw');if(!e){e=document.createElement('div');e.id='gdw';document.body.appendChild(e)}
+  var P=pro(),od=otherDevice(),isC=connected(),h='<div class="card gdwc">';
+  if(view==='done'){
+   h+='<div class="gdwi" style="background:#e6f4ea;color:#188038">\u2713</div><h2>Google Drive is connected</h2>'
+    +'<div class="gdwr"><span>Drive account</span><b>'+E(doneMail)+'</b></div>'
+    +'<div class="gdwr"><span>Daily backup</span><b>ON</b></div>'
+    +'<div class="gdwr"><span>Live sync (all devices)</span><b>'+(P?'Starting':'Pro plan')+'</b></div>'
+    +'<p class="mu" style="font-size:13.5px">On every other phone or computer, sign in here and choose <b>this same Drive account</b>.</p>'
+    +'<button class="b gdwb" onclick="gdwClose()">Done</button>';
+  }else if(view==='change'){
+   h+='<div class="gdwi">\u2601</div><h2>Change Drive account</h2>'
+    +'<p class="mu">This device is using <b>'+E(LS('gdWho')||LS('gdAcct')||'a Google account')+'</b>.</p>'
+    +'<div class="gdww">Your old backups stay in the old Drive. Live sync on your other devices must be switched to the new account too, otherwise they will stop meeting each other.</div>'
+    +'<button class="b gdwb" onclick="gdwChange()">Disconnect and choose another</button>'
+    +'<button class="s gdwo" onclick="gdwClose()">Keep this account</button>';
+  }else{
+   h+='<div class="gdwi">\u2601</div><h2>Set up Google Drive</h2>'
+    +'<p class="mu">Your daily backup'+(P?' and live sync':'')+' will be saved in the Google Drive you choose. It can be a <b>different account</b> from the one you signed in with.</p>'
+    +(od?'<div class="gdwh">Your other device uses <b>'+E(od)+'</b>. Choose the same account so all devices stay together.</div>':'')
+    +'<ol class="gdwl"><li>Tap <b>Choose Google account</b></li><li>Pick the Drive account and tap <b>Allow</b></li><li>Use the <b>same account</b> on every phone and computer</li></ol>'
+    +'<button id="gdwGo" class="b gdwb" onclick="gdwGo()">Choose Google account</button>'
+    +'<div id="gdwm" class="gdwm"></div>'
+    +'<button class="gdwt" onclick="gdwLater()">Set up later</button>'
+    +'<p class="mu" style="font-size:12.5px;text-align:center">The app can only see the backup files it creates itself, nothing else in your Drive.</p>';
+  }
+  e.innerHTML=h+'</div>'}
+ function say(t){var m=document.getElementById('gdwm');if(m)m.textContent=t}
+ window.gdwClose=function(){var e=document.getElementById('gdw');if(e)e.remove();view='start'};
+ window.gdwLater=function(){later=true;window.gdwClose()};
+ window.gdwOpen=function(force){if(force)later=false;view=(force&&connected())?'change':'start';paintW()};
+ window.gdwChange=function(){
+  if(typeof window.gdOff==='function')window.gdOff();
+  if(connected())return;            /* the person pressed Cancel in the confirm box */
+  LS('gdEmail',null);
+  view='start';paintW()};
+ window.gdwGo=function(){
+  if(busy)return;
+  if(typeof window.gdConnect!=='function')return say('Not ready yet. Wait a moment and press again.');
+  busy=true;var b=document.getElementById('gdwGo');if(b)b.disabled=true;say('Opening Google...');
+  var h=otherDevice();if(h&&!LS('gdEmail'))LS('gdEmail',h);
+  window.gdConnect().then(function(w){
+   busy=false;doneMail=w||LS('gdWho')||'';
+   try{if(window.SB&&SB.auth&&SB.auth.updateUser&&doneMail)SB.auth.updateUser({data:{drive_email:doneMail}})}catch(e){}   /* so the next device can suggest the same account */
+   if(pro()&&typeof window.lvStart==='function'){try{window.lvStart()}catch(e){}}
+   view='done';paintW()},
+  function(e){busy=false;var b2=document.getElementById('gdwGo');if(b2)b2.disabled=false;say(String(e&&e.message||e))})};
+ /* show it once after sign-in, until the customer has chosen a Drive account ("Set up later" returns on the next app open) */
+ function check(){
+  if(later||busy||document.getElementById('gdw')||document.getElementById('lgn'))return;
+  if(!sess()||connected()||LS('gdSkip')==='1')return;
+  view='start';paintW()}
+ setInterval(check,1500);setTimeout(check,800);
+})();
+</script>
 
 </body>
 </html>
