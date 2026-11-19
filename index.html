@@ -6975,10 +6975,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      if(!lock)return accept(r.access_token,r);
      whoIs(r.access_token).then(function(w){
       if(!w){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
-      if(normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));
+      /* account lock skipped: any Google account is accepted */
       accept(r.access_token,r,w)})},
     error_callback:function(e){var t=e&&e.type;rej(new Error(t==='popup_failed_to_open'||t==='popup_blocked_by_browser'?'The browser blocked the Google window. Allow pop-ups for this site, then press Back up now again.':t==='popup_closed'?'The Google window was closed before it finished. Press again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press again.'))}});
-   c.requestAccessToken({prompt:ask?((LS('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
+   c.requestAccessToken({prompt:'select_account'||((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
 
  /* ---------- Google Drive calls ---------- */
  function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
@@ -7190,10 +7190,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      if(!lock)return accept(r.access_token,r);
      whoIs(r.access_token).then(function(w){
       if(!w){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
-      if(normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));
+      /* account lock skipped: any Google account is accepted */
       accept(r.access_token,r)})},
     error_callback:function(e){var t=e&&e.type,b=t==='popup_failed_to_open'||t==='popup_blocked_by_browser';rej(Object.assign(new Error(b?'blocked':t==='popup_closed'?'The Google window was closed before it finished. Press Start again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press Sync now.'),{blocked:b}))}});
-   c.requestAccessToken({prompt:first?((ls('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
+   c.requestAccessToken({prompt:'select_account'||((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':'')})})};if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
  var lastErr='';function armTapE(e){if(e&&e.message&&!e.blocked)lastErr=String(e.message);armTap()}
  function armTap(){
