@@ -7435,7 +7435,15 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   lastStamp=j.md5Checksum||j.modifiedTime||'';var wst=lastStamp;
   return new Promise(function(ok){setTimeout(ok,RACE_WAIT)}).then(function(){return getMeta(t,fileId)}).then(function(m){
    if((m.md5Checksum||m.modifiedTime||'')===lastStamp){pend=null;if(pk){base=pk.snap;saveBase()}else snapshotBase();return res}
-   lg('RACE: Drive file changed after our save (wrote '+String(lastStamp).slice(0,6)+', now '+String(m.md5Checksum||m.modifiedTime||'').slice(0,6)+')');pend=pk?{id:pk.id,snap:pk.snap}:null;lastStamp='';ls('lvDirty','1');return 'race'})}
+   var nowSt=m.md5Checksum||m.modifiedTime||'';
+   function realRace(){lg('RACE: Drive file changed after our save (wrote '+String(lastStamp).slice(0,6)+', now '+String(nowSt).slice(0,6)+')');pend=pk?{id:pk.id,snap:pk.snap}:null;lastStamp='';ls('lvDirty','1');return 'race'}
+   /* Fix4: Google can show an old checksum for a while. Look inside the file: if it holds OUR save, it is not a race. */
+   var mine=pk?pk.id:lastId;
+   return api('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{},t).then(function(r){return r.text()}).then(function(tx){
+    var x=JSON.parse(tx),ok=!!x&&(x._id===mine||(x._chain||[]).indexOf(mine)>=0);
+    lg('Fix4: file holds '+String(x._id).slice(-6)+', mine '+String(mine).slice(-6)+' -> '+(ok?'ours, OK':'not ours'));
+    if(ok){lastStamp=nowSt;pend=null;if(pk){base=pk.snap;saveBase()}else snapshotBase();return res}
+    return realRace()},function(e){lg('Fix4: could not read file: '+(e&&e.message||e));return realRace()})})}
  function round(why){
   roundG=gen;
   if(!hasData()){base={h:{},q:{},m:{}}}   /* an empty device must never delete anything in Drive */
