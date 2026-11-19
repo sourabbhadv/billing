@@ -3617,7 +3617,10 @@ function prCtx(){var b=D.bills.filter(function(x){return !x.x&&x.lines&&x.lines.
 
 /* ---- shared pieces ---- */
 function hdrP(){var p=PS(),n=p.name||D.shop;return {lg:(op('pr_logo')&&p.logo)?p.logo:'',nm:op('pr_nm')?n:'',tag:op('pr_nm')?(p.tag||''):'',ad:op('pr_ad')?(p.addr||''):'',ph:op('pr_ph')?(p.phone||''):'',em:op('pr_em')?(p.email||''):'',ex:op('pr_ex')?(p.extra||''):''}}
-function contact(h){return [h.ph&&'Phone: '+esc(h.ph),h.em&&esc(h.em),h.ex&&esc(h.ex)].filter(Boolean).join(' &nbsp;|&nbsp; ')}
+function gfirm(){try{var p=PS(),L=p.firms||[],id=window.__fmPrintActive,f=id&&L.find(function(x){return x.id===id});if(f)return f;var m=(p.owner&&p.emails&&p.emails[p.owner])||(L[0]&&L[0].id);return L.find(function(x){return x.id===m})||null}catch(e){return null}}
+function gstLine(){var f=gfirm();return(f&&f.gst&&f.gstOff!==true)?String(f.gst):''}
+function taxOn(){var f=gfirm();return !!(f&&f.taxInc)}
+function contact(h){var s=[h.ph&&'Phone: '+esc(h.ph),h.em&&esc(h.em),h.ex&&esc(h.ex)].filter(Boolean).join(' &nbsp;|&nbsp; '),g=gstLine();return g?(s?s+'</div><div>':'')+'<b>GSTIN: '+esc(g)+'</b>':s}
 function foot(){var p=PS(),n=p.name||D.shop;return {terms:(op('pr_tm')&&(p.terms==null||p.terms))?esc(p.terms||'Thank you for your business!').replace(/\n/g,'<br>'):'',bank:(p.pr_bk&&p.bank)?esc(p.bank).replace(/\n/g,'<br>'):'',sign:p.nosign?null:{n:esc(n),t:esc(p.sigtx||'Authorised Signatory')}}}
 function totRows(c){var sub=sumA(c),r=[];
  if(c.disc>0&&op('pr_disc')){r.push(['Sub Total',F(sub)]);r.push(['Discount','- '+F(c.disc)])}
@@ -3646,7 +3649,7 @@ function regDoc(c,th,copy){
   var n=(bto?1:0)+(sto?1:0);info=n?'<div class="info n'+n+'">'+bto+sto+'</div>':''}
  else{var n2=(bto?1:0)+(sto?1:0)+1;info='<div class="info n'+n2+'">'+bto+sto+'<div class="mt0">'+mt+'</div></div>'}
  var left='';if(off('pr_wd'))left+='<div class="wd"><small>Invoice amount in words</small><b>'+inWords(c.total)+'</b></div>';
- var tt='<table class="tt">'+totRows(c).map(function(r){return '<tr class="'+(r[2]||'')+'"><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'}).join('')+'</table>';
+ var tt='<table class="tt">'+totRows(c).map(function(r){return '<tr class="'+(r[2]||'')+'"><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'}).join('')+'</table>'+(taxOn()?'<div class="txi" style="text-align:right;font-size:.85em;font-style:italic;font-weight:600;margin-top:4px;padding:0 6px">All taxes included</div>':'');
  var f2=(ft.bank?'<div class="fb"><small>Bank details</small>'+ft.bank+'</div>':'')+(ft.terms?'<div class="fb"><small>Terms and conditions</small>'+ft.terms+'</div>':'');
  var fo=(f2||ft.sign)?'<div class="ftr"><div class="fl">'+f2+'</div>'+(ft.sign?'<div class="sg"><span>For '+ft.sign.n+'</span><span class="sgt">'+ft.sign.t+'</span></div>':'')+'</div>':'';
  return '<div class="pgw th-'+th+'">'+(copy?'<div class="cp">'+esc(copy)+'</div>':'')+(grid?'<div class="ttl">'+esc(c.title)+'</div>'+top:head+'<div class="ttl">'+esc(c.title)+'</div>')+info+itemsTbl(c)+'<div class="bot"><div class="bl">'+left+'</div><div class="br">'+tt+'</div></div>'+fo+(c.x?'<div class="cx">CANCELLED</div>':'')+'</div>'}
@@ -3689,6 +3692,7 @@ function thDoc(c,th){
  if(op('th_ad')&&p.addr)h.push('<div class="tc">'+nl2(p.addr)+'</div>');
  if(op('th_ph')&&p.phone)h.push('<div class="tc">Ph: '+esc(p.phone)+'</div>');
  if(op('th_ex')&&p.extra)h.push('<div class="tc">'+esc(p.extra)+'</div>');
+ if(gstLine())h.push('<div class="tc b">GSTIN: '+esc(gstLine())+'</div>');
  var o=h.join('')+'<div class="dl"></div><div class="tc b">'+esc(c.title)+'</div><div class="row"><span>'+esc(c.noLb.replace(' No.',''))+' #'+c.no+'</span><span>'+dS(c.date)+' '+tS(c.date)+'</span></div>';
  if(op('th_bt'))o+='<div>'+esc(c.party.name)+(c.party.phone?' · '+esc(c.party.phone):'')+'</div>';
  if(off('th_tr')&&(c.tn||c.vn))o+='<div>Transport: '+esc(c.tn||'-')+(c.vn?' · '+esc(c.vn):'')+'</div>';
@@ -3700,6 +3704,7 @@ function thDoc(c,th){
  if(off('th_tq'))o+='<div class="row"><span>Total qty</span><span>'+totQ(c)+'</span></div>';
  if(c.disc>0&&op('th_dc')){o+='<div class="row"><span>Sub Total</span><span>'+F(sumA(c))+'</span></div><div class="row"><span>Discount</span><span>- '+F(c.disc)+'</span></div>'}
  o+=th==='t3'?'<div class="row bigt"><span>TOTAL</span><span>'+F(c.total)+'</span></div>':'<div class="row b tot"><span>TOTAL</span><span>'+F(c.total)+'</span></div>';
+ if(taxOn())o+='<div class="tc sm">All taxes included</div>';
  if(c.hasPay){if(op('th_rc'))o+='<div class="row"><span>Received</span><span>'+F(c.paid)+'</span></div>';if(op('th_bl'))o+='<div class="row"><span>Balance</span><span>'+F(Math.max(c.total-c.paid,0))+'</span></div>'}
  if(off('th_cb')&&c.cb!=null)o+='<div class="row"><span>Current balance</span><span>'+cbTxt(c.cb)+'</span></div>';
  if(off('th_wd'))o+='<div class="sm" style="margin-top:3px">'+inWords(c.total)+'</div>';
@@ -9240,7 +9245,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
       var cfg=f.print,out=Object.assign({},p);
       /* A secondary firm's invoice must never inherit the main firm's identity or branding. */
       if(activeFirm!==legacy()){
-        out.name=f.name||p.name;out.phone=f.phone||'';out.addr=f.addr||'';out.extra=f.gst||'';
+        out.name=f.name||p.name;out.phone=f.phone||'';out.addr=f.addr||'';out.extra='';
         out.logo=f.logo||'';out.bank=f.bank||'';
         if(!cfg||!cfg.enabled)out.pr_bk=!!f.bank||!!p.pr_bk;
       }
@@ -9498,7 +9503,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var p=F(),f=p.firms.find(function(x){return x.id===id});if(!f)return;
   var nm=g('cm_n_'+id);if(!nm){alert('Please type the company name.');return}
   if(p.firms.some(function(x){return x.id!==id&&String(x.name||'').trim().toLowerCase()===nm.toLowerCase()})){alert('Another company already has this name. Please type a different name.');return}
-  f.name=nm;f.phone=g('cm_p_'+id);f.gst=g('cm_g_'+id);f.em=g('cm_e_'+id);f.addr=g('cm_a_'+id);
+  f.name=nm;f.phone=g('cm_p_'+id);f.gst=g('cm_g_'+id).toUpperCase().replace(/\s+/g,'');f.em=g('cm_e_'+id);f.addr=g('cm_a_'+id);
   if(id===myId())D.shop=nm;
   save();render();alert('Company "'+nm+'" saved.')};
  window.cmpLogo=function(id,inp){
@@ -9508,6 +9513,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     x.fillStyle='#fff';x.fillRect(0,0,S,S);x.drawImage(im,sx,sy,m,m,0,0,S,S);f.logo=c.toDataURL('image/jpeg',.82);save();render()}catch(e){alert('Could not use this picture. Please try another one.')}};
    im.onerror=function(){alert('Could not read this picture. Please try another one.')};im.src=r.result};
   r.readAsDataURL(fl)};
+ window.cmpFlag=function(id,k,v){var f=F().firms.find(function(x){return x.id===id});if(!f)return;if(v)f[k]=true;else delete f[k];save()};
  window.cmpLogoDel=function(id){var f=F().firms.find(function(x){return x.id===id});if(f){delete f.logo;save();render()}};
  window.cmpDel=function(id){
   var p=F(),f=p.firms.find(function(x){return x.id===id});if(!f)return;
@@ -9527,9 +9533,11 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     +'<label class="mu">Logo</label><div style="display:flex;align-items:center;gap:10px"><span style="width:52px;height:52px;border-radius:50%;background:#101338;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;overflow:hidden;flex:none">'+(f.logo?'<img src="'+f.logo+'" style="width:100%;height:100%;object-fit:cover">':esc(String(f.name||'?').charAt(0).toUpperCase()))+'</span><input type="file" accept="image/*" onchange="cmpLogo(\''+id+'\',this)" style="flex:1;min-width:0">'+(f.logo?'<button class="s" onclick="cmpLogoDel(\''+id+'\')">Remove</button>':'')+'</div>'
     +'<label class="mu">Company name *</label><input id="cm_n_'+id+'" value="'+esc(f.name||'')+'">'
     +'<label class="mu">Phone number</label><input id="cm_p_'+id+'" type="tel" inputmode="tel" value="'+esc(f.phone||'')+'">'
-    +'<label class="mu">GST number</label><input id="cm_g_'+id+'" value="'+esc(f.gst||'')+'">'
+    +'<label class="mu">GST number</label><input id="cm_g_'+id+'" value="'+esc(f.gst||'')+'" autocapitalize="characters" maxlength="20" placeholder="Example: 27ABCDE1234F1Z5">'
+    +'<div class="setrow"><div class="t"><b>Show GST number on bills</b><span class="mu">Printed under the address. Turn off to hide it.</span></div>'+sw(f.gstOff!==true,"cmpFlag('"+id+"','gstOff',!this.checked)")+'</div>'
     +'<label class="mu">Email</label><input id="cm_e_'+id+'" type="email" value="'+esc(f.em||'')+'">'
     +'<label class="mu">Address</label><textarea id="cm_a_'+id+'" rows="2">'+esc(f.addr||'')+'</textarea>'
+    +'<div class="setrow"><div class="t"><b>Print “All taxes included” on bills</b><span class="mu">Adds this line under the total on the bill.</span></div>'+sw(!!f.taxInc,"cmpFlag('"+id+"','taxInc',this.checked)")+'</div>'
     +'<div class="row" style="justify-content:flex-start;margin-top:10px"><button class="b" onclick="cmpSave(\''+id+'\')">Save</button>'+(id===me?'':'<button class="s" onclick="cmpDel(\''+id+'\')">Delete</button>')+'</div></div>'}).join('')
    +'<div class="row" style="justify-content:flex-start;max-width:600px"><button class="b" onclick="fmNew()">+ Add new company</button></div>'}
   var h=_o.apply(this,arguments);
@@ -9559,5 +9567,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  setInterval(window.fmHead,1500);
 })();
 </script>
+
+
 </body>
 </html>
