@@ -7212,7 +7212,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
  var $id=function(i){return document.getElementById(i)};
  var client=function(){return (ls('gdCid')||DEFAULT_GOOGLE_CLIENT_ID).trim()},email=function(){return (ls('gdEmail')||'').trim()};
- var lastId='',curFrom='',curChain=[],pend=null,rescan=0,stamped={},races=0,gen=0,roundG=0,tok=null,exp=0,fileId=ls('lvFile')||null,folder=ls('gdFolder')||null,on=ls('lvOn')==='1',busy=false,timer=null,pollT=null,suppress=false,needTap=false,armed=false,lastStamp=ls('lvStamp')||'',lastMsg='';
+ var lastId='',curFrom='',curChain=[],pend=null,lastScan=0,rescan=0,stamped={},races=0,gen=0,roundG=0,tok=null,exp=0,fileId=ls('lvFile')||null,folder=ls('gdFolder')||null,on=ls('lvOn')==='1',busy=false,timer=null,pollT=null,suppress=false,needTap=false,armed=false,lastStamp=ls('lvStamp')||'',lastMsg='';
  var base=loadBase(),dev=ls('lvDev')||(function(){var d='d'+Math.random().toString(36).slice(2,8);ls('lvDev',d);return d})();
  (function(){try{var o=JSON.parse(ls('lvTok')||'null');if(o&&o.t&&o.e>Date.now()+60000){tok=o.t;exp=o.e;var tm=o.m||'';setTimeout(function(){lockMail().then(function(lk){if(lk&&tm!==lk){tok=null;exp=0;ls('lvTok',null)}})},0)}}catch(e){}})();   /* login survives a refresh */
  function loadBase(){try{var b=JSON.parse(ls('lvBase')||'null');if(b&&b.h)return b}catch(e){}return {h:{},q:{},m:{}}}
@@ -7232,7 +7232,25 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function setStatus(t){lastMsg=t;lg(String(t));var e=$id('lvSt');if(e)e.textContent=t;var h=$id('sy');if(h&&on){var ht=hdrTxt(t);if(ht&&h.textContent!==ht)h.textContent=ht}}
  function stamp(){return new Date().toLocaleTimeString('en-IN')}
  var LOGS=[];
- function lg(m){try{var l=new Date().toLocaleTimeString('en-IN')+' '+m;if(LOGS.length&&LOGS[LOGS.length-1].slice(11)===l.slice(11))return;LOGS.push(l);if(LOGS.length>40)LOGS.shift();var e=$id('lvLg');if(e)e.textContent=LOGS.join('\n')}catch(x){}}
+ function lg(m){try{var l=new Date().toLocaleTimeString('en-IN')+' '+m;if(LOGS.length&&LOGS[LOGS.length-1].slice(11)===l.slice(11))return;LOGS.push(l);if(LOGS.length>70)LOGS.shift();var e=$id('lvLg');if(e)e.textContent=LOGS.join('\n')}catch(x){}}
+ /* "Compare with Drive": shows exactly which records differ between this device and the shared live file */
+ window.lvCompare=function(){
+  if(!on||!tokOk()){lg('Compare: live sync is not connected on this device. Press Sync now first.');return}
+  lg('Comparing this device with the Drive file...');var t=tok;
+  ensureFile(t).then(function(id){if(!id)throw new Error('no live file in Drive yet');return readFile(t,id).then(function(R){return {id:id,R:R}})}).then(function(x){
+   var R=x.R,same=true;
+   lg('Drive file '+String(x.id).slice(0,6)+' saved '+String(R._saved||'?').slice(0,19)+' by '+(R._dev||'?')+(x.id===fileId?'':' (not the file this device uses!)'));
+   var cols=colsOf(D,R);
+   cols.forEach(function(c){var la=D[c]||[],ra=R[c]||[],lm={},rm={},oh=[],od=[],df=[];
+    la.forEach(function(r){lm[r.id]=r});ra.forEach(function(r){rm[r.id]=r});
+    la.forEach(function(r){if(!rm[r.id])oh.push(r.id);else if(hs(r)!==hs(rm[r.id]))df.push(r.id)});
+    ra.forEach(function(r){if(!lm[r.id])od.push(r.id)});
+    if(oh.length||od.length||df.length){same=false;lg(c+': here '+la.length+', Drive '+ra.length+(oh.length?' | only here: '+oh.slice(0,4).join(','):'')+(od.length?' | only Drive: '+od.slice(0,4).join(','):'')+(df.length?' | differ: '+df.slice(0,4).join(','):''))}});
+   var ks={},dk=[];Object.keys(D).concat(Object.keys(R)).forEach(function(k){if(cols.indexOf(k)<0&&k.charAt(0)!=='_'&&!ks[k]){ks[k]=1;if(cs(D[k]===undefined?null:D[k])!==cs(R[k]===undefined?null:R[k]))dk.push(k)}});
+   if(dk.length){same=false;lg('settings/other data differ: '+dk.join(', '))}
+   lg('deleted markers: here '+Object.keys(D._del||{}).length+', Drive '+Object.keys(R._del||{}).length);
+   lg(same?'RESULT: this device is identical to Drive':'RESULT: differences listed above. Press Sync now, then Compare again.')
+  }).catch(function(e){lg('Compare failed: '+(e&&e.message||e))})};
  window.lvCopy=function(){var t=LOGS.join('\n');try{navigator.clipboard.writeText(t).then(function(){alert('Log copied')},function(){prompt('Copy this log:',t)})}catch(e){prompt('Copy this log:',t)}};
 
  /* ---------- Google sign-in (token is kept across refresh for its 1 hour) ---------- */
@@ -7400,8 +7418,14 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   /* One-time migration scan on every device, including devices that cached an
      older file ID. Thereafter use the resolved shared ID; a 404 clears it and
      triggers discovery again. */
-  if(fileId&&ls('lvFolderScanV2')==='1')return Promise.resolve(fileId);
-  return discoverLiveFile(t).then(function(found){ls('lvFolderScanV2','1');return found.id||null});
+  /* Re-check about once a minute: if two devices ended up with DIFFERENT live files (created at different times, or by older versions),
+     every device moves to the oldest one so they all share the same data. */
+  var due=Date.now()-lastScan>60000;
+  if(fileId&&ls('lvFolderScanV2')==='1'&&!due)return Promise.resolve(fileId);
+  var prev=fileId;
+  return discoverLiveFile(t).then(function(found){ls('lvFolderScanV2','1');lastScan=Date.now();
+   if(found.id&&prev&&found.id!==prev){lg('Devices were using different live files. Switched to the oldest one (...'+String(found.id).slice(-5)+') and merging.');lastStamp='';ls('lvDirty','1')}
+   return found.id||null});
  }
  function commit(t,j,res,pk){   /* trust the written state only if Drive still holds OUR version a moment later */
   lastStamp=j.md5Checksum||j.modifiedTime||'';var wst=lastStamp;
@@ -7494,15 +7518,15 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function isP(){return window.innerWidth<900}
  function cardM(){return '<div class="mg"><div class="mgt">Live sync (several phones / computers)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</div>'+
    '<div class="gdst" style="font-size:13px;color:#4a5068;line-height:1.45;padding:2px 0 10px">Keeps one live file in your Google Drive. On every device connect the <b>same Google Drive account</b> (shown under Google Drive Backup). Different from the daily backups.</div>'+
-   '<div class="mr"><span>Status</span><span id="lvSt" style="text-align:right;font-size:13px;color:#4a5068;max-width:60%">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</span></div><div id="lvDg" style="font-size:11.5px;color:#6b7390;padding:0 0 8px">'+esc(diag())+'</div><pre id="lvLg" style="font-size:11px;max-height:150px;overflow:auto;background:#f4f5f9;border-radius:8px;padding:6px;margin:0 0 8px;white-space:pre-wrap">'+esc(LOGS.join('\n'))+'</pre><button class="s" onclick="lvCopy()" style="margin-bottom:8px">Copy log</button>'+
+   '<div class="mr"><span>Status</span><span id="lvSt" style="text-align:right;font-size:13px;color:#4a5068;max-width:60%">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</span></div><div id="lvDg" style="font-size:11.5px;color:#6b7390;padding:0 0 8px">'+esc(diag())+'</div><pre id="lvLg" style="font-size:11px;max-height:150px;overflow:auto;background:#f4f5f9;border-radius:8px;padding:6px;margin:0 0 8px;white-space:pre-wrap">'+esc(LOGS.join('\n'))+'</pre><button class="s" onclick="lvCopy()" style="margin-bottom:8px">Copy log</button> <button class="s" onclick="lvCompare()" style="margin-bottom:8px">Compare with Drive</button>'+
    '<button class="b gdfull" style="width:100%;padding:13px;font-size:15px;margin:6px 0" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+
    (on?'<div class="mr" style="color:#d93025;font-weight:600" onclick="lvStop()"><span>Stop live sync on this device</span></div>':'')+'</div>'}
  function cardD(){return '<div class="card" style="max-width:760px"><b style="font-size:16px">Live sync (several devices)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</b>'+
    '<p class="mu" style="margin:5px 0">Keeps one live file in your Google Drive ("'+FILE+'"). On every phone or computer connect the <b>same Google Drive account</b> (shown under Google Drive backup). Each device checks about every 6 seconds while the app is open and merges bills and payments, so devices do not overwrite each other. This is separate from the daily backups below.</p>'+
-   '<div id="lvSt" class="mu" style="margin:8px 0">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</div><div id="lvDg" class="mu" style="font-size:12px;margin:0 0 8px">'+esc(diag())+'</div><pre id="lvLg" style="font-size:11px;max-height:150px;overflow:auto;background:#f4f5f9;border-radius:8px;padding:6px;margin:0 0 8px;white-space:pre-wrap">'+esc(LOGS.join('\n'))+'</pre><button class="s" onclick="lvCopy()" style="margin-bottom:8px">Copy log</button>'+
+   '<div id="lvSt" class="mu" style="margin:8px 0">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</div><div id="lvDg" class="mu" style="font-size:12px;margin:0 0 8px">'+esc(diag())+'</div><pre id="lvLg" style="font-size:11px;max-height:150px;overflow:auto;background:#f4f5f9;border-radius:8px;padding:6px;margin:0 0 8px;white-space:pre-wrap">'+esc(LOGS.join('\n'))+'</pre><button class="s" onclick="lvCopy()" style="margin-bottom:8px">Copy log</button> <button class="s" onclick="lvCompare()" style="margin-bottom:8px">Compare with Drive</button>'+
    '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+(on?'<button class="s" onclick="lvStop()">Stop on this device</button>':'')+'</div></div>'}
  function diag(){var l=exp?Math.round((exp-Date.now())/60000):null,at=+ls('lvAt')||0;
-  return 'Pro: '+((window.PLAN&&PLAN.pro())?'yes':'NO')+' | Sync: '+(on?'on':'off')+' | Drive: '+(ls('gdWho')||ls('gdAcct')||'none')+' | Google login: '+(!tok?'none':(l>0?l+' min left':'expired'))+' | Last good sync: '+(at?new Date(at).toLocaleTimeString('en-IN'):'never')+' | Live file: '+(fileId?'found':'not yet')+(navigator.onLine===false?' | OFFLINE':'')}
+  return 'Pro: '+((window.PLAN&&PLAN.pro())?'yes':'NO')+' | Sync: '+(on?'on':'off')+' | Drive: '+(ls('gdWho')||ls('gdAcct')||'none')+' | Google login: '+(!tok?'none':(l>0?l+' min left':'expired'))+' | Last good sync: '+(at?new Date(at).toLocaleTimeString('en-IN'):'never')+' | Live file: '+(fileId?('...'+String(fileId).slice(-5)):'not yet')+(navigator.onLine===false?' | OFFLINE':'')}
  function paint(){var e=$id('lvSt');if(e)e.textContent=lastMsg||(on?'Starting...':'Off on this device');var g=$id('lvDg');if(g)g.textContent=diag()}
  setInterval(function(){try{paint()}catch(e){}},5000);
  var oldVbk=window.vBk;window.vBk=function(){return (isP()?cardM():cardD())+(oldVbk?oldVbk.apply(this,arguments):'')};
