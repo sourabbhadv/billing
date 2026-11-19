@@ -9595,11 +9595,12 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    daily backup and live-sync file. It can differ from the sign-in account. Phone and laptop use the same screen. */
 (function(){
  var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
- var later=false,busy=false,view='start',doneMail='';
+ var later=false,busy=false,view='start',doneMail='',changing=false,prevMail='';
+ function nm(m){m=String(m||'').toLowerCase().trim();var q=m.split('@');if(q.length==2&&(q[1]==='gmail.com'||q[1]==='googlemail.com'))return q[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  var E=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
  function pro(){try{return !!(window.PLAN&&PLAN.pro&&PLAN.pro())}catch(e){return false}}
  function sess(){return window.__sbSess||null}
- function otherDevice(){try{return String(sess().user.user_metadata.drive_email||'').toLowerCase()}catch(e){return ''}}
+ function otherDevice(){if(changing)return '';try{return String(sess().user.user_metadata.drive_email||'').toLowerCase()}catch(e){return ''}}
  function connected(){return !!(LS('gdWho')||LS('gdAcct')||LS('gdLinked')==='1')}
  var st=document.createElement('style');
  st.textContent='#gdw{position:fixed;inset:0;z-index:70;background:var(--bg,#eef1f7);display:flex;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px))}'
@@ -9626,6 +9627,12 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     +'<div class="gdwr"><span>Live sync (all devices)</span><b>'+(P?'Starting':'Pro plan')+'</b></div>'
     +'<p class="mu" style="font-size:13.5px">On every other phone or computer, sign in here and choose <b>this same Drive account</b>.</p>'
     +'<button class="b gdwb" onclick="gdwClose()">Done</button>';
+  }else if(view==='same'){
+   h+='<div class="gdwi" style="background:#fff4e5;color:#b06000">!</div><h2>Same account again</h2>'
+    +'<p class="mu">Google picked <b>'+E(doneMail)+'</b> again, so nothing changed.</p>'
+    +'<div class="gdww">In the Google window tap <b>Use another account</b> (or pick a different one from the list). If the account you want is not listed, sign in to it in this browser first.</div>'
+    +'<button class="b gdwb" onclick="gdwChange()">Choose a different account</button>'
+    +'<button class="s gdwo" onclick="gdwClose()">Keep this account</button>';
   }else if(view==='change'){
    h+='<div class="gdwi">\u2601</div><h2>Change Drive account</h2>'
     +'<p class="mu">This device is using <b>'+E(LS('gdWho')||LS('gdAcct')||'a Google account')+'</b>.</p>'
@@ -9648,9 +9655,11 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.gdwLater=function(){later=true;window.gdwClose()};
  window.gdwOpen=function(force){if(force)later=false;view=(force&&connected())?'change':'start';paintW()};
  window.gdwChange=function(){
+  var prev=LS('gdWho')||LS('gdAcct')||doneMail||'';
   if(typeof window.gdOff==='function')window.gdOff();
   if(connected())return;            /* the person pressed Cancel in the confirm box */
-  LS('gdEmail',null);
+  LS('gdEmail',null);changing=true;prevMail=prev;
+  try{if(window.SB&&SB.auth&&SB.auth.updateUser)SB.auth.updateUser({data:{drive_email:null}})}catch(e){}   /* forget the old suggestion so Google does not pre-pick it */
   view='start';paintW()};
  window.gdwGo=function(){
   if(busy)return;
@@ -9659,6 +9668,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var h=otherDevice();if(h&&!LS('gdEmail'))LS('gdEmail',h);
   window.gdConnect().then(function(w){
    busy=false;doneMail=w||LS('gdWho')||'';
+   if(changing&&prevMail&&nm(doneMail)===nm(prevMail)){view='same';paintW();return}
+   changing=false;prevMail='';
    try{if(window.SB&&SB.auth&&SB.auth.updateUser&&doneMail)SB.auth.updateUser({data:{drive_email:doneMail}})}catch(e){}   /* so the next device can suggest the same account */
    if(pro()&&typeof window.lvStart==='function'){try{window.lvStart()}catch(e){}}
    view='done';paintW()},
