@@ -7438,7 +7438,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var t=tok;
   return ensureFile(t).then(function(id){
    if(!id){   /* first device: create the file */
-    curFrom='';curChain=[];stampLocal();var pk;return folderId(t).then(function(f){pk=pack();return writeFile(t,f,null,pk.body)}).then(function(j){fileId=j.id;ls('lvFile',fileId);return commit(t,j,'created',pk)})}
+    curFrom='';curChain=[];stampLocal();var pk;return folderId(t).then(function(f){pk=pack();return writeFile(t,f,null,pk.body).catch(function(e){if(e&&e.status===404){lg('The saved backup folder cannot be used. Making a new one.');return createFolder(t).then(function(nf){return writeFile(t,nf,null,pk.body)})}throw e})}).then(function(j){fileId=j.id;ls('lvFile',fileId);return commit(t,j,'created',pk)})}
    return getMeta(t,id).then(function(m){
     var st=m.md5Checksum||m.modifiedTime||'';
     var localDirty=ls('lvDirty')==='1';
