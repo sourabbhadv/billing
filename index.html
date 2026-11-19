@@ -419,7 +419,7 @@ function rs(){try{var x=JSON.parse($('#bt').value);if(!x.items||!x.parties)throw
 function snapDaily(){
  var day=new Date().toISOString().slice(0,10),r=DB.doc('snapshots/'+day+'_1');
  try{DB.pruneSnaps(new Date(Date.now()-7*864e5).toISOString().slice(0,10)).catch(function(){})}catch(e){}
- r.get().then(function(s){if(s.exists)return;var str=JSON.stringify({parties:D.parties,items:D.items,bills:D.bills,pays:D.pays,docs:D.docs,trs:D.trs,dsp:D.dsp,shop:D.shop}),n=Math.ceil(str.length/400000),k;for(k=n;k>=1;k--)DB.doc('snapshots/'+day+'_'+k).set({day:day,n:k,total:n,data:str.slice((k-1)*400000,k*400000)}).catch(function(){})}).catch(function(){});
+ r.get().then(function(s){if(s.exists)return;var str=JSON.stringify({parties:D.parties,items:D.items,bills:D.bills,pays:D.pays,docs:D.docs,trs:D.trs,dsp:D.dsp,sls:D.sls,shop:D.shop}),n=Math.ceil(str.length/400000),k;for(k=n;k>=1;k--)DB.doc('snapshots/'+day+'_'+k).set({day:day,n:k,total:n,data:str.slice((k-1)*400000,k*400000)}).catch(function(){})}).catch(function(){});
 }
 function loadSnaps(){
  var e=$('#ss');if(!e)return;if(!DB){e.textContent='Cloud not connected';return}
@@ -3464,7 +3464,7 @@ function dkSale(){
  var eb=draft.edit?bl(draft.edit):null,nx=D.bills.reduce(function(m,x){return Math.max(m,x.no)},0)+1,dd=eb?new Date(eb.date):new Date(),sub=0,qt=0,d=+draft.disc||0,h='',rows='',p2=function(n){return (n<10?'0':'')+n};
  if(draft.terms===undefined)draft.terms=PS().terms||'';
  if(draft.dt===undefined){draft.dt=dd.getFullYear()+'-'+p2(dd.getMonth()+1)+'-'+p2(dd.getDate());draft.tm=p2(dd.getHours())+':'+p2(dd.getMinutes())}
- if(draft.ino===undefined)draft.ino=nx;if(draft.mode===undefined)draft.mode='credit';
+ if(draft.ino===undefined)draft.ino=nx;if(draft.pt===undefined)draft.pt='Cash';if(draft.mode===undefined)draft.mode='credit';
  draft.lines.forEach(function(l,k){sub+=l.amt;qt+=+l.qty||0;rows+='<tr><td class="rn"><span class="no">'+(k+1)+'</span><button type="button" class="tr" title="Click delete icon to delete row" onclick="draft.lines.splice('+k+',1);render()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v7M14 10v7"/></svg></button></td><td>'+elnIn(k,'name',l.name,'text')+'</td><td style="width:200px"><input value="'+esc(l.desc||'')+'" onchange="dkDesc('+k+',this.value)"></td><td style="width:100px">'+elnIn(k,'qty',l.qty,'number')+'</td><td style="width:110px">'+elnIn(k,'unit',l.unit,'text')+'</td><td style="width:130px">'+elnIn(k,'rate',l.rate,'number')+'</td><td class="n" style="width:130px;padding-right:12px">'+money(l.amt)+'</td><td style="width:150px">'+sentCell(l,k)+'</td><td></td></tr>'});
  if(last){var lb=D.bills.find(function(x){return x.no===last});if(lb)h+='<div class="ok" style="margin:10px 24px">Bill #'+lb.no+' saved. <button class="b" onclick="wa('+lb.no+')">Send text</button> <button class="b" onclick="shareBill('+lb.no+')">Send bill picture</button> <button class="s" onclick="printHtml(\'Bill '+lb.no+'\',billHtml(bl('+lb.no+')))">Print</button></div>'}
  if(eb)h+='<div class="ok" style="margin:10px 24px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span>Saved bill #'+eb.no+' - change anything and press Save changes.</span><span style="flex:1"></span><button class="s" onclick="wa('+eb.no+')">WhatsApp</button><button class="s" onclick="cancelBill('+eb.no+');var q=bl('+eb.no+');if(q&&q.x)leaveForm()">Cancel bill</button><button class="s" style="color:#d93025" onclick="delBill('+eb.no+')">Delete</button><button class="s" onclick="leaveForm()">Close</button></div>';
@@ -3482,13 +3482,13 @@ function dkSale(){
  +'<div class="dkb"><div>'+dkF('Transporter\'s Name','<input value="'+esc(draft.tn||'')+'" oninput="draft.tn=this.value">')+'<div style="height:16px"></div>'+dkF('Phone Number','<input type="tel" value="'+esc(draft.tph||'')+'" oninput="draft.tph=this.value">')+'<div style="height:16px"></div>'+dkF('Vehicle Number','<input value="'+esc(draft.vn||'')+'" oninput="draft.vn=this.value">')
  +'<div class="tc"><h4>Terms &amp; Conditions</h4>'+dkF('Title','<select><option>Sale Invoice</option></select>')+'<div style="height:10px"></div><textarea style="width:100%;height:80px;border:1px solid #e3e7ee;border-radius:4px;padding:8px;background:#fff;margin:0" oninput="draft.terms=this.value">'+esc(draft.terms||'')+'</textarea></div></div>'
  +'<div><button class="ghost" onclick="var e=document.getElementById(\'dkdw\');e.style.display=e.style.display===\'none\'?\'block\':\'none\';if(e.style.display!==\'none\')e.querySelector(\'textarea\').focus()">&#128196; ADD DESCRIPTION</button><div id="dkdw" style="display:'+(draft.desc?'block':'none')+';max-width:320px">'+dkF('Description','<textarea oninput="draft.desc=this.value">'+esc(draft.desc||'')+'</textarea>')+'</div></div>'
- +'<div class="dkr"><span>Discount</span><span class="two"><input id="dpc" type="number" inputmode="decimal" placeholder="(%)" value="'+((d&&sub)?Math.round(d/sub*10000)/100:'')+'" oninput="discPct(this.value)"><input id="dsc" type="number" inputmode="decimal" placeholder="(&#8377;)" value="'+(d||'')+'" oninput="discIn(this.value)"></span><span>Total</span><div class="tot" id="dsT">'+money(Math.max(sub-d,0))+'</div><span>Received</span><span class="two" style="align-items:center"><input type="checkbox" style="width:20px;height:20px" '+(draft.mode==='cash'?'checked ':'')+'onchange="recvAll(this.checked)"><input id="bp" type="number" inputmode="decimal" placeholder="0" value="'+(draft.paid||'')+'" oninput="dueNow(subTot())"></span></div></div>'
+ +'<div class="dkr"><span>Discount</span><span class="two"><input id="dpc" type="number" inputmode="decimal" placeholder="(%)" value="'+((d&&sub)?Math.round(d/sub*10000)/100:'')+'" oninput="discPct(this.value)"><input id="dsc" type="number" inputmode="decimal" placeholder="(&#8377;)" value="'+(d||'')+'" oninput="discIn(this.value)"></span><span>Total</span><div class="tot" id="dsT">'+money(Math.max(sub-d,0))+'</div><span>Received</span><span class="two" style="align-items:center"><input type="checkbox" style="width:20px;height:20px" '+(draft.mode==='cash'?'checked ':'')+'onchange="recvAll(this.checked)"><input id="bp" type="number" inputmode="decimal" placeholder="0" value="'+(draft.paid||'')+'" oninput="dueNow(subTot())"></span><span>Paid by</span><select id="dkpt" onchange="draft.pt=this.value">'+['Cash','UPI','Bank Transfer','Cheque'].map(function(o){return '<option'+((draft.pt||'Cash')===o?' selected':'')+'>'+o+'</option>'}).join('')+'</select></div></div>'
  +'<div id="dn" class="mu" style="text-align:right;padding:0 24px 8px"></div></div>'
  +'<div class="dkf"><button class="ic" title="Save and send bill picture" onclick="dkSaveThen(function(b){shareBill(b.no)})">&#8599;</button><span class="pr"><button onclick="saveAndPrint()">Print</button><button style="padding:0 10px;border-left:1px solid #e3e7ee" onclick="dkPrintMenu()">&#9662;</button></span><button class="sv" onclick="dkSave()">'+(eb?'Save changes':'Save')+'</button></div>';
  setTimeout(function(){fillP();dueNow(sub)},0);return h}
-var _sbDK=saveBill2;saveBill2=function(){if(isM())return _sbDK.apply(this,arguments);var x={bn:draft.bname,ds:draft.desc,tm:draft.terms,tp:draft.tph},n0=D.bills.length;_sbDK.apply(this,arguments);if(D.bills.length>n0){var b=D.bills[D.bills.length-1];b.bname=x.bn||'';b.desc=x.ds||'';b.terms=x.tm||'';b.tph=x.tp||'';if(x.tm!=null)PS().terms=x.tm;save()}};
-var _seDK=saveEdit;saveEdit=function(){if(isM())return _seDK.apply(this,arguments);var x={bn:draft.bname,ds:draft.desc,tm:draft.terms,tp:draft.tph},no=draft.edit;_seDK.apply(this,arguments);if(no!=null&&draft.edit==null){var b=bl(no);if(b){b.bname=x.bn||'';b.desc=x.ds||'';b.terms=x.tm!=null?x.tm:'';b.tph=x.tp||'';save()}}};
-var _ebDK=editBill;editBill=function(no){_ebDK.apply(this,arguments);if(isM())return;var b=bl(no);if(b&&draft.edit===no){var d3=new Date(b.date),p3=function(n){return (n<10?'0':'')+n};draft.bname=b.bname||'';draft.desc=b.desc||'';draft.tph=b.tph||'';draft.terms=b.terms!=null?b.terms:(PS().terms||'');draft.dt=d3.getFullYear()+'-'+p3(d3.getMonth()+1)+'-'+p3(d3.getDate());draft.tm=p3(d3.getHours())+':'+p3(d3.getMinutes());draft.ino=b.no;draft.mode=(b.total>0&&(+b.paid||0)>=b.total-0.009)?'cash':'credit';render()}};
+var _sbDK=saveBill2;saveBill2=function(){if(isM())return _sbDK.apply(this,arguments);var x={bn:draft.bname,ds:draft.desc,tm:draft.terms,tp:draft.tph,pt:draft.pt},n0=D.bills.length;_sbDK.apply(this,arguments);if(D.bills.length>n0){var b=D.bills[D.bills.length-1];b.pt=x.pt||'Cash';b.bname=x.bn||'';b.desc=x.ds||'';b.terms=x.tm||'';b.tph=x.tp||'';if(x.tm!=null)PS().terms=x.tm;save()}};
+var _seDK=saveEdit;saveEdit=function(){if(isM())return _seDK.apply(this,arguments);var x={bn:draft.bname,ds:draft.desc,tm:draft.terms,tp:draft.tph,pt:draft.pt},no=draft.edit;_seDK.apply(this,arguments);if(no!=null&&draft.edit==null){var b=bl(no);if(b){b.pt=x.pt||'Cash';b.bname=x.bn||'';b.desc=x.ds||'';b.terms=x.tm!=null?x.tm:'';b.tph=x.tp||'';save()}}};
+var _ebDK=editBill;editBill=function(no){_ebDK.apply(this,arguments);if(isM())return;var b=bl(no);if(b&&draft.edit===no){var d3=new Date(b.date),p3=function(n){return (n<10?'0':'')+n};draft.pt=b.pt||'Cash';draft.bname=b.bname||'';draft.desc=b.desc||'';draft.tph=b.tph||'';draft.terms=b.terms!=null?b.terms:(PS().terms||'');draft.dt=d3.getFullYear()+'-'+p3(d3.getMonth()+1)+'-'+p3(d3.getDate());draft.tm=p3(d3.getHours())+':'+p3(d3.getMinutes());draft.ino=b.no;draft.mode=(b.total>0&&(+b.paid||0)>=b.total-0.009)?'cash':'credit';render()}};
 vBill2=function(){return isM()?_vBmob.apply(this,arguments):dkSale()};
 /* ---- several sale bills open at the same time (tabs) ---- */
 var DKT=[],DKA=-1,DKSAVING=0;
@@ -6343,8 +6343,8 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 /* ===== ACTIVITY HISTORY: who did what, and when ===== */
 (function(){
  if(window.__actLoaded)return;window.__actLoaded=1;
- var COL=['parties','items','bills','pays','docs','trs','dsp'],PREV={},SETP=null,AT=null,ACTF={u:'',c:'',d:'7',n:100},ACTO={};
- var LAB={parties:'Party',items:'Item',bills:'Bill',pays:'Payment',docs:'Document',trs:'Transporter',dsp:'Dispatch'};
+ var COL=['parties','items','bills','pays','docs','trs','dsp','sls'],PREV={},SETP=null,AT=null,ACTF={u:'',c:'',d:'7',n:100},ACTO={};
+ var LAB={parties:'Party',items:'Item',bills:'Bill',pays:'Payment',docs:'Document',trs:'Transporter',dsp:'Dispatch',sls:'Salesman'};
  var DOCL={est:'Estimate',so:'Sale Order',chal:'Delivery Challan',sret:'Sale Return',pur:'Purchase Bill',pout:'Payment-Out',pret:'Purchase Return',pin:'Payment-In'};
  var FL={total:'Total',paid:'Paid',date:'Date',name:'Name',qty:'Qty',rate:'Rate',unit:'Unit',pid:'Party',x:'Cancelled',phone:'Phone',amt:'Amount',note:'Note',buy:'Purchase price',low:'Low-stock alert',loc:'Godown',open:'Opening balance',addr:'Address',ship:'Shipping address',disc:'Discount',tax:'Tax'};
  var MONEY={total:1,paid:1,amt:1,rate:1,buy:1,open:1};
@@ -6887,7 +6887,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  /* --- merge a backup into the app (newer records stay) --- */
  function merge(x){
   if(!x||!x.items||!x.parties)throw new Error('This is not a backup file of this app.');
-  ['parties','items','bills','pays','docs','trs','dsp'].forEach(function(c){
+  ['parties','items','bills','pays','docs','trs','dsp','sls'].forEach(function(c){
    if(!Array.isArray(x[c]))return;D[c]=D[c]||[];
    x[c].forEach(function(r){if(c==='bills'&&!r.id)r.id='b'+r.no;if(!r.id)return;var a=D[c],i=a.findIndex(function(z){return z.id===r.id});if(i<0)a.push(r);else a[i]=r})});
   if(x.shop)D.shop=x.shop;save();render()}
@@ -7048,7 +7048,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(!confirm('Restore from '+name+'?\nYou will be asked next whether to REPLACE the current data or ADD to it.'))return;
   getTok(true).then(function(t){return api('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{},t)}).then(function(r){return r.text()}).then(function(tx){
    var x=JSON.parse(tx);if(!x||!Array.isArray(x.parties)||!Array.isArray(x.items)||!Array.isArray(x.bills)||!Array.isArray(x.pays))throw new Error('This file is not a backup of this app.');
-   var ch=0;['trs','dsp'].forEach(function(c){if(!Array.isArray(x[c]))return;D[c]=D[c]||[];x[c].forEach(function(r){if(!r||!r.id)return;var i=D[c].findIndex(function(z){return z.id===r.id});if(i<0)D[c].push(r);else D[c][i]=r;ch=1})});
+   var ch=0;['trs','dsp','sls'].forEach(function(c){if(!Array.isArray(x[c]))return;D[c]=D[c]||[];x[c].forEach(function(r){if(!r||!r.id)return;var i=D[c].findIndex(function(z){return z.id===r.id});if(i<0)D[c].push(r);else D[c][i]=r;ch=1})});
    if(x.shop&&!D.shop)D.shop=x.shop;if(ch)save();
    impGo(x)}).then(null,function(e){alert(String(e&&e.message||e))})};
  window.gdOff=function(){
@@ -7148,7 +7148,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 (function(){
  var FILE='Ashirwad Billing Live.json',FOLDER='Ashirwad Billing Backup',SCOPE='https://www.googleapis.com/auth/drive.file';
  var DEFAULT_GOOGLE_CLIENT_ID='864007478846-i5r4ddpu95t9i80u57571h5cf7osr7ft.apps.googleusercontent.com';
- var KNOWN=['parties','items','bills','pays','docs','trs','dsp'];
+ var KNOWN=['parties','items','bills','pays','docs','trs','dsp','sls'];
  var POLL=6000,PUSH_DELAY=1800,RACE_WAIT=window.__RACE_WAIT||2200;
  function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
  var $id=function(i){return document.getElementById(i)};
@@ -8005,6 +8005,248 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    var c=0,c2=0,tot=0,nw=(D.docs||[]).length>n0;names.forEach(function(nm){var i=findI(nm[0]);if(!i)return;if(nw&&+nm[3]>0){i.bn=(+i.bn||0)+(+nm[3]);tot+=(+nm[3])}if(!String(i.bc||'').trim()){i.bc=nm[1]||make();c++}if(on('f_mrp')&&+nm[2]>0&&(+i.rate!==+nm[2]||+i.mrp!==+nm[2])){i.rate=+nm[2];i.mrp=+nm[2];c2++}});if((c2||tot)&&!c)save();
    if(c||tot){save();setTimeout(function(){if(confirm((tot?tot+' label'+(tot>1?'s':'')+' to print for this purchase.':c+' new barcode'+(c>1?'s':'')+'.')+' Open the label printing screen now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
   return r};
+})();
+</script>
+<script id="salesman-profiles">
+/* ================= SALESMAN PROFILES (batch 1) =================
+   - Salesmen list + profile page (same look as Transporters). Profile shows every bill where this
+     salesman was chosen on an item, so the owner can pay commission by hand. No commission maths.
+   - Uses the existing Salesman switch in Settings > General (setting key: f_sm)
+   - Old salesman names (and names found on old bills) become profiles by themselves.           */
+(function(){
+ function SLS(){D.sls=D.sls||[];return D.sls}
+ function sOn(){return (D.ps||{}).f_sm!==0}
+ if(COLS.indexOf('sls')<0)COLS.push('sls');
+ var ssel=null,sform=null,sFrom='',sTo='';
+ function hid(n){var h=5381;for(var i=0;i<n.length;i++)h=((h<<5)+h+n.charCodeAt(i))|0;return 'sm'+(h>>>0).toString(36)}
+ function sId(n){var id=hid(n);while(SLS().some(function(s){return s.id===id}))id+=Math.random().toString(36).slice(2,4);return id}
+ function dig(p){return String(p||'').replace(/\D/g,'').slice(-10)}
+ function sByName(a,b){return String(a.name).toLowerCase()<String(b.name).toLowerCase()?-1:1}
+ function migrate(scan){
+  var have={},ch=0;
+  SLS().forEach(function(s){if(!s.id){s.id=sId(s.name||'');ch=1}have[s.name]=1});
+  var add=function(n){n=String(n||'').trim();if(n&&!have[n]){have[n]=1;SLS().push({id:sId(n),name:n,phone:'',note:'',date:Date.now()});ch=1}};
+  (D.sms||[]).forEach(add);
+  if(scan)(D.bills||[]).forEach(function(b){(b.lines||[]).forEach(function(l){add(l.sm)})});
+  var nm=SLS().map(function(s){return s.name});
+  if(JSON.stringify(nm)!==JSON.stringify(D.sms||[])){D.sms=nm;ch=1}
+  if(ch)save();
+  return ch}
+ try{migrate(true)}catch(e){}
+ var _rS=render;render=function(){try{migrate(false)}catch(e){}_rS.apply(this,arguments)};
+ function inRange(b){var a=sFrom?new Date(sFrom+'T00:00:00').getTime():0,z=sTo?new Date(sTo+'T23:59:59').getTime():1e18;return b.date>=a&&b.date<=z}
+ function allStats(){var m={};(D.bills||[]).forEach(function(b){(b.lines||[]).forEach(function(l){if(!l.sm)return;var o=m[l.sm]=m[l.sm]||{nos:{},n:0};if(!o.nos[b.no]){o.nos[b.no]=1;o.n++}})});return m}
+ function sRows(s){var rows=[];(D.bills||[]).forEach(function(b){if(!inRange(b))return;var ls=(b.lines||[]).filter(function(l){return l.sm===s.name});if(ls.length)rows.push({b:b,ls:ls,amt:ls.reduce(function(a,l){return a+(+l.amt||0)},0)})});rows.sort(function(a,b){return b.b.date-a.b.date||b.b.no-a.b.no});return rows}
+ function hasBills(s){return (D.bills||[]).some(function(b){return (b.lines||[]).some(function(l){return l.sm===s.name})})}
+
+ function vForm(){
+  var o=sform.old?SLS().find(function(x){return x.id===sform.old}):null,lock=o&&hasBills(o);
+  return '<button class="s dxback" onclick="slsBack()">← Back</button><div class="dxc"><div class="dxk">'+(o?'Edit':'New')+'</div><div class="dxt" style="margin-bottom:6px">'+(o?'Edit salesman':'Add salesman')+'</div>'
+  +'<label class="dxl">Name *</label><input id="sl_n" placeholder="Salesman name" autocomplete="off" value="'+esc(o?o.name:'')+'"'+(lock?' readonly style="background:#f1f3f7"':'')+'>'
+  +(lock?'<div class="dxm" style="margin-top:4px">Name cannot change because this salesman is on bills.</div>':'')
+  +'<label class="dxl">Phone number</label><input id="sl_p" type="tel" inputmode="tel" placeholder="Optional" value="'+esc(o?o.phone||'':'')+'">'
+  +'<label class="dxl">Note</label><textarea id="sl_x" rows="2" placeholder="Optional">'+esc(o?o.note||'':'')+'</textarea>'
+  +'<div class="dxbtns" style="margin-top:14px"><button class="dxpri" onclick="slsSave()">Save</button><button class="dxsec" onclick="slsBack()">Cancel</button></div></div>'}
+
+ function vProfile(s){
+  var rows=sRows(s),live=rows.filter(function(r){return !r.b.x}),tot=live.reduce(function(a,r){return a+r.amt},0),ph=dig(s.phone);
+  var h='<button class="s dxback" onclick="slsBack()">← Back</button><div class="dxc"><div class="dxh"><div style="display:flex;gap:12px;align-items:center;min-width:0"><span class="dxav big">'+dxIni(s.name)+'</span><div style="min-width:0"><div class="dxt" style="margin:0">'+esc(s.name)+'</div><div class="dxm">'+(esc(s.phone||'')||'Salesman')+'</div></div></div></div>'
+  +(s.note?'<div class="dxm" style="margin-top:10px">'+nl2(s.note)+'</div>':'')
+  +(ph?'<div class="dxbtns" style="margin-top:12px"><a class="dxsec" href="tel:'+esc(ph)+'">'+dxI('phone')+' Call</a><a class="dxsec" target="_blank" rel="noopener" href="https://wa.me/91'+esc(ph)+'">'+dxI('chat')+' WhatsApp</a></div>':'')
+  +'<div class="dxl" style="margin-top:12px">Show bills from</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="date" value="'+esc(sFrom)+'" onchange="slsFrom(this.value)" style="flex:1;min-width:130px;margin:0"><input type="date" value="'+esc(sTo)+'" onchange="slsTo(this.value)" style="flex:1;min-width:130px;margin:0">'+((sFrom||sTo)?'<button class="dxsm" onclick="slsClr()">All dates</button>':'')+'</div>'
+  +'<div class="dxst"><div><span>Bills</span><b>'+live.length+'</b></div><div><span>Sale by him</span><b>'+money(tot)+'</b></div></div>'
+  +'<div class="dxbtns" style="margin-top:12px;gap:8px"><button class="dxsm" style="flex:1;justify-content:center" data-s="'+esc(s.id)+'" onclick="slsEdit(this.dataset.s)">✎ Edit</button><button class="dxsm dxdel" style="flex:1;justify-content:center" data-s="'+esc(s.id)+'" onclick="slsDel(this.dataset.s)">🗑 Delete</button></div></div>';
+  h+='<div class="dxlh"><b>Bills</b><span class="dxm">'+rows.length+' bill'+(rows.length===1?'':'s')+'</span></div>';
+  if(!rows.length)return h+'<div class="dxc dxm">No bills yet. On a Sale bill, choose this salesman on the items.</div>';
+  rows.forEach(function(r){var b=r.b,p=P(b.pid);
+   h+='<div class="dxc" style="cursor:pointer" data-b="'+b.no+'" onclick="slsBill(+this.dataset.b)"><div class="dxh"><div style="min-width:0"><div class="dxk">Bill #'+b.no+' · '+dt(b.date)+'</div><div class="dxt" style="font-size:16px">'+esc(p?p.name:'?')+'</div></div><div style="text-align:right"><b>'+(b.x?'<span class="red">Cancelled</span>':money(r.amt))+'</b></div></div>'
+   +r.ls.map(function(l){return '<div class="dxhi"><div>'+esc(l.name)+'</div><b>'+(l.qty||'')+' '+esc(l.unit||l.u||'')+' · '+money(+l.amt||0)+'</b></div>'}).join('')+'</div>'});
+  return h}
+
+ function vSalesmen(){
+  if(!sOn())return '<div class="dxc">The salesman feature is switched off. Turn it on in <a style="cursor:pointer;color:#1a73e8;font-weight:600" onclick="sTab=\'gen\';nav(\'set\')">Settings → General</a>.</div>';
+  try{migrate(true)}catch(e){}
+  var list=SLS().slice().sort(sByName),st=allStats(),sel=ssel?list.find(function(x){return x.id===ssel}):null,cur=sel||(window.innerWidth>=900&&!sform&&list.length?list[0]:null),hide=!!(sel||sform);
+  var L='<div class="dxdesk" style="margin-bottom:8px"><button class="b" onclick="slsNew()">+ Add Salesman</button></div>'+(list.length?'<input placeholder="Find salesman" oninput="flt(this.value)" style="margin:0 0 10px">':'')+'<div class="dxc" style="padding:0;overflow:hidden">'
+  +list.map(function(s){var n=(st[s.name]||{}).n||0;return '<div class="dxtrow'+(cur&&cur.id===s.id&&!sform?' on':'')+'" data-n="'+esc((s.name+' '+(s.phone||'')).toLowerCase())+'" data-s="'+esc(s.id)+'" onclick="slsOpen(this.dataset.s)"><span class="dxav">'+dxIni(s.name)+'</span><span class="dxtm"><b>'+esc(s.name)+'</b><small>'+(esc(s.phone||'')||'Salesman')+'</small></span><span class="dxchip b">'+n+' bill'+(n===1?'':'s')+'</span></div>'}).join('')
+  +(list.length?'':'<div class="dxm" style="padding:16px">No salesmen yet. Add one here, or on a Sale bill item.</div>')+'</div>';
+  var Rt=sform?vForm():cur?vProfile(cur):'<div class="dxc dxm dxdesk">Click a salesman to see details and bills</div>';
+  return '<h2 class="dxdesk" style="font-size:20px;margin:6px 0">Salesmen</h2><div class="split"><div class="'+(hide?'hid':'')+'">'+L+'</div><div>'+Rt+'</div></div>'}
+
+ window.slsOpen=function(id){ssel=id;sform=null;render();window.scrollTo(0,0)};
+ window.slsNew=function(){sform={};ssel=null;render()};
+ window.slsEdit=function(id){sform={old:id};render()};
+ window.slsBack=function(){if(sform)sform=null;else ssel=null;render();window.scrollTo(0,0)};
+ window.slsFrom=function(v){sFrom=v||'';render()};
+ window.slsTo=function(v){sTo=v||'';render()};
+ window.slsClr=function(){sFrom='';sTo='';render()};
+ window.slsBill=function(no){leave();pg='si';viewB=no;render();window.scrollTo(0,0)};
+ window.slsSave=function(){
+  var g=function(i){return (document.getElementById(i)||{value:''}).value.trim()},n=g('sl_n'),old=sform&&sform.old;
+  if(!n)return alert('Enter salesman name');
+  var dup=SLS().find(function(x){return x.id!==old&&x.name.trim().toLowerCase()===n.toLowerCase()});
+  if(dup)return alert('A salesman with this name already exists');
+  var o=old?SLS().find(function(x){return x.id===old}):null;
+  if(o){if(!hasBills(o))o.name=n;o.phone=g('sl_p');o.note=g('sl_x')}
+  else{o={id:sId(n),name:n,phone:g('sl_p'),note:g('sl_x'),date:Date.now()};SLS().push(o)}
+  D.sms=SLS().map(function(s){return s.name});
+  save();ssel=o.id;sform=null;render()};
+ window.slsDel=function(id){
+  var s=SLS().find(function(x){return x.id===id});if(!s)return;
+  if(hasBills(s))return alert('"'+s.name+'" is on bills, so it cannot be deleted.\n\nTo fix a phone number or note, press Edit.');
+  if(!confirm('Delete salesman "'+s.name+'"?'))return;
+  D.sms=(D.sms||[]).filter(function(n){return n!==s.name});
+  delRec('sls',s);ssel=null;save();render()};
+ /* the old Settings buttons now use the same profiles */
+ window.smAdd=function(){nav('sls');sform={};render()};
+ window.smDel=function(i){var n=(D.sms||[])[i],s=SLS().find(function(x){return x.name===n});if(s)slsDel(s.id)};
+
+ var _vPs=vPage;vPage=function(){return pg==='sls'?vSalesmen():_vPs.apply(this,arguments)};
+ var _lvS=leave;leave=function(){_lvS();ssel=null;sform=null};
+ var _gbS=goBack;goBack=function(){if(pg==='sls'&&(sform||ssel)){if(sform)sform=null;else ssel=null;render();window.scrollTo(0,0);return}_gbS.apply(this,arguments)};
+
+ /* menu: desktop side menu + phone "More" */
+ var _bnS=buildNav;buildNav=function(){_bnS.apply(this,arguments);var n=$('nav');if(!n||!sOn()||n.querySelector('[data-sls]'))return;
+  var b=document.createElement('button');b.setAttribute('data-sls','1');b.textContent='Salesmen';if(pg==='sls')b.className='on';b.onclick=function(){nav('sls')};
+  var sl=Array.prototype.find.call(n.children,function(x){return x.textContent==='Sale'});n.insertBefore(b,sl||null)};
+ var _vMoS=vMore;vMore=function(){var h=_vMoS.apply(this,arguments);if(!sOn())return h;var k='<span>Godowns</span><span class="mrc">›</span></div>',i=h.indexOf(k);
+  return i<0?h:h.slice(0,i+k.length)+'<div class="mr" onclick="nav(\'sls\')"><span>Salesmen</span><span class="mrc">›</span></div>'+h.slice(i+k.length)};
+ var _mbS=mBar;mBar=function(){_mbS();if(pg!=='sls')return;
+  var t=document.querySelector('#mtop .mttl');
+  if(t){var c=ssel&&SLS().find(function(x){return x.id===ssel});t.textContent=sform?(sform.old?'Edit salesman':'New salesman'):c?c.name:'Salesmen'}
+  var fab=document.getElementById('mfab');
+  if(fab&&sOn()&&!ssel&&!sform){fab.textContent='＋ Add New Salesman';fab.onclick=function(){sform={};ssel=null;render()};fab.classList.add('show')}};
+
+ /* Settings > General: the old small name list is replaced by a button to the Salesmen page */
+ var _vStS=vSettings;vSettings=function(){var h=_vStS.apply(this,arguments);
+  h=h.replace(/<div class="hint" style="margin-top:8px">Salesmen<\/div>[\s\S]*?\+ Add salesman<\/button>/,'<button class="s" style="margin-top:8px" onclick="nav(\'sls\')">Open Salesmen page</button>');
+  if((D.ps||{}).f_dsp===0&&typeof sTab!=='undefined'&&sTab==='gen')h=h.replace('<h3>Transporter / Rider</h3>','<h3>Transporter / Rider</h3><div class="hint" style="color:#c62828;margin-bottom:6px">Transporters work with Dispatch. Switch on "Dispatch" in Features above to use them.</div>');
+  return h};
+})();
+</script>
+<script id="paymode-capture">
+/* PAYMENT MODE (batch A): PC Sale gets "Paid by"; phone Payment-In / Payment-Out gets tap buttons (Cash, UPI, Bank Transfer, Cheque).
+   Old entries with no mode are counted as Cash by the Daily Collection page. */
+(function(){
+ var MODES=['Cash','UPI','Bank Transfer','Cheque'];
+ var st=document.createElement('style');
+ st.textContent='.dkr select{height:38px;border:1px solid #cfd5e3;border-radius:4px;background:#fff;padding:0 8px;width:100%;font-size:14px;color:#2d3350}.mptc{margin:6px 0 4px}.mptc .mptl{font-size:13px;color:#6b7280;margin-bottom:6px}.mptc .mptb{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mptc button{min-height:46px;border:1.5px solid #cfd5e3;background:#fff;color:#2d3350;border-radius:10px;font-size:15px;font-weight:600}.mptc button.on{background:#1a73e8;border-color:#1a73e8;color:#fff}';
+ document.head.appendChild(st);
+ window.mptSet=function(v){if(window.pdraft)pdraft.pt=v;[].forEach.call(document.querySelectorAll('.mptc button'),function(b){b.classList.toggle('on',b.getAttribute('data-m')===v)})};
+ var _vpi=vPayIn;
+ vPayIn=function(){var h=_vpi.apply(this,arguments);
+  if(!isM()||typeof h!=='string')return h;
+  if(!pdraft.pt)pdraft.pt='Cash';
+  var k='<button class="b" style="width:100%;margin-top:6px" onclick="savePin()">',i=h.indexOf(k);if(i<0)return h;
+  var c='<div class="mptc"><div class="mptl">'+(pdraft.out?'Paid by':'Received by')+'</div><div class="mptb">'+MODES.map(function(m){return '<button type="button" data-m="'+m+'" class="'+(pdraft.pt===m?'on':'')+'" onclick="mptSet(this.getAttribute(\'data-m\'))">'+m+'</button>'}).join('')+'</div></div>';
+  return h.slice(0,i)+c+h.slice(i)};
+ var _sp=savePin;
+ savePin=function(){
+  if(!isM()||!pdraft||pdraft.edit)return _sp.apply(this,arguments);
+  var pt=pdraft.pt||'Cash',n0=D.pays.length,r=_sp.apply(this,arguments);
+  if(D.pays.length>n0){D.pays[D.pays.length-1].pt=pt;save()}
+  return r};
+})();
+</script>
+<script id="daily-collection">
+/* ================= DAILY COLLECTION (batch B) =================
+   Money received in a day / period, split by Cash, UPI, Bank Transfer, Cheque.
+   Counts: (1) the amount received on each Sale bill, (2) every Payment-In.
+   Not counted: cancelled bills, sale-return credits, payments-out. Old entries with no mode count as Cash.
+   PC = one wide screen (tiles + table).  Phone = day strip, big total, 2x2 tiles, receipt cards.        */
+(function(){
+ var MODES=['Cash','UPI','Bank Transfer','Cheque'],COLR={'Cash':'#2e7d32','UPI':'#7b3fe4','Bank Transfer':'#1565c0','Cheque':'#ef6c00'},SHORT={'Cash':'Cash','UPI':'UPI','Bank Transfer':'Bank','Cheque':'Cheque'};
+ function ymd(d){var m=d.getMonth()+1,a=d.getDate();return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(a<10?'0':'')+a}
+ function addDays(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return ymd(d)}
+ var DC={a:ymd(new Date()),b:ymd(new Date()),m:'all'};
+ function mode(x){return MODES.indexOf(x)>=0?x:'Cash'}
+ function rows(){
+  var a=new Date(DC.a+'T00:00:00').getTime(),z=new Date(DC.b+'T23:59:59.999').getTime(),out=[];
+  (D.bills||[]).forEach(function(b){var m=+b.paid||0;if(b.x||m<=0||b.date<a||b.date>z)return;var p=P(b.pid);
+   out.push({t:b.date,ty:'Sale',ref:'Bill #'+b.no,no:b.no,n:b.pid==='__cash'?'Cash Sale':(p?p.name:'?'),amt:m,m:mode(b.pt)})});
+  (D.pays||[]).forEach(function(x){var am=+x.amt||0;if(x.x||x.ret||x.out||am<=0||/^With bill #/.test(x.note||'')||x.date<a||x.date>z)return;var p=P(x.pid);
+   out.push({t:x.date,ty:'Payment-In',ref:x.note||'',no:null,n:p?p.name:'?',amt:am,m:mode(x.pt)})});
+  out.sort(function(p,q){return q.t-p.t});return out}
+ function sums(R){var s={all:{n:0,a:0}};MODES.forEach(function(m){s[m]={n:0,a:0}});R.forEach(function(r){s.all.n++;s.all.a+=r.amt;s[r.m].n++;s[r.m].a+=r.amt});return s}
+ function tm(t){return new Date(t).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
+ function dText(s){return new Date(s+'T12:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}
+ function pText(){return DC.a===DC.b?dText(DC.a):dText(DC.a)+' to '+dText(DC.b)}
+ function preset(){var t=ymd(new Date()),y=addDays(t,-1),w=addDays(t,-6),mo=t.slice(0,8)+'01';
+  if(DC.a===t&&DC.b===t)return 'today';if(DC.a===y&&DC.b===y)return 'yest';if(DC.a===w&&DC.b===t)return 'week';if(DC.a===mo&&DC.b===t)return 'month';return ''}
+ var PRE=[['today','Today'],['yest','Yesterday'],['week','Last 7 days'],['month','This month']];
+ function chips(cls){var p=preset();return PRE.map(function(x){return '<button type="button" class="'+cls+(p===x[0]?' on':'')+'" onclick="dcPreset(\''+x[0]+'\')">'+x[1]+'</button>'}).join('')}
+ var st=document.createElement('style');
+ st.textContent=
+ '.dcp{color:#2d3350}.dcp h2{font-size:20px;margin:6px 0 10px}.dcp .dcbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}.dcp .dcbar input[type=date]{width:auto;margin:0;height:38px}'
+ +'.dcp .dcc{height:38px;border:1px solid #cfd5e3;background:#fff;border-radius:19px;padding:0 14px;font-size:14px;color:#2d3350;cursor:pointer}.dcp .dcc.on{background:#1a73e8;border-color:#1a73e8;color:#fff}'
+ +'.dcp .dcT{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:12px;margin-bottom:14px}.dcp .dct{background:#fff;border:2px solid #e3e7ee;border-radius:12px;padding:14px 16px;text-align:left;cursor:pointer;color:#2d3350}.dcp .dct.on{border-color:var(--c,#1a73e8);box-shadow:0 0 0 2px var(--c,#1a73e8) inset}.dcp .dct span{display:block;font-size:13px;color:#6b7280;font-weight:600}.dcp .dct b{display:block;font-size:24px;margin:4px 0 2px;color:var(--c,#2d3350)}.dcp .dct small{color:#7b8194}'
+ +'.dcp .dctot{background:#1a2a6c;border-color:#1a2a6c;cursor:default}.dcp .dctot span,.dcp .dctot small{color:#c9d3ff}.dcp .dctot b{color:#fff;font-size:28px}'
+ +'.dcp table.dcx{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e7ee;border-radius:8px;overflow:hidden}.dcp .dcx th{background:#f1f4fa;text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;padding:10px 12px}.dcp .dcx td{padding:10px 12px;border-top:1px solid #eef0f5;font-size:14px}.dcp .dcx .r{text-align:right}.dcp .dcx tr.k{cursor:pointer}.dcp .dcx tr.k:hover{background:#f6f9ff}'
+ +'.dcp .dcm{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;color:#fff;background:var(--c,#555)}'
+ +'.dcp .dcfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px}'
+ /* phone */
+ +'.dcp.ph{padding-bottom:100px}.dcp.ph .dcnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}.dcp.ph .dcnav button{width:46px;height:46px;border-radius:12px;border:1px solid #cfd5e3;background:#fff;font-size:20px;color:#1a73e8;flex:none}.dcp.ph .dcnav button:disabled{opacity:.35}.dcp.ph .dcd{position:relative;flex:1;height:46px;border-radius:12px;background:#fff;border:1px solid #cfd5e3;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}.dcp.ph .dcd input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0}'
+ +'.dcp.ph .dcpr{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px}.dcp.ph .dcc{flex:none;height:36px}'
+ +'.dcp.ph .dcbig{background:#1a2a6c;color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:12px}.dcp.ph .dcbig span{font-size:13px;color:#c9d3ff}.dcp.ph .dcbig b{display:block;font-size:34px;margin:2px 0}.dcp.ph .dcbig small{color:#c9d3ff}'
+ +'.dcp.ph .dcg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.dcp.ph .dct{padding:12px 14px}.dcp.ph .dct b{font-size:20px}'
+ +'.dcp.ph .dcl{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 8px}.dcp.ph .dcl a{color:#1a73e8;font-weight:600}'
+ +'.dcp.ph .dcr{background:#fff;border:1px solid #e3e7ee;border-left:5px solid var(--c,#555);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;gap:10px;align-items:center}.dcp.ph .dcr .l{min-width:0}.dcp.ph .dcr b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dcp.ph .dcr small{color:#7b8194}.dcp.ph .dcr .a{text-align:right;flex:none}.dcp.ph .dcr .a b{font-size:17px}';
+ document.head.appendChild(st);
+
+ function tiles(S,ph){
+  var all='<button type="button" class="dct dctot" style="cursor:default"><span>Total received</span><b>'+money(S.all.a)+'</b><small>'+S.all.n+' receipt'+(S.all.n===1?'':'s')+'</small></button>';
+  var ms=MODES.map(function(m){return '<button type="button" class="dct'+(DC.m===m?' on':'')+'" style="--c:'+COLR[m]+'" onclick="dcMode(\''+m+'\')"><span>'+(ph?SHORT[m]:m)+'</span><b>'+money(S[m].a)+'</b><small>'+S[m].n+' receipt'+(S[m].n===1?'':'s')+'</small></button>'}).join('');
+  return {all:all,ms:ms}}
+ function showRows(R){return DC.m==='all'?R:R.filter(function(r){return r.m===DC.m})}
+
+ function vPC(){
+  var R=rows(),S=sums(R),T=tiles(S,0),L=showRows(R),tot=L.reduce(function(a,r){return a+r.amt},0);
+  var h='<div class="dcp"><h2>Daily Collection</h2><div class="dcbar">'+chips('dcc')+'<span style="flex:1"></span><span class="mu">From</span><input type="date" value="'+esc(DC.a)+'" onchange="dcA(this.value)"><span class="mu">To</span><input type="date" value="'+esc(DC.b)+'" onchange="dcB(this.value)"></div>'
+  +'<div class="dcT">'+T.all+T.ms+'</div>'
+  +'<div class="dcbar"><b>'+(DC.m==='all'?'All receipts':esc(DC.m)+' receipts')+'</b><span class="mu">· '+esc(pText())+'</span>'+(DC.m!=='all'?'<button type="button" class="dcc" onclick="dcMode(\'all\')">Show all</button>':'')+'<span style="flex:1"></span><button type="button" class="dcc" onclick="dcCsv()">Excel</button><button type="button" class="dcc" onclick="dcPrint()">Print</button></div>';
+  if(!L.length)return h+'<div class="card mu" style="padding:18px">No money received in this period'+(DC.m==='all'?'':' by '+esc(DC.m))+'.</div></div>';
+  h+='<table class="dcx"><tr><th>Date</th><th>Time</th><th>Type</th><th>Reference</th><th>Party</th><th>Mode</th><th class="r">Amount</th></tr>'
+  +L.map(function(r){return '<tr'+(r.no!=null?' class="k" data-b="'+r.no+'" onclick="dcBill(+this.dataset.b)"':'')+'><td>'+dt(r.t)+'</td><td>'+tm(r.t)+'</td><td>'+r.ty+'</td><td>'+esc(r.ref)+'</td><td>'+esc(r.n)+'</td><td><span class="dcm" style="--c:'+COLR[r.m]+'">'+esc(r.m)+'</span></td><td class="r"><b>'+money(r.amt)+'</b></td></tr>'}).join('')
+  +'<tr><td colspan="6" class="r"><b>Total shown</b></td><td class="r"><b>'+money(tot)+'</b></td></tr></table></div>';
+  return h}
+
+ function vPH(){
+  var R=rows(),S=sums(R),T=tiles(S,1),L=showRows(R),one=DC.a===DC.b,t0=ymd(new Date());
+  var h='<div class="dcp ph">'
+  +(one?'<div class="dcnav"><button type="button" onclick="dcShift(-1)">‹</button><label class="dcd"><span>'+esc(dText(DC.a))+'</span><input type="date" value="'+esc(DC.a)+'" onchange="dcDay(this.value)"></label><button type="button" onclick="dcShift(1)"'+(DC.a>=t0?' disabled':'')+'>›</button></div>'
+       :'<div class="dcnav"><label class="dcd" style="font-size:14px"><span>'+esc(dText(DC.a))+' – '+esc(dText(DC.b))+'</span></label></div>')
+  +'<div class="dcpr">'+chips('dcc')+'</div>'
+  +'<div class="dcbig"><span>Total received</span><b>'+money(S.all.a)+'</b><small>'+S.all.n+' receipt'+(S.all.n===1?'':'s')+'</small></div>'
+  +'<div class="dcg">'+T.ms+'</div>'
+  +'<div class="dcl"><b>'+(DC.m==='all'?'All receipts':esc(DC.m))+'</b>'+(DC.m!=='all'?'<a onclick="dcMode(\'all\')">Show all</a>':'')+'</div>';
+  if(!L.length)return h+'<div class="card mu">No money received'+(DC.m==='all'?'':' by '+esc(DC.m))+'.</div></div>';
+  h+=L.map(function(r){return '<div class="dcr" style="--c:'+COLR[r.m]+'"'+(r.no!=null?' data-b="'+r.no+'" onclick="dcBill(+this.dataset.b)"':'')+'><div class="l"><b>'+esc(r.n)+'</b><small>'+(one?'':dt(r.t)+' · ')+tm(r.t)+' · '+(r.no!=null?esc(r.ref):'Payment-In')+'</small></div><div class="a"><b>'+money(r.amt)+'</b><span class="dcm" style="--c:'+COLR[r.m]+'">'+esc(SHORT[r.m])+'</span></div></div>'}).join('');
+  return h+'</div>'}
+
+ function vDcol(){return isM()?vPH():vPC()}
+ window.dcPreset=function(k){var t=ymd(new Date());
+  if(k==='today'){DC.a=t;DC.b=t}else if(k==='yest'){DC.a=DC.b=addDays(t,-1)}else if(k==='week'){DC.a=addDays(t,-6);DC.b=t}else if(k==='month'){DC.a=t.slice(0,8)+'01';DC.b=t}
+  render()};
+ window.dcA=function(v){if(!v)return;DC.a=v;if(DC.b<v)DC.b=v;render()};
+ window.dcB=function(v){if(!v)return;DC.b=v;if(DC.a>v)DC.a=v;render()};
+ window.dcDay=function(v){if(!v)return;DC.a=DC.b=v;render()};
+ window.dcShift=function(n){var d=addDays(DC.a,n);if(d>ymd(new Date()))return;DC.a=DC.b=d;render()};
+ window.dcMode=function(m){DC.m=(DC.m===m)?'all':m;render()};
+ window.dcBill=function(no){leave();pg='si';viewB=no;render();window.scrollTo(0,0)};
+ window.dcCsv=function(){var L=showRows(rows());window.RCUR={name:'daily-collection',h:['Date','Time','Type','Reference','Party','Mode','Amount'],r:L.map(function(r){return [dt(r.t),tm(r.t),r.ty,r.ref,r.n,r.m,r.amt]})};csvCur()};
+ window.dcPrint=function(){var R=rows(),S=sums(R),L=showRows(R);
+  var head=['Date','Time','Type','Reference','Party','Mode','Amount'],body=L.map(function(r){return [dt(r.t),tm(r.t),r.ty,esc(r.ref),esc(r.n),r.m,money(r.amt)]});
+  printHtml('Daily Collection','<h2>'+esc(D.shop)+'</h2><h3>Daily Collection</h3><p class="m">Period: '+esc(pText())+(DC.m==='all'?'':' · '+esc(DC.m)+' only')+'</p>'
+   +'<p><b>Total: '+money(S.all.a)+'</b> &nbsp; '+MODES.map(function(m){return esc(m)+': '+money(S[m].a)}).join(' &nbsp; ')+'</p>'+tbl(head,body))};
+
+ var _vPd=vPage;vPage=function(){return pg==='dcol'?vDcol():_vPd.apply(this,arguments)};
+ var _nvd=nav;nav=function(k){if(k==='dcol'){var t=ymd(new Date());DC.a=t;DC.b=t;DC.m='all'}_nvd.apply(this,arguments)};
+ var _bnd=buildNav;buildNav=function(){_bnd.apply(this,arguments);var n=$('nav');if(!n||n.querySelector('[data-dcol]'))return;
+  var b=document.createElement('button');b.setAttribute('data-dcol','1');b.textContent='Daily Collection';if(pg==='dcol')b.className='on';b.onclick=function(){nav('dcol')};
+  var rp=Array.prototype.find.call(n.children,function(x){return x.textContent==='Reports'});n.insertBefore(b,rp||null)};
+ var _vmd=vMore;vMore=function(){var h=_vmd.apply(this,arguments),k='<span>Godowns</span><span class="mrc">›</span></div>',i=h.indexOf(k);
+  return i<0?h:h.slice(0,i+k.length)+'<div class="mr" onclick="nav(\'dcol\')"><span>Daily Collection</span><span class="mrc">›</span></div>'+h.slice(i+k.length)};
+ var _mbd=mBar;mBar=function(){_mbd();if(pg!=='dcol')return;var t=document.querySelector('#mtop .mttl');if(t)t.textContent='Daily Collection'};
 })();
 </script>
 <script id="firms-step1">
