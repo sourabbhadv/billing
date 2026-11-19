@@ -7026,11 +7026,11 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(LS('gdOn')!=='1'||LS('gdDay')===today()||busy||!hasData()||!ready())return;
   if(Date.now()-lastTry<30*60*1000)return;
   armTap();run(false).then(paint,function(){showPend();paint()})}
- var armed=false;
- function armTap(){if(armed)return;armed=true;
+ var armed=false,noTap=false;
+ function armTap(){if(armed||noTap)return;armed=true;
   document.addEventListener('click',function h(){document.removeEventListener('click',h,true);armed=false;
    if(LS('gdOn')!=='1'||LS('gdDay')===today()||busy||!hasData()||!ready())return;
-   run(false).then(paint,function(){showPend();paint()})},true)}
+   run(false).then(paint,function(){noTap=true;showPend();paint()})},true)}
  setTimeout(daily,12000);setInterval(daily,60*1000);
  document.addEventListener('visibilitychange',function(){if(!document.hidden)daily()});
 
@@ -7190,7 +7190,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(tokOk())return Promise.resolve(tok);
   var _run=function(lock){return new Promise(function(res,rej){
    var hint=lock||email()||undefined;
-   function accept(t,r){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;exp=Date.now()+(+r.expires_in||3600)*1000;ls('lvTok',JSON.stringify({t:tok,e:exp,m:lock}));ls('gdLinked','1');needTap=false;res(tok)}
+   function accept(t,r){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;exp=Date.now()+(+r.expires_in||3600)*1000;ls('lvTok',JSON.stringify({t:tok,e:exp,m:lock}));ls('gdLinked','1');needTap=false;lastErr='';res(tok)}
    var c=google.accounts.oauth2.initTokenClient({client_id:client(),scope:SCOPE,login_hint:hint,hint:hint,
     callback:function(r){
      if(!(r&&r.access_token))return rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'));
@@ -7204,8 +7204,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
  var lastErr='';function armTapE(e){if(e&&e.message&&!e.blocked)lastErr=String(e.message);armTap()}
  function armTap(){
-  needTap=true;setStatus(lastErr?('Tap anywhere to try again. Last problem: '+lastErr):'Tap once anywhere to keep live sync running');
-  if(armed)return;armed=true;
+  needTap=true;setStatus(lastErr?('Press "Sync now" to try again. Last problem: '+lastErr):'Tap once anywhere to keep live sync running');
+  if(armed||lastErr)return;armed=true;
   document.addEventListener('click',function h(){document.removeEventListener('click',h,true);armed=false;
    if(!on||tokOk())return;
    getTok(false).then(function(){go('reconnect')},function(e){armTapE(e)})},true)}
