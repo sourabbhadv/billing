@@ -51,10 +51,13 @@
 
  function readSb(){try{return JSON.parse(LS('sb')||'null')}catch(e){return null}}
  function hasRows(d){return !!(d&&((d.items&&d.items.length)||(d.parties&&d.parties.length)||(d.bills&&d.bills.length)||(d.docs&&d.docs.length)||(d.pays&&d.pays.length)))}
- function labelled(d,em){var p=(d&&d.ps)||{};return String(p.owner||'').toLowerCase()===em||!!(p.emails&&p.emails[em])}
+ function labelled(d,em){var p=(d&&d.ps)||{};return String(p.owner||'').toLowerCase()===em}
  window.acctCheck=function(email,cont){
   email=String(email||'').toLowerCase();if(!email)return false;
-  var o=LS('sbOwner');
+  if(busy)return true;
+  var o=LS('sbOwner'),d0=readSb(),po=String((d0&&d0.ps&&d0.ps.owner)||'').toLowerCase();
+  /* the data names its own owner: any OTHER account is switched away from it, whatever the saved tag says */
+  if(po&&po!==email&&hasRows(d0)){swap(email,po);return true}
   if(o===email)return false;
   if(!o){
    var d=readSb();
@@ -542,6 +545,7 @@ function initAuth(){
 }
 function cancelLogin(){var x=document.getElementById('lgn');if(x)x.remove()}
 function sbReady(ss){
+ if(window.acctCheck&&window.acctCheck(ss&&ss.user&&ss.user.email))return;
  window.__sbSess=ss;window.sbLive=1;
  try{localStorage.setItem('sbEml',String((ss.user&&ss.user.email)||'').toLowerCase())}catch(e){}
  if(window.PLAN&&PLAN.fetchLicense)PLAN.fetchLicense().then(function(){try{render()}catch(e){}});
@@ -9676,7 +9680,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   function(e){busy=false;var b2=document.getElementById('gdwGo');if(b2)b2.disabled=false;say(String(e&&e.message||e))})};
  /* show it once after sign-in, until the customer has chosen a Drive account ("Set up later" returns on the next app open) */
  function check(){
-  if(later||busy||document.getElementById('gdw')||document.getElementById('lgn'))return;
+  if(later||busy||document.getElementById('gdw')||document.getElementById('lgn')||document.getElementById('fnw')||document.getElementById('acctov'))return;
+  if(window.__fnSkip&&Date.now()<window.__fnSkip)return;
   if(!sess()||connected()||LS('gdSkip')==='1')return;
   view='start';paintW()}
  setInterval(check,1500);setTimeout(check,800);
