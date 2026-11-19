@@ -3715,7 +3715,7 @@ function prOpen(c,type){if(window.innerWidth<900&&window.prMobileOpen)return win
 printBill=function(no,type){var b=bl(no);if(b)prOpen(ctxBill(b),type||g('pr_tp','reg'))};
 printDoc=function(id,type){var d=docById(id);if(d)prOpen(ctxDoc(d),type||g('pr_tp','reg'))};
 prTest=function(type){prOpen(prCtx(),type||PRT)};
-window.prSetT=function(t){PRT=t;render()};window.prFull=prFull;window.prCtxX=prCtx;window.prGetT=function(){return PRT};window.prSetS=function(s){PRS=s;render()};
+window.prSetT=function(t){PRT=t;render()};window.prFull=prFull;window.prCtxX=prCtx;window.prGetT=function(){return PRT};window.prSetS=function(s){PRS=s;render()};window.prCtxBillX=function(no){var b=D.bills.find(function(x){return +x.no===+no});return b?ctxBill(b):null};window.prCtxDocX=function(id){var d=docById(id);return d?ctxDoc(d):null};
 
 /* ---- settings screen ---- */
 function thumb(id,A){var r=function(x,y,w,h,f){return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="1" fill="'+(f||'#c9cfdc')+'"/>'},s='',grid=id==='g1'||id==='g2',solid=id==='modern'||id==='stripe'||id==='card';
@@ -8515,7 +8515,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 })();
 </script>
 
-\n<script id="firms-step13">
+<script id="firms-step13">
 /* ---- FIRMS (step 13): independent logo and bank details for each firm.
    The owner's legacy/first firm continues using the existing Settings > Print
    logo and bank fields. Other firms store their own logo/bank on the firm record.
@@ -8606,6 +8606,98 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   }
 })();
 </script>
+
+<script id="firms-step18">
+/* ---- FIRMS (step 18): browser QA fixes.
+   - Manual Add Firm must not replace the logged-in account's primary firm mapping.
+   - The first new-account setup claims that account as owner.
+   - Bill and document printing must use the actual record context and its firm's print settings.
+   - Save & Print uses the same reliable print path, including all bills created by a firm split.
+*/
+(function(){
+  /* Preserve the account-to-firm link during manual firm creation. */
+  var oldFnSave=window.fnSave;
+  if(typeof oldFnSave==='function'){
+    window.fnSave=function(){
+      var modal=document.getElementById('fnw'),heading=modal&&modal.querySelector('h3'),login=!!(heading&&heading.textContent==='Set up your firm');
+      var em=String((window.__sbSess&&window.__sbSess.user&&window.__sbSess.user.email)||'').trim().toLowerCase();
+      var p=PS(),oldOwner=p.owner,oldMap=p.emails&&em?p.emails[em]:undefined;
+      var nm=(document.getElementById('fnn')||{}).value||'';
+      var result=oldFnSave.apply(this,arguments);
+      if(modal&&!document.getElementById('fnw')&&nm.trim()){
+        var f=(p.firms||[]).find(function(x){return String(x.name||'').trim().toLowerCase()===nm.trim().toLowerCase()});
+        if(login&&em&&f){
+          p.emails=p.emails||{};p.emails[em]=f.id;
+          if(!oldOwner)p.owner=em;
+          f.em=em;
+        }else if(!login&&em){
+          p.emails=p.emails||{};
+          if(oldMap)p.emails[em]=oldMap;else delete p.emails[em];
+        }
+        save();
+      }
+      return result;
+    };
+    try{fnSave=window.fnSave}catch(e){}
+  }
+
+  /* Use the newer print engine directly. The previous nested printHtml wrappers
+     could lose the body argument, and old printBill/printDoc calls could silently
+     skip the active per-firm print context. */
+  function openPrint(ctx,type){
+    if(!ctx)return;
+    var t=type||((PS()||{}).pr_tp)||'reg';
+    if(window.innerWidth<900&&typeof window.prMobileOpen==='function')return window.prMobileOpen(ctx,t);
+    if(typeof window.prFull==='function'&&typeof window.__printFrame==='function')return window.__printFrame(window.prFull(ctx,t,false));
+    alert('The print preview could not be opened. Please reload the app and try again.');
+  }
+  if(typeof window.prCtxBillX==='function'&&typeof window.fmPrintWithFirm==='function'){
+    window.printBill=function(no,type){
+      var b=bl(+no);if(!b)return;
+      var id=window.fmBillF?fmBillF(b):(b.fm||fmLegacy());
+      return window.fmPrintWithFirm(id,function(){return openPrint(window.prCtxBillX(+no),type)});
+    };
+    try{printBill=window.printBill}catch(e){}
+  }
+  if(typeof window.prCtxDocX==='function'&&typeof window.fmPrintWithFirm==='function'){
+    window.printDoc=function(id,type){
+      var d=docById(id);if(!d)return;
+      var fid=window.fmDocF?fmDocF(d):(d.fm||fmLegacy());
+      return window.fmPrintWithFirm(fid,function(){return openPrint(window.prCtxDocX(id),type)});
+    };
+    try{printDoc=window.printDoc}catch(e){}
+  }
+
+  /* Generic statements / transaction receipts still use the same print frame,
+     but must not pass through the old argument-dropping wrapper chain. */
+  window.printHtml=function(title,body){
+    var p=PS()||{},m=/^Bill\s+(\d+)/i.exec(String(title||''));
+    if(m&&window.printBill)return window.printBill(+m[1]);
+    body=String(body==null?'':body).replace(/^<h2>[\s\S]*?<\/h2>/,'');
+    var name=p.name||D.shop||'Business',logo=(p.logo&&p.pr_logo!==0)?'<img src="'+p.logo+'" style="max-width:150px;max-height:70px;object-fit:contain">':'',
+      bank=(p.pr_bk&&p.bank)?'<p><b>Bank details</b><br>'+esc(p.bank).replace(/\n/g,'<br>')+'</p>':'',
+      terms=(p.terms&&p.pr_tm!==0)?'<p>'+esc(p.terms).replace(/\n/g,'<br>')+'</p>':'',
+      margin=Math.max(0,Math.min(25,p.pr_margin==null?12:(+p.pr_margin||0))),
+      size=p.size==='A5'?'A5':'A4',land=p.pr_or==='land'?' landscape':'',
+      html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(title||'Print')+'</title><style>@page{size:'+size+land+';margin:'+margin+'mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#222;font-size:13px}header{display:flex;align-items:center;gap:14px;border-bottom:2px solid #345;padding-bottom:8px;margin-bottom:12px}header h2{margin:0}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}.r{text-align:right}</style></head><body><header>'+logo+'<div><h2>'+esc(name)+'</h2>'+(p.addr?'<div>'+esc(p.addr).replace(/\n/g,'<br>')+'</div>':'')+(p.phone?'<div>'+esc(p.phone)+'</div>':'')+'</div></header>'+body+bank+terms+'</body></html>';
+    if(typeof window.__printFrame==='function')return window.__printFrame(html);
+    alert('The print preview could not be opened. Please reload the app and try again.');
+  };
+  try{printHtml=window.printHtml}catch(e){}
+
+  /* Ensure Save & Print prints every firm-wise bill, not just the first one. */
+  window.saveAndPrint=function(){
+    if(typeof flushPend==='function'&&!flushPend())return;
+    var edit=draft&&draft.edit,n0=D.bills.length;
+    if(!draft||!draft.lines||!draft.lines.length)return alert('Add at least one item first');
+    if(edit!=null&&edit!==undefined)saveEdit();else saveBill2();
+    var list=edit!=null&&edit!==undefined?[bl(edit)].filter(Boolean):D.bills.slice(n0);
+    list.forEach(function(b,k){setTimeout(function(){try{window.printBill(b.no)}catch(e){console.error(e)}},k*700)});
+  };
+  try{saveAndPrint=window.saveAndPrint}catch(e){}
+})();
+</script>
+
 </body></html>
 
 <script id="firms-step11">
@@ -8867,5 +8959,271 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var st=document.createElement('style');st.id='firms-step14-style';
   st.textContent='.fm-tx-tag{display:inline-block;padding:3px 8px;border-radius:12px;background:#eef2ff;color:#3949ab;font-size:11px;font-weight:600;white-space:nowrap}.fm-pay-firm{display:inline-block;margin-top:5px;padding:3px 8px;border-radius:12px;background:#eef2ff;color:#3949ab;font-size:11px;font-weight:600}';
   document.head.appendChild(st);
+})();
+</script>
+
+<script id="firms-step15">
+/* ---- FIRMS (step 15): genuinely independent print-layout preferences per firm.
+   Each firm can inherit the general print setup or keep its own print preferences.
+   Firm identity/logo/bank continue to come from the firm branding layer (step 13). ---- */
+(function(){
+  var previousPS=window.PS, activeFirm=null;
+  var KEYS=['size','pr_or','pr_margin','pr_top','pr_theme','pr_col','pr_font','pr_fs','pr_nc','pr_cl','pr_tp',
+    'pr_logo','pr_nm','pr_ad','pr_ph','pr_em','pr_ex','pr_bt','pr_tr','pr_sn','pr_rate','pr_tq','pr_disc','pr_rcv','pr_bal','pr_cb','pr_wd','pr_bk','pr_tm','terms','nosign','sigtx',
+    'th_w','pr_thm','th_font','th_fs','th_lg','th_nm','th_ad','th_ph','th_ex','th_bt','th_tr','th_rt','th_tq','th_dc','th_rc','th_bl','th_cb','th_wd','th_ft','th_sp'];
+  function settings(){return typeof previousPS==='function'?previousPS():{}}
+  function firm(id){var p=settings();return (p.firms||[]).find(function(f){return f.id===id})}
+  function legacy(){var p=settings();return (p.owner&&p.emails&&p.emails[p.owner])||(p.firms&&p.firms[0]&&p.firms[0].id)||'f1'}
+  function withFirm(id,fn){var was=activeFirm,wasPublic=window.__fmPrintActive;activeFirm=id||null;window.__fmPrintActive=activeFirm;try{return fn()}finally{activeFirm=was;window.__fmPrintActive=wasPublic||null}}
+  window.fmPrintWithFirm=withFirm;
+  if(typeof previousPS==='function'){
+    window.PS=function(){
+      var p=previousPS.apply(this,arguments);
+      if(!activeFirm)return p;
+      var f=firm(activeFirm);if(!f)return p;
+      var cfg=f.print,out=Object.assign({},p);
+      /* A secondary firm's invoice must never inherit the main firm's identity or branding. */
+      if(activeFirm!==legacy()){
+        out.name=f.name||p.name;out.phone=f.phone||'';out.addr=f.addr||'';out.extra=f.gst||'';
+        out.logo=f.logo||'';out.bank=f.bank||'';
+        if(!cfg||!cfg.enabled)out.pr_bk=!!f.bank||!!p.pr_bk;
+      }
+      if(cfg&&cfg.enabled)out=Object.assign(out,cfg.values||{});
+      return out;
+    };
+    try{PS=window.PS}catch(e){}
+  }
+  function billFirm(no){var b=(D.bills||[]).find(function(x){return +x.no===+no});return b?(window.fmBillF?fmBillF(b):(b.fm||legacy())):null}
+  function docFirm(id){var d=window.docById&&docById(id);return d?(window.fmDocF?fmDocF(d):(d.fm||legacy())):null}
+  function wrap(name,resolve){var old=window[name];if(typeof old!=='function')return;var next=function(){var id=null;try{id=resolve.apply(this,arguments)}catch(e){}return withFirm(id,function(){return old.apply(this,arguments)})};window[name]=next;try{eval(name+'=next')}catch(e){}}
+  wrap('printBill',function(no){return billFirm(no)});
+  wrap('printDoc',function(id){return docFirm(id)});
+  wrap('shareBill',function(no){return billFirm(no)});
+  wrap('wa',function(no){return billFirm(no)});
+  wrap('printHtml',function(title){var m=/^Bill\s+(\d+)/i.exec(String(title||''));return m?billFirm(+m[1]):null});
+
+  /* Apply the selected firm's page margin to both the modern and legacy print engines. */
+  function preparePrintHtml(html){
+    if(activeFirm){var p=window.PS(),raw=p.pr_margin,m=raw==null?10:Math.max(0,Math.min(25,+raw||0));
+      if(!/@page\{size:\d+mm auto/i.test(html))html=String(html).replace(/(@page\{[^}]*;margin:)\d+(?:\.\d+)?mm(\})/i,'$1'+m+'mm$2');
+    }
+    return html;
+  }
+  window.__fmPrintPrepare=preparePrintHtml;
+  var oldFrame=window.__printFrame;
+  if(typeof oldFrame==='function')window.__printFrame=function(html){return oldFrame.call(this,preparePrintHtml(html))};
+
+  function copyGeneral(){var p=settings(),o={};KEYS.forEach(function(k){if(p[k]!==undefined)o[k]=p[k]});if(o.pr_margin==null)o.pr_margin=10;return o}
+  window.fmPrintEnable=function(id,on){var f=firm(id);if(!f)return;if(on){if(!f.print||!f.print.enabled)f.print={enabled:true,values:copyGeneral()};if(f.bank&&f.print.values.pr_bk==null)f.print.values.pr_bk=true}else{f.print=f.print||{};f.print.enabled=false}save();render()};
+  window.fmPrintCopy=function(id){var f=firm(id);if(!f)return;f.print={enabled:true,values:copyGeneral()};if(f.bank)f.print.values.pr_bk=true;save();render()};
+  window.fmPrintSet=function(id,key,value){var f=firm(id);if(!f)return;if(!f.print||!f.print.enabled)f.print={enabled:true,values:copyGeneral()};f.print.values=f.print.values||{};
+    if(['pr_top','pr_margin','pr_nc','th_sp'].indexOf(key)>=0)value=+value||0;
+    if(key==='pr_margin')value=Math.max(0,Math.min(25,value));
+    if(key==='pr_top')value=Math.max(0,Math.min(80,value));
+    f.print.values[key]=value;save();
+  };
+  window.fmPrintReset=function(id){var f=firm(id);if(!f)return;f.print={enabled:false,values:{}};save();render()};
+  window.fmPrintTest=function(id){withFirm(id,function(){var p=window.PS(),type=p.pr_tp||'reg';if(typeof window.prTest==='function')window.prTest(type);else alert('Open Settings → Print to preview this firm’s layout.')})};
+
+  function select(id,key,label,opts,def){var v=(id.print&&id.print.values&&id.print.values[key]!==undefined)?id.print.values[key]:((settings()[key]!==undefined)?settings()[key]:def);
+    return '<label class="mu" style="display:block;margin-top:8px">'+label+'</label><select style="width:100%;margin:3px 0" onchange="fmPrintSet(\''+id.id+'\',\''+key+'\',this.value)">'+opts.map(function(o){return '<option value="'+o[0]+'"'+(String(v)===String(o[0])?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'}
+  function number(id,key,label,def,min,max){var v=id.print&&id.print.values&&id.print.values[key]!=null?id.print.values[key]:def;
+    return '<label class="mu" style="display:block;margin-top:8px">'+label+'</label><input type="number" min="'+min+'" max="'+max+'" value="'+v+'" style="width:100%;margin:3px 0" onchange="fmPrintSet(\''+id.id+'\',\''+key+'\',this.value)">'}
+  function check(id,key,label,def){var v=id.print&&id.print.values&&id.print.values[key]!==undefined?id.print.values[key]:((settings()[key]!==undefined)?settings()[key]:def);
+    return '<label style="display:flex;align-items:center;gap:8px;margin:7px 0;font-size:13px"><input type="checkbox" style="width:18px;height:18px;margin:0" '+(v?'checked':'')+' onchange="fmPrintSet(\''+id.id+'\',\''+key+'\',this.checked)">'+label+'</label>'}
+  var oldSettings=window.vSettings;
+  if(typeof oldSettings==='function'){
+    window.vSettings=function(){var h=oldSettings.apply(this,arguments);if(sTab!=='firms')return h;
+      if(window.fmRestricted&&fmRestricted())return h;
+      var L=(settings().firms||[]).filter(function(f){return String(f.name||'').trim()});if(!L.length)return h;
+      var cards=L.map(function(f){var enabled=!!(f.print&&f.print.enabled),v=f.print&&f.print.values||{};
+        var body='<div class="row" style="justify-content:space-between;align-items:center;margin-top:8px"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:18px;height:18px;margin:0" '+(enabled?'checked':'')+' onchange="fmPrintEnable(\''+f.id+'\',this.checked)">Use separate print layout</label><button class="s" onclick="fmPrintCopy(\''+f.id+'\')">Copy general settings</button></div>';
+        if(enabled){
+          body+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:4px 12px;margin-top:8px">'
+            +select(f,'size','Paper size',[['A4','A4'],['A5','A5']],'A4')
+            +select(f,'pr_or','Orientation',[['port','Portrait'],['land','Landscape']],'port')
+            +select(f,'pr_margin','Page margins',[['5','5 mm'],['8','8 mm'],['10','10 mm'],['12','12 mm'],['15','15 mm'],['18','18 mm'],['20','20 mm'],['25','25 mm']],'10')
+            +number(f,'pr_top','Extra top space (mm)',0,0,80)
+            +select(f,'pr_theme','Bill design',[['classic','Classic'],['modern','Modern Band'],['stripe','Stripe'],['min','Minimal'],['elegant','Elegant'],['card','Total Card'],['g1','Boxed Grid 1'],['g2','Boxed Grid 2']],'classic')
+            +select(f,'pr_fs','Text size',[['S','Small'],['M','Medium'],['L','Large']],'M')
+            +select(f,'pr_font','Font',[['auto','Theme default'],['roboto','Roboto'],['arial','Arial'],['verdana','Verdana'],['georgia','Georgia'],['times','Times New Roman'],['courier','Courier']],'auto')
+            +select(f,'pr_nc','Copies per print',[['1','1 copy'],['2','2 copies'],['3','3 copies']],'1')
+            +select(f,'pr_tp','Default printer',[['reg','Regular (A4/A5)'],['th','Thermal']],'reg')
+            +select(f,'th_w','Thermal width',[['80','80 mm'],['58','58 mm']],'80')
+            +select(f,'pr_thm','Thermal design',[['t1','Receipt 1'],['t2','Receipt 2'],['t3','Bold total']],'t1')
+            +'<div><label class="mu" style="display:block;margin-top:8px">Theme colour</label><input type="color" value="'+(v.pr_col||settings().pr_col||'#1d3a8a')+'" style="width:64px;height:36px;padding:2px" onchange="fmPrintSet(\''+f.id+'\',\'pr_col\',this.value)"></div>'
+            +'</div><details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">Bill content options</summary><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:2px 12px;margin-top:8px">'
+            +check(f,'pr_logo','Show logo',true)+check(f,'pr_nm','Show firm name',true)+check(f,'pr_ad','Show address',false)+check(f,'pr_ph','Show phone',false)+check(f,'pr_em','Show email',false)+check(f,'pr_ex','Show extra line',false)
+            +check(f,'pr_bt','Party details',true)+check(f,'pr_tr','Transport / vehicle',true)+check(f,'pr_sn','Item serial number',false)+check(f,'pr_rate','Item rate column',true)+check(f,'pr_tq','Total quantity',false)
+            +check(f,'pr_disc','Discount',true)+check(f,'pr_rcv','Received amount',true)+check(f,'pr_bal','Balance amount',true)+check(f,'pr_cb','Current party balance',false)+check(f,'pr_wd','Amount in words',false)
+            +check(f,'pr_bk','Print bank / UPI details',!!f.bank)+check(f,'pr_tm','Print terms and notes',true)+check(f,'nosign','Show signature box',false)
+            +check(f,'th_lg','Thermal: logo',true)+check(f,'th_nm','Thermal: firm name',true)+check(f,'th_ad','Thermal: address',false)+check(f,'th_ph','Thermal: phone',false)+check(f,'th_ex','Thermal: extra line',false)+check(f,'th_bt','Thermal: party name',true)+check(f,'th_tr','Thermal: transport',false)+check(f,'th_rt','Thermal: rate with quantity',true)+check(f,'th_tq','Thermal: total quantity',false)+check(f,'th_dc','Thermal: discount',true)+check(f,'th_rc','Thermal: received',true)+check(f,'th_bl','Thermal: balance',true)+check(f,'th_cb','Thermal: current balance',false)+check(f,'th_wd','Thermal: amount in words',false)
+            +'</div><label class="mu" style="display:block;margin-top:8px">Terms / footer message</label><textarea rows="2" onchange="fmPrintSet(\''+f.id+'\',\'terms\',this.value)">'+String(v.terms!=null?v.terms:(settings().terms||'Thank you for your business!')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</textarea><label class="mu" style="display:block;margin-top:8px">Thermal footer message</label><input value="'+String(v.th_ft!=null?v.th_ft:(settings().th_ft||'Thank you! Visit again')).replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" onchange="fmPrintSet(\''+f.id+'\',\'th_ft\',this.value)"></details>'
+            +'<div class="row" style="justify-content:flex-start;margin-top:10px"><button class="s" onclick="fmPrintTest(\''+f.id+'\')">Test this firm’s print</button><button class="s" onclick="fmPrintReset(\''+f.id+'\')">Use general settings</button></div>';
+        }
+        return '<div class="card" style="max-width:760px;margin-top:10px"><b>'+esc(f.name)+' · Print layout</b>'+body+'</div>';
+      }).join('');
+      return h+'<div style="margin-top:18px"><h3 style="font-size:16px;margin:8px 0">Separate print layout for each firm</h3><div class="mu">Each firm can use its own paper size, orientation, margins, design, copies, printer type, colours and bill content. Firms without a separate layout continue using your general Print settings.</div>'+cards+'</div>';
+    };
+    try{vSettings=window.vSettings}catch(e){}
+  }
+  /* The older standard-print engine also needs the selected firm's margin. */
+  var oldHtml=window.printHtml;
+  if(typeof oldHtml==='function'){
+    window.printHtml=function(title,body){return oldHtml.apply(this,arguments)};
+    try{printHtml=window.printHtml}catch(e){}
+  }
+})();
+</script>
+
+<script id="firms-step16">
+/* ---- FIRMS (step 16): browser-test fixes.
+   1) Keep the per-firm page margin in the live preview as well as the print frame.
+   2) Restore per-line firm selection in the DESKTOP purchase editor (the desktop
+      form replaces the older mobile form, so the original step-4 selector alone
+      was not enough). Mobile purchase entry continues to use the original selector. ---- */
+(function(){
+  var oldReg=window.regCss;
+  if(typeof oldReg==='function'){
+    window.regCss=function(theme,preview){var css=oldReg.apply(this,arguments),id=window.__fmPrintActive;
+      if(id){var f=(PS().firms||[]).find(function(x){return x.id===id}),m=f&&f.print&&f.print.enabled?+((f.print.values||{}).pr_margin):10;
+        if(!(m>=0&&m<=25))m=10;
+        css=css.replace(/(@page\{[^}]*;margin:)\d+(?:\.\d+)?mm(\})/i,'$1'+m+'mm$2');}
+      return css};
+    try{regCss=window.regCss}catch(e){}
+  }
+  function firms(){return typeof firmList==='function'?firmList():(PS().firms||[]).filter(function(f){return f.name})}
+  function firmOfLine(l){var i=(l.iid&&I(l.iid))||findI(l.name);return l.fm||(i&&i.fm)||((PS().firms||[])[0]&&PS().firms[0].id)||''}
+  function options(selected){return '<option value="">Use item’s firm</option>'+firms().map(function(f){return '<option value="'+esc(f.id)+'"'+(selected===f.id?' selected':'')+'>'+esc(f.name)+'</option>'}).join('')}
+  var oldDkDoc=window.dkDoc;
+  if(typeof oldDkDoc==='function'){
+    window.dkDoc=function(){var h=oldDkDoc.apply(this,arguments);
+      if(!ddraft||ddraft.t!=='pur'||(typeof isM==='function'&&isM()))return h;
+      var F=firms();if(!F.length)return h;
+      h=h.replace('<input id="dit"','<select id="dfm" style="width:100%;margin:0 0 5px"><option value="">Firm (choose)</option>'+F.map(function(f){return '<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>'}).join('')+'</select><input id="dit"');
+      var rows=(ddraft.lines||[]).map(function(l,k){var id=firmOfLine(l);return '<div class="row" style="gap:10px;padding:6px 0;border-bottom:1px solid #eee;align-items:center"><span style="flex:1;min-width:100px">'+(k+1)+'. '+esc(l.name)+'</span><select id="fm-dk-line-'+k+'" style="max-width:220px;margin:0">'+options(id)+'</select></div>'}).join('');
+      return h+(ddraft.lines&&ddraft.lines.length?'<div class="card" style="max-width:760px;margin-top:10px"><b>Firm of each purchase item</b><div class="mu" style="margin:3px 0 6px">Choose the firm for every line before saving. A purchase with multiple firms will be split automatically.</div>'+rows+'</div>':'');
+    };
+    try{dkDoc=window.dkDoc}catch(e){}
+  }
+  var oldFlush=window.dkDocFlush;
+  if(typeof oldFlush==='function'){
+    window.dkDocFlush=function(){var pur=!!(ddraft&&ddraft.t==='pur'),before=pur?ddraft.lines.length:0,nm=pur?String((document.getElementById('dit')||{}).value||'').trim():'',sel=pur?((document.getElementById('dfm')||{}).value||''):'';
+      var result=oldFlush.apply(this,arguments);
+      if(pur&&ddraft&&ddraft.lines.length>before){var l=ddraft.lines[ddraft.lines.length-1],it=findI(nm);l.fm=sel||(it&&it.fm)||'';}
+      return result};
+    try{dkDocFlush=window.dkDocFlush}catch(e){}
+  }
+  var oldSave=window.saveDoc;
+  if(typeof oldSave==='function'){
+    window.saveDoc=function(){if(ddraft&&ddraft.t==='pur'&&!(typeof isM==='function'&&isM()))(ddraft.lines||[]).forEach(function(l,k){var e=document.getElementById('fm-dk-line-'+k);if(e){var it=(l.iid&&I(l.iid))||findI(l.name);l.fm=e.value||(it&&it.fm)||''}});return oldSave.apply(this,arguments)};
+    try{saveDoc=window.saveDoc}catch(e){}
+  }
+  document.addEventListener('input',function(e){if(!e.target||e.target.id!=='dit'||!ddraft||ddraft.t!=='pur')return;var s=document.getElementById('dfm'),i=findI(e.target.value);if(s&&i)s.value=i.fm||''},true);
+})();
+</script>
+
+<script id="firms-step17">
+/* ---- FIRMS (step 17): a restricted login must see its own firm name in the app header.
+   Data remains shared in the owner's store and the existing firm filter remains in charge;
+   this only scopes the displayed shop identity during rendering for a mapped firm login. ---- */
+(function(){
+  var oldRender=window.render;
+  if(typeof oldRender!=='function')return;
+  window.render=function(){
+    var id=window.fmRestricted&&fmRestricted(),p=PS(),f=id&&id!=='none'&&(p.firms||[]).find(function(x){return x.id===id});
+    if(!f||!String(f.name||'').trim())return oldRender.apply(this,arguments);
+    var was=D.shop;D.shop=f.name;
+    try{return oldRender.apply(this,arguments)}finally{D.shop=was}
+  };
+  try{render=window.render}catch(e){}
+})();
+</script>
+
+<script id="firms-step19">
+/* ---- FIRMS (step 19): finish purchase-document editing support.
+   Existing purchase edits already adjust stock exactly once in saveDoc. This layer
+   preserves per-line firm choices on mobile and splits a mixed-firm edited purchase
+   after that stock adjustment, allocating linked payments without touching stock. ---- */
+(function(){
+  function firms(){return (PS().firms||[]).filter(function(f){return String(f.name||'').trim()})}
+  function legacy(){return window.fmLegacy?fmLegacy():((PS().firms||[])[0]||{}).id||'f1'}
+  function valid(id){return !!id&&(PS().firms||[]).some(function(f){return f.id===id})}
+  function lineFirm(line,doc){
+    var item=(line.iid&&I(line.iid))||findI(line.name),id=line.fm||(item&&item.fm)||(doc&&doc.fm)||legacy();
+    return valid(id)?id:legacy();
+  }
+  function options(selected){return '<option value="">Use item’s firm</option>'+firms().map(function(f){return '<option value="'+esc(f.id)+'"'+(selected===f.id?' selected':'')+'>'+esc(f.name)+'</option>'}).join('')}
+  /* Mobile uses vDocForm rather than dkDoc; give existing purchase lines the same firm selector. */
+  var oldMobileForm=window.vDocForm;
+  if(typeof oldMobileForm==='function'){
+    window.vDocForm=function(){
+      var h=oldMobileForm.apply(this,arguments);
+      if(!ddraft||ddraft.t!=='pur'||!(typeof isM==='function'&&isM())||!ddraft.lines||!ddraft.lines.length)return h;
+      var doc=ddraft.edit?docById(ddraft.edit):null;
+      var rows=ddraft.lines.map(function(l,k){
+        return '<div class="row" style="gap:8px;padding:7px 0;border-bottom:1px solid #eee;align-items:center"><span style="flex:1;min-width:90px">'+(k+1)+'. '+esc(l.name)+'</span><select id="fm-mob-line-'+k+'" style="max-width:190px;margin:0">'+options(lineFirm(l,doc))+'</select></div>';
+      }).join('');
+      return h+'<div class="card" style="max-width:600px;margin-top:10px"><b>Firm of each purchase item</b><div class="mu" style="margin:3px 0 6px">Choose the firm for every existing line. A mixed-firm purchase will be separated when saved.</div>'+rows+'</div>';
+    };
+    try{vDocForm=window.vDocForm}catch(e){}
+  }
+  function splitEditedPurchase(doc){
+    var groups={},order=[];
+    (doc.lines||[]).forEach(function(line){
+      var id=lineFirm(line,doc);line.fm=id;
+      if(!groups[id]){groups[id]=[];order.push(id)}groups[id].push(line);
+    });
+    if(!order.length)return [];
+    if(order.length===1){doc.fm=order[0];(doc.lines||[]).forEach(function(l){l.fm=order[0]});return [doc]}
+    var round2=function(n){return Math.round((+n||0)*100)/100};
+    var gross={};order.forEach(function(id){gross[id]=round2(groups[id].reduce(function(s,l){return s+(+l.amt||(+l.qty||0)*(+l.rate||0))},0))});
+    var total=order.reduce(function(s,id){return s+gross[id]},0);
+    var maxNo=(D.docs||[]).filter(function(d){return d.t==='pur'}).reduce(function(m,d){return Math.max(m,+d.no||0)},0);
+    var base=JSON.parse(JSON.stringify(doc)),byFirm={},made=[];
+    order.forEach(function(id,k){
+      var part;
+      if(k===0)part=doc;
+      else{part=JSON.parse(JSON.stringify(base));part.id='d'+uid();part.no=++maxNo;D.docs.push(part)}
+      part.fm=id;part.lines=groups[id];part.total=gross[id];
+      if(typeof gdMain==='function')part.gd=gdMain(part);
+      byFirm[id]=part;made.push(part);
+    });
+    /* Every payment linked to this purchase is copied to the corresponding new document. */
+    var linked=(D.pays||[]).filter(function(p){return p.dn===doc.id&&p.out&&!p.x});
+    linked.forEach(function(payment){
+      var original=+payment.amt||0,used=0;
+      order.forEach(function(id,k){
+        var amount=k===order.length-1?round2(original-used):round2(total?original*gross[id]/total:0);
+        used=round2(used+amount);
+        var part=byFirm[id],note=String(payment.note||'Purchase #'+doc.no).replace(/purchase #\d+/i,'purchase #'+part.no);
+        if(k===0){payment.fm=id;payment.dn=part.id;payment.amt=amount;payment.note=note}
+        else if(amount>0)D.pays.push(Object.assign({},payment,{id:uid(),fm:id,dn:part.id,amt:amount,note:note,x:0}));
+      });
+    });
+    return made;
+  }
+  var oldSaveDoc=window.saveDoc;
+  if(typeof oldSaveDoc==='function'){
+    window.saveDoc=function(){
+      var editing=!!(ddraft&&ddraft.t==='pur'&&ddraft.edit),docId=editing?ddraft.edit:null;
+      var before=editing?docById(docId):null;
+      if(editing&&before&&typeof isM==='function'&&isM()){
+        (ddraft.lines||[]).forEach(function(l,k){
+          var e=document.getElementById('fm-mob-line-'+k),item=(l.iid&&I(l.iid))||findI(l.name);
+          l.fm=e?(e.value||((item&&item.fm)||before.fm||legacy())):lineFirm(l,before);
+        });
+      }
+      var result=oldSaveDoc.apply(this,arguments);
+      if(!editing||ddraft)return result; /* validation failed or this was not a purchase edit */
+      var doc=docById(docId);if(!doc||doc.x)return result;
+      var made=splitEditedPurchase(doc);
+      if(made.length){save();if(made.length>1){
+        alert('This edited purchase contains '+made.length+' firms. Separate purchase records have been saved:\n\n'+made.map(function(d){var f=(PS().firms||[]).find(function(x){return x.id===d.fm});return '#'+d.no+'  '+(f?f.name:'Firm')+'  '+money(d.total)}).join('\n'));
+      }}
+      return result;
+    };
+    try{saveDoc=window.saveDoc}catch(e){}
+  }
 })();
 </script>
