@@ -200,7 +200,7 @@ function wa(no){
 function vBill2(){
  var h='';
  if(last){var lb=D.bills.find(function(x){return x.no===last});if(lb)h+='<div class="ok">Bill #'+lb.no+' saved. <button class="b" onclick="wa('+lb.no+')">Send text</button> <button class="b" onclick="shareBill('+lb.no+')">Send bill picture</button></div>'}
- var eb=draft.edit?bl(draft.edit):null,nextNo=D.bills.reduce(function(m,x){return Math.max(m,x.no)},0)+1;
+ var eb=draft.edit?bl(draft.edit):null,nextNo=(window.__realBills||D.bills).reduce(function(m,x){return Math.max(m,x.no)},0)+1;
  if(eb)h+='<div class="ok">Editing bill #'+eb.no+' <button class="s" onclick="draft={pid:\'\',name:\'\',phone:\'\',lines:[]};viewB='+eb.no+';render()">Cancel edit</button></div>';
  h+='<h2 style="font-size:20px;margin-top:4px">'+(eb?'Edit bill':'Sale')+'</h2><div class="card"><div class="split" style="grid-template-columns:1fr 1fr 220px;gap:10px"><div><input id="bn" list="pl" placeholder="Customer name *" autocomplete="off" value="'+esc(draft.name||'')+'" oninput="draft.name=this.value;fillP()"><datalist id="pl">'+D.parties.map(function(p){return '<option value="'+esc(p.name)+'">'}).join('')+'</datalist><div id="bb" class="mu"></div></div><div><input id="bph" type="tel" placeholder="Phone number" value="'+esc(draft.phone||'')+'" oninput="draft.phone=this.value"></div><div class="mu" style="text-align:right">Invoice No: <b>'+(eb?eb.no:nextNo)+'</b><br>Date: <b>'+(eb?dt(eb.date):new Date().toLocaleDateString('en-IN'))+'</b></div></div></div>';
  var tot=0,rows='';
@@ -407,7 +407,7 @@ function saveBill2(){
  var nm=(draft.name||'').trim(),walk=!nm&&draft.mode==='cash';if(!nm&&!walk)return alert('Enter party name');
  var ph=(draft.phone||'').trim(),p=walk?WALK:findP(nm);
  if(!p){p={id:uid(),name:nm,phone:ph,open:0};D.parties.push(p)}else if(!walk&&ph&&p.phone!==ph)p.phone=ph;
- var paid=+($('#bp').value||0),total=0,no=D.bills.reduce(function(m,b){return Math.max(m,b.no)},0)+1;var di=+draft.ino;if(di>0&&di%1===0&&!D.bills.some(function(b){return b.no===di}))no=di;var ts=draftTs();
+ var paid=+($('#bp').value||0),total=0,no=(window.__realBills||D.bills).reduce(function(m,b){return Math.max(m,b.no)},0)+1;var di=+draft.ino;if(di>0&&di%1===0&&!D.bills.some(function(b){return b.no===di}))no=di;var ts=draftTs();
  draft.lines.forEach(function(l){var i=findI(l.name);if(!i){i={id:uid(),name:l.name,unit:l.unit,rate:l.rate,qty:0,low:0};D.items.push(i)}l.iid=i.id;i.qty=Math.round((i.qty-l.qty)*100)/100;i.rate=l.rate;total+=l.amt});
  draft.lines.forEach(applySend);D.bills.push({id:'b'+uid(),no:no,pid:p.id,date:ts,lines:draft.lines,total:total,paid:paid});
  if(paid>0)D.pays.push({id:uid(),pid:p.id,date:ts,amt:paid,note:'With bill #'+no});
@@ -1565,7 +1565,7 @@ function discPct(v){draft.disc=Math.round(subTot()*(Math.max(+v||0,0))/100*100)/
 function recvAll(on){var e=$('#bp');if(!e)return;e.value=on?Math.max(subTot()-(+draft.disc||0),0):'';refTot()}
 function saveAndPrint(){var e=draft.edit,n0=D.bills.length;if(!draft.lines.length)return alert('Add at least one item first');e?saveEdit():saveBill2();var b=e?bl(e):(D.bills.length>n0?D.bills[D.bills.length-1]:null);if(b)printHtml('Bill '+b.no,billHtml(b))}
 vBill2=function(){
- var h='',eb=draft.edit?bl(draft.edit):null,nextNo=D.bills.reduce(function(m,x){return Math.max(m,x.no)},0)+1,now=new Date(),sub=0,qt=0,rows='',d=+draft.disc||0;
+ var h='',eb=draft.edit?bl(draft.edit):null,nextNo=(window.__realBills||D.bills).reduce(function(m,x){return Math.max(m,x.no)},0)+1,now=new Date(),sub=0,qt=0,rows='',d=+draft.disc||0;
  var th='style="background:#f4f6fb;color:#5d647a;font-weight:500;font-size:12px;text-align:left;padding:10px 8px;white-space:nowrap"';
  if(last){var lb=D.bills.find(function(x){return x.no===last});if(lb)h+='<div class="ok">Bill #'+lb.no+' saved. <button class="b" onclick="wa('+lb.no+')">Send text</button> <button class="b" onclick="shareBill('+lb.no+')">Send bill picture</button> <button class="s" onclick="printHtml(\'Bill '+lb.no+'\',billHtml(bl('+lb.no+')))">Print</button></div>'}
  if(eb)h+='<div class="ok">Editing bill #'+eb.no+' <button class="s" onclick="draft={pid:\'\',name:\'\',phone:\'\',lines:[]};viewB='+eb.no+';render()">Cancel edit</button></div>';
@@ -3151,7 +3151,7 @@ var _rtSF=refTot;refTot=function(){_rtSF();if(isM())sfUpd()};
 var _dnSF=dueNow;dueNow=function(t){_dnSF(t);if(isM())sfUpd()};
 function sfSave(nw){if(!flushPend())return;if(!draft.dt)return alert('Select invoice date');if(!draft.edit){var n=+draft.ino;if(!(n>0)||n%1)return alert('Enter a valid invoice number');if(D.bills.some(function(b){return b.no===n}))return alert('Invoice number '+n+' is already used')}if(!draft.lines.length)return alert('Add at least one item first');var e=draft.edit,n=D.bills.length;e?saveEdit():saveBill2();if(!e&&!nw&&D.bills.length>n){viewB=D.bills[D.bills.length-1].no;form=false;last=null;render()}}
 var _vBdesk=vBill2;var _vBmob=function(){
- var eb=draft.edit?bl(draft.edit):null,nx=D.bills.reduce(function(m,x){return Math.max(m,x.no)},0)+1,dd=eb?new Date(eb.date):new Date(),sub=0,d=+draft.disc||0,h='';
+ var eb=draft.edit?bl(draft.edit):null,nx=(window.__realBills||D.bills).reduce(function(m,x){return Math.max(m,x.no)},0)+1,dd=eb?new Date(eb.date):new Date(),sub=0,d=+draft.disc||0,h='';
  if(draft.terms===undefined)draft.terms=PS().terms||'';if(draft.dt===undefined){var p2=function(n){return (n<10?'0':'')+n};draft.dt=dd.getFullYear()+'-'+p2(dd.getMonth()+1)+'-'+p2(dd.getDate());draft.tm=p2(dd.getHours())+':'+p2(dd.getMinutes())}if(draft.ino===undefined)draft.ino=nx;if(draft.pt===undefined)draft.pt='Cash';if(draft.mode===undefined)draft.mode='credit';
  draft.lines.forEach(function(l){sub+=l.amt});
  if(last){var lb=D.bills.find(function(x){return x.no===last});if(lb)h+='<div class="ok">Bill #'+lb.no+' saved. <button class="b" onclick="wa('+lb.no+')">Send text</button> <button class="b" onclick="shareBill('+lb.no+')">Send bill picture</button> <button class="s" onclick="printHtml(\'Bill '+lb.no+'\',billHtml(bl('+lb.no+')))">Print</button></div>'}
@@ -3461,7 +3461,7 @@ var _alDK=addLine2;addLine2=function(){var d=($('#bds2')||{}).value||'',n=draft.
 var _fpDK=flushPend;flushPend=function(){var d=($('#bds2')||{}).value||'',n=draft.lines.length,r=_fpDK.apply(this,arguments);if(d&&draft.lines.length>n)draft.lines[draft.lines.length-1].desc=d;var e=$('#bds2');if(e)e.value='';return r};
 function dkSale(){
  dkSync();
- var eb=draft.edit?bl(draft.edit):null,nx=D.bills.reduce(function(m,x){return Math.max(m,x.no)},0)+1,dd=eb?new Date(eb.date):new Date(),sub=0,qt=0,d=+draft.disc||0,h='',rows='',p2=function(n){return (n<10?'0':'')+n};
+ var eb=draft.edit?bl(draft.edit):null,nx=(window.__realBills||D.bills).reduce(function(m,x){return Math.max(m,x.no)},0)+1,dd=eb?new Date(eb.date):new Date(),sub=0,qt=0,d=+draft.disc||0,h='',rows='',p2=function(n){return (n<10?'0':'')+n};
  if(draft.terms===undefined)draft.terms=PS().terms||'';
  if(draft.dt===undefined){draft.dt=dd.getFullYear()+'-'+p2(dd.getMonth()+1)+'-'+p2(dd.getDate());draft.tm=p2(dd.getHours())+':'+p2(dd.getMinutes())}
  if(draft.ino===undefined)draft.ino=nx;if(draft.pt===undefined)draft.pt='Cash';if(draft.mode===undefined)draft.mode='credit';
@@ -8579,6 +8579,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function swap(c){
   real={b:D.bills,p:D.pays,i:D.items,pa:D.parties,d:D.docs};
   BM={};real.b.forEach(function(b){BM[b.no]=b});
+  window.__realBills=real.b;
   var lg=legacy(),act={};
   var nb=real.b.filter(function(b){return billF(b)===c}),np=real.p.filter(function(x){return payF(x)===c});
   var nd=real.d?real.d.filter(function(d){return docF(d)===c}):real.d;
@@ -8591,7 +8592,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   /* safety: anything saved while a firm is selected must save ALL the data, never only the selected firm */
   save=function(){var t={b:D.bills,p:D.pays,i:D.items,pa:D.parties,d:D.docs};setReal();try{return _svReal.apply(this,arguments)}finally{D.bills=t.b;D.pays=t.p;D.items=t.i;D.parties=t.pa;if(t.d!==undefined)D.docs=t.d}};
   try{BC=null}catch(e){}}
- function unswap(){if(!real)return;setReal();save=_svReal;real=null;_svReal=null;try{BC=null}catch(e){}}
+ function unswap(){if(!real)return;setReal();window.__realBills=null;save=_svReal;real=null;_svReal=null;try{BC=null}catch(e){}}
  var _r=render;
  render=window.render=function(){
   var c=cf();
