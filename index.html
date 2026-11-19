@@ -7030,7 +7030,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 
 
  /* ---------- Google Drive calls ---------- */
- function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
+ function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});if(!opt.method||opt.method==='GET'){opt.cache='no-store';opt.headers['Cache-Control']='no-cache';opt.headers['Pragma']='no-cache';url+=(url.indexOf('?')<0?'?':'&')+'_cb='+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
   return fetch(url,opt).then(function(r){if(r.ok)return r;
    return r.text().then(function(tx){var m='';try{m=JSON.parse(tx).error.message}catch(e){}
     if(r.status===401)tok=null;
@@ -7308,7 +7308,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  document.addEventListener('visibilitychange',function(){if(document.hidden||!on||busy||!exp)return;if(exp-Date.now()<6*60000){lastBg=Date.now();getTok(false,20*60000).then(function(){needTap=false;lastErr=''},function(){})}});
 
  /* ---------- Drive calls ---------- */
- function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
+ function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});if(!opt.method||opt.method==='GET'){opt.cache='no-store';opt.headers['Cache-Control']='no-cache';opt.headers['Pragma']='no-cache';url+=(url.indexOf('?')<0?'?':'&')+'_cb='+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
   return fetch(url,opt).then(function(r){if(r.ok)return r;return r.text().then(function(tx){var m='';try{m=JSON.parse(tx).error.message}catch(e){}
    var er=new Error(r.status===403&&/not been used|disabled/i.test(m)?'Turn on "Google Drive API" in your Google project.':(m||('Google Drive error '+r.status)));er.status=r.status;if(r.status===401){tok=null;exp=0;ls('lvTok',null)}throw er})})}
  function folderId(t){if(folder)return Promise.resolve(folder);return createFolder(t)}
