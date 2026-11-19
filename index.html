@@ -9243,5 +9243,49 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 
 
 
+<script id="manage-companies">
+/* ---- MANAGE COMPANIES: basic details of every company (firm) of this account. Settings > Manage companies ---- */
+(function(){
+ function F(){var p=PS();if(!p.firms||!p.firms.length)p.firms=[{id:'f1',name:''},{id:'f2',name:''}];if(!p.emails)p.emails={};return p}
+ function named(){return F().firms.filter(function(f){return String(f.name||'').trim()})}
+ function myId(){var s=window.__sbSess,em=String((s&&s.user&&s.user.email)||'').toLowerCase();return em?F().emails[em]:''}
+ function used(id){try{var c={};Object.keys(D).forEach(function(k){if(k!=='ps')c[k]=D[k]});return JSON.stringify(c).indexOf('"fm":"'+id+'"')>=0}catch(e){return true}}
+ function g(i){return((document.getElementById(i)||{}).value||'').trim()}
+ window.cmpSave=function(id){
+  var p=F(),f=p.firms.find(function(x){return x.id===id});if(!f)return;
+  var nm=g('cm_n_'+id);if(!nm){alert('Please type the company name.');return}
+  if(p.firms.some(function(x){return x.id!==id&&String(x.name||'').trim().toLowerCase()===nm.toLowerCase()})){alert('Another company already has this name. Please type a different name.');return}
+  f.name=nm;f.phone=g('cm_p_'+id);f.gst=g('cm_g_'+id);f.em=g('cm_e_'+id);f.addr=g('cm_a_'+id);
+  if(id===myId())D.shop=nm;
+  save();render();alert('Company "'+nm+'" saved.')};
+ window.cmpDel=function(id){
+  var p=F(),f=p.firms.find(function(x){return x.id===id});if(!f)return;
+  if(used(id)){alert('This company has items or bills, so it cannot be deleted.');return}
+  if(id===myId()||named().length<2){alert('You cannot delete your main company.');return}
+  if(!confirm('Delete company "'+(f.name||'')+'"? It has no items or bills.'))return;
+  p.firms=p.firms.filter(function(x){return x.id!==id});
+  Object.keys(p.emails).forEach(function(e){if(p.emails[e]===id)delete p.emails[e]});
+  save();render()};
+ var _o=vSettings,pill='<button class="s" onclick="sTab=\'cmp\';render()">Manage companies</button>';
+ vSettings=function(){
+  if(sTab==='cmp'){
+   var L=named(),me=myId();
+   return '<h2 style="font-size:20px;margin:6px 0">Manage companies</h2><div class="pills" style="display:flex"><button class="s" onclick="sTab=\'gen\';render()">← Back</button></div>'
+   +(L.length?'':'<div class="card mu">No company yet. Press "+ Add new company".</div>')
+   +L.map(function(f){var id=f.id;return '<div class="card" style="max-width:600px"><b>'+esc(f.name)+'</b>'+(id===me?' <span class="mu">(your main company)</span>':'')
+    +'<label class="mu">Company name *</label><input id="cm_n_'+id+'" value="'+esc(f.name||'')+'">'
+    +'<label class="mu">Phone number</label><input id="cm_p_'+id+'" type="tel" inputmode="tel" value="'+esc(f.phone||'')+'">'
+    +'<label class="mu">GST number</label><input id="cm_g_'+id+'" value="'+esc(f.gst||'')+'">'
+    +'<label class="mu">Email</label><input id="cm_e_'+id+'" type="email" value="'+esc(f.em||'')+'">'
+    +'<label class="mu">Address</label><textarea id="cm_a_'+id+'" rows="2">'+esc(f.addr||'')+'</textarea>'
+    +'<div class="row" style="justify-content:flex-start;margin-top:10px"><button class="b" onclick="cmpSave(\''+id+'\')">Save</button>'+(id===me?'':'<button class="s" onclick="cmpDel(\''+id+'\')">Delete</button>')+'</div></div>'}).join('')
+   +'<div class="row" style="justify-content:flex-start;max-width:600px"><button class="b" onclick="fmNew()">+ Add new company</button></div>'}
+  var h=_o.apply(this,arguments);
+  var ks=['>Stock check</button>','>Godowns</button>','>General</button>'],i=-1,k='';
+  for(var j=0;j<ks.length&&i<0;j++){i=h.indexOf(ks[j]);k=ks[j]}
+  return i>-1?h.slice(0,i+k.length)+pill+h.slice(i+k.length):h};
+})();
+</script>
+
 </body>
 </html>
