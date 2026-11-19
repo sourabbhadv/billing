@@ -3408,8 +3408,8 @@ function rpSharePay(id){var x=D.pays.find(function(q){return q.id===id}),p=x&&P(
 function rpFl(i){return '<svg class="fi'+(RF.col[i]?' on':'')+'" viewBox="0 0 24 24" onclick="event.stopPropagation();RF.open=RF.open===' +i+'?-1:'+i+';render();setTimeout(function(){var e=document.getElementById(\'rpfi\');if(e)e.focus()},30)"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>'}
 function rpSort(i){RF.dir=RF.sk===i?-RF.dir:1;RF.sk=i;render()}
 function rpTx(){var H=['#','DATE','REF NO.','PARTY NAME','CATEGORY','TYPE','TOTAL','RECEIVED','BALANCE','STATUS','PRINT / SHARE'],list=rpRows().filter(function(x){return (txk==='all'||x.f===txk)&&(RF.pay==='all'||x.pt===RF.pay)}),q=(RF.q||'').toLowerCase();
- var cell=function(x,i){return i===1?dt(x.d):i===2?String(x.no):i===3?x.n:i===5?x.ty:i===6?money(x.tot):i===7?money(x.rec):i===8?money(x.bal):i===9?x.st:''};
- list=list.filter(function(x){for(var i in RF.col){if(RF.col[i]&&cell(x,+i).toLowerCase().indexOf(RF.col[i].toLowerCase())<0)return false}return !q||(x.n+' '+x.no+' '+x.ty).toLowerCase().indexOf(q)>=0});
+ var cell=function(x,i){return i===1?dt(x.d):i===2?String(x.no):i===3?x.n:i===4?(x.firmLabel||''):i===5?x.ty:i===6?money(x.tot):i===7?money(x.rec):i===8?money(x.bal):i===9?x.st:''};
+ list=list.filter(function(x){for(var i in RF.col){if(RF.col[i]&&cell(x,+i).toLowerCase().indexOf(RF.col[i].toLowerCase())<0)return false}return !q||(x.n+' '+x.no+' '+x.ty+' '+(x.firmLabel||'')).toLowerCase().indexOf(q)>=0});
  var key=RF.sk,sv=function(x){return key===1?x.d:key===2?+x.no||0:key===3?x.n.toLowerCase():key===5?x.ty:key===6?x.tot:key===7?x.rec:key===8?x.bal:key===9?x.st:x.d};
  list.sort(function(a,b){var u=sv(a),v=sv(b);return (u<v?-1:u>v?1:a.d-b.d)*(key<0?1:RF.dir)});
  var th=H.map(function(h,i){var fl=[1,2,3,5,6,7,8,9].indexOf(i)>=0,r=(i>=6&&i<=8)?' class="n"':'';return '<th'+r+'>'+(fl?'<span class="sr" onclick="rpSort('+i+')">'+h+(RF.sk===i?(RF.dir>0?' ▲':' ▼'):'')+'</span>'+rpFl(i)+(RF.open===i?'<div class="pop"><input id="rpfi" placeholder="Filter '+h.toLowerCase()+'" value="'+esc(RF.col[i]||'')+'" onchange="RF.col['+i+']=this.value;RF.open=-1;render()" onkeydown="if(event.key===\'Escape\'){RF.col['+i+']=\'\';RF.open=-1;render()}"></div>':''):h)+'</th>'}).join('');
@@ -8698,8 +8698,6 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 })();
 </script>
 
-</body></html>
-
 <script id="firms-step11">
 /* ---- FIRMS (step 11): split a purchase containing items from multiple firms.
    The existing purchase form already records each line's firm (step 4).
@@ -9227,3 +9225,6 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   }
 })();
 </script>
+
+</body>
+</html>
