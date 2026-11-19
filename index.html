@@ -7212,7 +7212,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
  var $id=function(i){return document.getElementById(i)};
  var client=function(){return (ls('gdCid')||DEFAULT_GOOGLE_CLIENT_ID).trim()},email=function(){return (ls('gdEmail')||'').trim()};
- var gen=0,roundG=0,tok=null,exp=0,fileId=ls('lvFile')||null,folder=ls('gdFolder')||null,on=ls('lvOn')==='1',busy=false,timer=null,pollT=null,suppress=false,needTap=false,armed=false,lastStamp=ls('lvStamp')||'',lastMsg='';
+ var lastId='',curFrom='',curChain=[],pend=null,rescan=0,stamped={},races=0,gen=0,roundG=0,tok=null,exp=0,fileId=ls('lvFile')||null,folder=ls('gdFolder')||null,on=ls('lvOn')==='1',busy=false,timer=null,pollT=null,suppress=false,needTap=false,armed=false,lastStamp=ls('lvStamp')||'',lastMsg='';
  var base=loadBase(),dev=ls('lvDev')||(function(){var d='d'+Math.random().toString(36).slice(2,8);ls('lvDev',d);return d})();
  (function(){try{var o=JSON.parse(ls('lvTok')||'null');if(o&&o.t&&o.e>Date.now()+60000){tok=o.t;exp=o.e;var tm=o.m||'';setTimeout(function(){lockMail().then(function(lk){if(lk&&tm!==lk){tok=null;exp=0;ls('lvTok',null)}})},0)}}catch(e){}})();   /* login survives a refresh */
  function loadBase(){try{var b=JSON.parse(ls('lvBase')||'null');if(b&&b.h)return b}catch(e){}return {h:{},q:{},m:{}}}
@@ -7302,7 +7302,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* ---------- merge ---------- */
  function stampLocal(){   /* mark records changed on this device since the last sync; remember records deleted here */
   var have={};
-  colsOf(D).forEach(function(c){(D[c]||[]).forEach(function(r){var k=c+'/'+r.id;have[k]=1;if(base.h[k]!==hs(r))r._u=Date.now()})});
+  colsOf(D).forEach(function(c){(D[c]||[]).forEach(function(r){var k=c+'/'+r.id;have[k]=1;var h=hs(r);if(base.h[k]!==h&&stamped[k]!==h){r._u=Date.now();stamped[k]=hs(r)}})});
   var tb=D._del=D._del||{};
   Object.keys(base.h).forEach(function(k){if(!have[k]&&!tb[k])tb[k]=Date.now()})}
  function rnd3(n){return Math.round(n*1000)/1000}
@@ -7355,6 +7355,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 
  function applyMerged(o){
   suppress=true;try{Object.keys(o).forEach(function(k){D[k]=o[k]});
+   colsOf(D).forEach(function(c){(D[c]||[]).forEach(function(r){stamped[c+'/'+r.id]=hs(r)})});   /* records that came from Drive are not local edits */
    try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){}
    if(typeof softRender==='function')softRender();else if(typeof render==='function')render()}finally{suppress=false}}
  function makeBase(){
@@ -7363,8 +7364,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   Object.keys(D).forEach(function(k){if(colsOf(D).indexOf(k)<0&&k.charAt(0)!=='_')b.m[k]=cs(D[k]===undefined?null:D[k])});
   return b}
  function snapshotBase(){base=makeBase();saveBase()}
- function pack(){return {body:build(),snap:makeBase()}}   /* body + the exact state it represents, taken in the same instant */
- function build(){var x={};Object.keys(D).forEach(function(k){x[k]=D[k]});x._app='Stock & Billing';x._format='ashirwad_billing_live';x._saved=new Date().toISOString();x._dev=dev;return JSON.stringify(x)}
+ function pack(){var b=build();return {body:b,snap:makeBase(),id:lastId}}   /* body + the exact state it represents, taken in the same instant */
+ function build(){var x={};Object.keys(D).forEach(function(k){x[k]=D[k]});x._app='Stock & Billing';x._format='ashirwad_billing_live';x._saved=new Date().toISOString();x._dev=dev;lastId=dev+'.'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);x._id=lastId;x._chain=curChain.concat(curFrom?[curFrom]:[]).slice(-40);return JSON.stringify(x)}
 
  /* ---------- one sync round: read Drive, merge, write only if Drive is missing something ---------- */
  function discoverLiveFile(t){
@@ -7378,11 +7379,11 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     if(!folders.length)return createFolder(t).then(function(f){return {id:null,folder:f}});
     return Promise.all(folders.map(function(fd){
      var fq=encodeURIComponent("name='"+FILE+"' and '"+fd.id+"' in parents and trashed=false");
-     return api('https://www.googleapis.com/drive/v3/files?q='+fq+'&pageSize=100&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime,parents)',{},t)
+     return api('https://www.googleapis.com/drive/v3/files?q='+fq+'&pageSize=100&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime,createdTime,parents)',{},t)
       .then(function(r){return r.json()}).then(function(x){return (x.files||[]).map(function(f){f.__folder=fd.id;return f})});
     })).then(function(groups){
      var found=[].concat.apply([],groups);
-     if(found.length){found.sort(function(a,b){return String(b.modifiedTime||'').localeCompare(String(a.modifiedTime||''))||String(a.id).localeCompare(String(b.id))});
+     if(found.length){found.sort(function(a,b){return String(a.createdTime||'').localeCompare(String(b.createdTime||''))||String(a.id).localeCompare(String(b.id))});   /* all devices pick the OLDEST live file, so they always agree */
       var best=found[0];folder=best.__folder;fileId=best.id;ls('gdFolder',folder);ls('lvFile',fileId);return {id:fileId,folder:folder,multiple:found.length>1};}
      folder=folders[0].id;ls('gdFolder',folder);return {id:null,folder:folder};
     });
@@ -7399,36 +7400,45 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(fileId&&ls('lvFolderScanV2')==='1')return Promise.resolve(fileId);
   return discoverLiveFile(t).then(function(found){ls('lvFolderScanV2','1');return found.id||null});
  }
- function commit(t,j,res,snap){   /* trust the written state only if Drive still holds OUR version a moment later */
-  lastStamp=j.md5Checksum||j.modifiedTime||'';
+ function commit(t,j,res,pk){   /* trust the written state only if Drive still holds OUR version a moment later */
+  lastStamp=j.md5Checksum||j.modifiedTime||'';var wst=lastStamp;
   return new Promise(function(ok){setTimeout(ok,RACE_WAIT)}).then(function(){return getMeta(t,fileId)}).then(function(m){
-   if((m.md5Checksum||m.modifiedTime||'')===lastStamp){if(snap){base=snap;saveBase()}else snapshotBase();return res}
-   lastStamp='';ls('lvDirty','1');return 'race'})}
+   if((m.md5Checksum||m.modifiedTime||'')===lastStamp){pend=null;if(pk){base=pk.snap;saveBase()}else snapshotBase();return res}
+   pend=pk?{id:pk.id,snap:pk.snap}:null;lastStamp='';ls('lvDirty','1');return 'race'})}
  function round(why){
   roundG=gen;
   if(!hasData()){base={h:{},q:{},m:{}}}   /* an empty device must never delete anything in Drive */
   var t=tok;
   return ensureFile(t).then(function(id){
    if(!id){   /* first device: create the file */
-    stampLocal();var pk;return folderId(t).then(function(f){pk=pack();return writeFile(t,f,null,pk.body)}).then(function(j){fileId=j.id;ls('lvFile',fileId);return commit(t,j,'created',pk.snap)})}
+    curFrom='';curChain=[];stampLocal();var pk;return folderId(t).then(function(f){pk=pack();return writeFile(t,f,null,pk.body)}).then(function(j){fileId=j.id;ls('lvFile',fileId);return commit(t,j,'created',pk)})}
    return getMeta(t,id).then(function(m){
     var st=m.md5Checksum||m.modifiedTime||'';
     var localDirty=ls('lvDirty')==='1';
     if(st===lastStamp&&!localDirty&&why!=='force')return 'same';
     return readFile(t,id).then(function(remote){
+     curFrom=remote._id||'';curChain=(remote._chain||[]).slice(-40);
+     if(pend&&curChain.concat(curFrom).indexOf(pend.id)>=0){base=pend.snap;saveBase()}   /* our earlier write IS inside this newer file: it is the common ancestor */
+     pend=null;
      if(Object.keys(base.h).length)stampLocal();   /* first sync of this device: do not pretend every record was just edited here, or old local data would beat newer Drive data */
-     var r=mergeAll(D,remote),note=fixNums(r.out);if(note){r.chL=true;r.chR=true}
+     var r=mergeAll(D,remote),note=fixNums(r.out);
+     (remote.items||[]).forEach(function(it){if(it&&typeof it.qty==='number')base.q[it.id]=it.qty});saveBase();   /* stock is merged by ADDING each device's change: from now on only the change not yet in Drive may be added again */
+     if(note){r.chL=true;r.chR=true}
      if(r.chL)applyMerged(r.out);
-     if(r.chR){var pk2=pack();return writeFile(t,folder,id,pk2.body).then(function(j){return commit(t,j,note||(r.chL?'merged':'saved'),pk2.snap)})}
+     if(r.chR){var pk2=pack();return writeFile(t,folder,id,pk2.body).then(function(j){return commit(t,j,note||(r.chL?'merged':'saved'),pk2)})}
      lastStamp=st;snapshotBase();return r.chL?'pulled':'same'})})
   }).then(function(res){ls('lvStamp',lastStamp);ls('lvDirty',(res==='race'||gen!==roundG)?'1':null);ls('lvAt',String(Date.now()));return res})}   /* a save made DURING this round keeps the dirty flag */
  var n404=0;
  function go(why,quiet){
-  if(!on||busy||!(window.PLAN&&PLAN.pro()))return Promise.resolve();
+  if(!on||busy)return Promise.resolve();
+  if(!(window.PLAN&&PLAN.pro())){setStatus('Waiting for the Pro plan to be confirmed on this device (check More > Plan & Upgrade)');return Promise.resolve()}
   if(!tokOk()){if(!needTap)getTok(false).then(function(){lastErr='';go(why)},function(e){armTapE(e)});else armTap();return Promise.resolve()}
   busy=true;if(!quiet&&why!=='poll'&&why!=='wake')setStatus('Syncing...');
   return round(why).then(function(res){busy=false;n404=0;
-   if(res==='race'){setStatus('Another device saved at the same moment, merging...');setTimeout(function(){go('force',1)},400);return}
+   if(res==='race'){if(++races>6){races=0;setStatus('Another device is saving at the same time. Will retry in a moment.');return}setStatus('Another device saved at the same moment, merging...');setTimeout(function(){go('force',1)},600+Math.random()*2400);return}
+   races=0;
+   if(res==='created')rescan=2;   /* two devices may have created a live file at the same moment: look again, and all settle on the oldest one */
+   if(rescan>0){rescan--;ls('lvFolderScanV2',null);setTimeout(function(){go('force',1)},rescan?3000:9000)}
    setStatus((res==='pulled'||res==='merged'?'Updated from another device ':'Synced ')+stamp()+(res&&res.length>12?' \u2022 '+res:''));paint();
    if(gen!==roundG&&!timer)setTimeout(function(){go('save',1)},500)},   /* something was saved while this round ran: push it now, not at some later poll */
    function(e){busy=false;
@@ -7461,6 +7471,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(on||autoBusy||ls('lvOff')==='1'||!(window.PLAN&&PLAN.pro())||document.hidden)return;
   autoBusy=true;
   lockMail().then(function(lk){
+   if(!lk&&!on){setStatus('No Google Drive account chosen on this device. Open Backup > Choose Drive account.');return}
    if(!lk||on||!client())return;
    on=true;ls('lvOn','1');ls('lvDirty','1');setStatus('Starting live sync...');poll();go('force');paint()
   }).then(function(){autoBusy=false},function(){autoBusy=false})}
@@ -7479,14 +7490,17 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function isP(){return window.innerWidth<900}
  function cardM(){return '<div class="mg"><div class="mgt">Live sync (several phones / computers)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</div>'+
    '<div class="gdst" style="font-size:13px;color:#4a5068;line-height:1.45;padding:2px 0 10px">Keeps one live file in your Google Drive. On every device connect the <b>same Google Drive account</b> (shown under Google Drive Backup). Different from the daily backups.</div>'+
-   '<div class="mr"><span>Status</span><span id="lvSt" style="text-align:right;font-size:13px;color:#4a5068;max-width:60%">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</span></div>'+
+   '<div class="mr"><span>Status</span><span id="lvSt" style="text-align:right;font-size:13px;color:#4a5068;max-width:60%">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</span></div><div id="lvDg" style="font-size:11.5px;color:#6b7390;padding:0 0 8px">'+esc(diag())+'</div>'+
    '<button class="b gdfull" style="width:100%;padding:13px;font-size:15px;margin:6px 0" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+
    (on?'<div class="mr" style="color:#d93025;font-weight:600" onclick="lvStop()"><span>Stop live sync on this device</span></div>':'')+'</div>'}
  function cardD(){return '<div class="card" style="max-width:760px"><b style="font-size:16px">Live sync (several devices)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</b>'+
    '<p class="mu" style="margin:5px 0">Keeps one live file in your Google Drive ("'+FILE+'"). On every phone or computer connect the <b>same Google Drive account</b> (shown under Google Drive backup). Each device checks about every 6 seconds while the app is open and merges bills and payments, so devices do not overwrite each other. This is separate from the daily backups below.</p>'+
-   '<div id="lvSt" class="mu" style="margin:8px 0">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</div>'+
+   '<div id="lvSt" class="mu" style="margin:8px 0">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</div><div id="lvDg" class="mu" style="font-size:12px;margin:0 0 8px">'+esc(diag())+'</div>'+
    '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+(on?'<button class="s" onclick="lvStop()">Stop on this device</button>':'')+'</div></div>'}
- function paint(){var e=$id('lvSt');if(e)e.textContent=lastMsg||(on?'Starting...':'Off on this device')}
+ function diag(){var l=exp?Math.round((exp-Date.now())/60000):null,at=+ls('lvAt')||0;
+  return 'Pro: '+((window.PLAN&&PLAN.pro())?'yes':'NO')+' | Sync: '+(on?'on':'off')+' | Drive: '+(ls('gdWho')||ls('gdAcct')||'none')+' | Google login: '+(!tok?'none':(l>0?l+' min left':'expired'))+' | Last good sync: '+(at?new Date(at).toLocaleTimeString('en-IN'):'never')+' | Live file: '+(fileId?'found':'not yet')+(navigator.onLine===false?' | OFFLINE':'')}
+ function paint(){var e=$id('lvSt');if(e)e.textContent=lastMsg||(on?'Starting...':'Off on this device');var g=$id('lvDg');if(g)g.textContent=diag()}
+ setInterval(function(){try{paint()}catch(e){}},5000);
  var oldVbk=window.vBk;window.vBk=function(){return (isP()?cardM():cardD())+(oldVbk?oldVbk.apply(this,arguments):'')};
 
  /* ---------- premium-only parts of the free edition (unchanged) ---------- */
