@@ -8397,6 +8397,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  +'#fmswM{display:none;max-width:42vw;padding:7px 8px;margin-left:auto;flex:none}'
  +'@media(min-width:900px){#fmswP{display:block}}@media(max-width:899px){#fmswM{display:block}}';
  document.head.appendChild(st);
+ window.fmCur=function(){try{return cf()}catch(e){return 'all'}};
  window.fmPick=function(v){try{localStorage.setItem(KEY,v)}catch(e){}openP=null;openB=null;viewB=null;openI=null;render()};
  function opts(c){return '<option value="all"'+(c==='all'?' selected':'')+'>All firms</option>'+names().map(function(f){return '<option value="'+esc(f.id)+'"'+(c===f.id?' selected':'')+'>'+esc(f.name)+'</option>'}).join('')}
  function mount(){
@@ -9258,6 +9259,14 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   f.name=nm;f.phone=g('cm_p_'+id);f.gst=g('cm_g_'+id);f.em=g('cm_e_'+id);f.addr=g('cm_a_'+id);
   if(id===myId())D.shop=nm;
   save();render();alert('Company "'+nm+'" saved.')};
+ window.cmpLogo=function(id,inp){
+  var fl=inp.files&&inp.files[0];if(!fl)return;var f=F().firms.find(function(x){return x.id===id});if(!f)return;
+  var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){
+   try{var S=128,c=document.createElement('canvas');c.width=c.height=S;var x=c.getContext('2d'),m=Math.min(im.width,im.height),sx=(im.width-m)/2,sy=(im.height-m)/2;
+    x.fillStyle='#fff';x.fillRect(0,0,S,S);x.drawImage(im,sx,sy,m,m,0,0,S,S);f.logo=c.toDataURL('image/jpeg',.82);save();render()}catch(e){alert('Could not use this picture. Please try another one.')}};
+   im.onerror=function(){alert('Could not read this picture. Please try another one.')};im.src=r.result};
+  r.readAsDataURL(fl)};
+ window.cmpLogoDel=function(id){var f=F().firms.find(function(x){return x.id===id});if(f){delete f.logo;save();render()}};
  window.cmpDel=function(id){
   var p=F(),f=p.firms.find(function(x){return x.id===id});if(!f)return;
   if(used(id)){alert('This company has items or bills, so it cannot be deleted.');return}
@@ -9273,6 +9282,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    return '<h2 style="font-size:20px;margin:6px 0">Manage companies</h2><div class="pills" style="display:flex"><button class="s" onclick="sTab=\'gen\';render()">← Back</button></div>'
    +(L.length?'':'<div class="card mu">No company yet. Press "+ Add new company".</div>')
    +L.map(function(f){var id=f.id;return '<div class="card" style="max-width:600px"><b>'+esc(f.name)+'</b>'+(id===me?' <span class="mu">(your main company)</span>':'')
+    +'<label class="mu">Logo</label><div style="display:flex;align-items:center;gap:10px"><span style="width:52px;height:52px;border-radius:50%;background:#101338;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;overflow:hidden;flex:none">'+(f.logo?'<img src="'+f.logo+'" style="width:100%;height:100%;object-fit:cover">':esc(String(f.name||'?').charAt(0).toUpperCase()))+'</span><input type="file" accept="image/*" onchange="cmpLogo(\''+id+'\',this)" style="flex:1;min-width:0">'+(f.logo?'<button class="s" onclick="cmpLogoDel(\''+id+'\')">Remove</button>':'')+'</div>'
     +'<label class="mu">Company name *</label><input id="cm_n_'+id+'" value="'+esc(f.name||'')+'">'
     +'<label class="mu">Phone number</label><input id="cm_p_'+id+'" type="tel" inputmode="tel" value="'+esc(f.phone||'')+'">'
     +'<label class="mu">GST number</label><input id="cm_g_'+id+'" value="'+esc(f.gst||'')+'">'
@@ -9287,5 +9297,25 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 })();
 </script>
 
+<script id="firm-header">
+/* ---- HEADER FOLLOWS THE CHOSEN FIRM: top-left name and logo change when you switch firm. "All firms" shows the account's main name. ---- */
+(function(){
+ function cur(){try{var c=window.fmCur?fmCur():'all';if(c&&c!=='all')return (PS().firms||[]).find(function(x){return x.id===c})||null}catch(e){}return null}
+ var st=document.createElement('style');st.textContent='#mtop .mnm{flex:1 1 0;min-width:64px}#mtop .mnm b,#mtop .mnm small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}#mtop #fmswM{max-width:36vw}#mtop .mlogo{flex:none}';document.head.appendChild(st);
+ window.fmHead=function(){
+  try{
+   var f=cur(),nm=String((f&&f.name)||D.shop||'');
+   var sh=document.getElementById('sh');if(sh&&sh.textContent!==nm)sh.textContent=nm;
+   var lg=document.querySelector('#mtop .mlogo');
+   if(lg){lg.style.overflow='hidden';
+    if(f&&f.logo){if(!lg.querySelector('img')||lg.querySelector('img').getAttribute('src')!==f.logo)lg.innerHTML='<img src="'+f.logo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'}
+    else{var ch=(nm||'A').charAt(0).toUpperCase();if(lg.querySelector('img')||lg.textContent!==ch)lg.textContent=ch}}
+   var mn=document.querySelector('#mtop .mnm b');if(mn&&mn.textContent!==nm)mn.textContent=nm;
+  }catch(e){}};
+ var _r=render;render=function(){var r=_r.apply(this,arguments);window.fmHead();return r};
+ if(typeof mBar==='function'){var _m=mBar;mBar=function(){var r=_m.apply(this,arguments);window.fmHead();return r}}
+ setInterval(window.fmHead,1500);
+})();
+</script>
 </body>
 </html>
