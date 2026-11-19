@@ -6990,7 +6990,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var _run=function(lock){return new Promise(function(res,rej){
    /* During a manual account change, let the user-selected Google account be authoritative.
       Do not send login_hint: Google may use it to select an existing session. */
-   var hint=chooseAccount?undefined:(lock||em()||undefined);
+   /* When the customer typed a Drive email, pass it to Google's OAuth account selector as login_hint. */
+   var hint=chooseAccount?(String(requestedEmail||'').trim().toLowerCase()||undefined):(lock||em()||undefined);
    function accept(t,r,w){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');
     if(w){LS('gdWho',w);LS('gdEmail',w);window.__lmC=String(w).toLowerCase();window.__gdTok={t:t,e:tokExp,w:w}}else{whoIs(t).then(function(x){if(x){LS('gdWho',x);try{paint()}catch(e){}}})}
     res(tok)}
@@ -7003,7 +7004,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
       if(lock&&!chooseAccount&&normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));acctSw(w);
       accept(r.access_token,r,w)},function(e){try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(x){}rej(e)})},
     error_callback:function(e){var t=e&&e.type;rej(new Error(t==='popup_failed_to_open'||t==='popup_blocked_by_browser'?'The browser blocked the Google window. Allow pop-ups for this site, then press Back up now again.':t==='popup_closed'?'The Google window was closed before it finished. Press again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press again.'))}};
-   if(hint){cfg.login_hint=hint;cfg.hint=hint}
+   if(hint)cfg.login_hint=hint;
    var c=google.accounts.oauth2.initTokenClient(cfg);
    var promptMode=chooseAccount?'select_account':(ask?((LS('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':''));
    c.requestAccessToken({prompt:promptMode})})};if(chooseAccount)return loadGsi().then(function(){return _run('')});if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
@@ -7082,7 +7083,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* ---------- actions ---------- */
  window.gdSetCid=function(v){LS('gdCid',(v||'').trim()||null);tok=null;LS('gdFolder',null);paint()};
  window.gdSetEm=function(v){LS('gdEmail',(v||'').trim()||null);tok=null};
- window.gdConnect=function(requestedEmail){/* Explicit target is passed as login_hint and Google account chooser is forced. */return getTok(true,true,requestedEmail).then(function(){LS('gdOn','1');LS('gdSkip',null);paint();return LS('gdWho')||''})};
+ window.gdConnect=function(requestedEmail){/* Pass the typed Gmail to Google as login_hint and force the account chooser. */return getTok(true,true,requestedEmail).then(function(){LS('gdOn','1');LS('gdSkip',null);paint();return LS('gdWho')||''})};
  window.gdToggle=function(on){
   if(on&&!cid()){alert('First paste your Google Client ID (open One-time setup).');paint();return}
   LS('gdOn',on?'1':'0');if(on)window.gdNow();else paint()};
