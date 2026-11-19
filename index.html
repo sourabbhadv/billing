@@ -9226,5 +9226,78 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 })();
 </script>
 
+<script id="account-local-isolation-v1">
+/* Account-scoped offline data isolation. Each signed-in email receives its own local database. */
+(function(){
+  var PREFIX='sbacct_v1_', OWNER='sbDataOwner_v1', LEGACY='sb_legacy_unassigned_v1';
+  var activeEmail='';
+  function norm(e){return String(e||'').trim().toLowerCase()}
+  function key(e){return PREFIX+encodeURIComponent(norm(e))}
+  function read(k){try{var x=localStorage.getItem(k);return x?JSON.parse(x):null}catch(e){return null}}
+  function write(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+  function profileOwner(d){return norm(d&&d.ps&&d.ps.owner)}
+  function profileMapped(d,e){return !!(d&&d.ps&&d.ps.emails&&d.ps.emails[norm(e)])}
+  function valid(d){return !!(d&&typeof d==='object'&&Array.isArray(d.items)&&Array.isArray(d.parties)&&Array.isArray(d.bills))}
+  function blank(){
+    var n={shop:'My Business',items:[],parties:[],bills:[],pays:[],docs:[],seq:1,ps:{firms:[{id:'f1',name:''},{id:'f2',name:''}],emails:{}}};
+    try{Object.keys(D||{}).forEach(function(k){if(Array.isArray(D[k])&&!Array.isArray(n[k]))n[k]=[]})}catch(e){}
+    return n;
+  }
+  function persist(){
+    if(!activeEmail||!valid(D))return;
+    write(key(activeEmail),D);
+    write('sb',D); /* compatibility with existing backup/restore and older save paths */
+  }
+  function switchAccount(email){
+    email=norm(email);if(!email)return;
+    var current=norm((function(){try{return localStorage.getItem(OWNER)}catch(e){return ''}})());
+    if(activeEmail&&activeEmail!==email)persist();
+    else if(current&&current!==email&&valid(D))write(key(current),D);
+
+    var selected=read(key(email));
+    if(!valid(selected)){
+      var legacy=read(LEGACY),live=valid(D)?D:null;
+      var candidate=null;
+      if(legacy&&(profileOwner(legacy)===email||profileMapped(legacy,email)))candidate=legacy;
+      if(!candidate&&live&&(profileOwner(live)===email||profileMapped(live,email)))candidate=live;
+      if(!candidate&&current===email&&live)candidate=live;
+      if(candidate){selected=candidate;write(key(email),selected)}
+      else{
+        /* Keep unassigned/other-account offline data quarantined, never expose it to this login. */
+        if(live&&(!current||current!==email)&&!read(LEGACY))write(LEGACY,live);
+        selected=blank();
+        write(key(email),selected);
+      }
+    }
+    D=selected;window.D=D;activeEmail=email;
+    try{localStorage.setItem(OWNER,email);localStorage.setItem('sb',JSON.stringify(D))}catch(e){}
+    try{if(typeof SM!=='undefined'){SM={}}if(typeof got!=='undefined'){got={}}if(typeof synced!=='undefined')synced=false;if(typeof DB!=='undefined')DB=null}catch(e){}
+  }
+  /* Redirect every existing local save path into the active account's private key. */
+  try{window.local=function(){persist()};local=window.local}catch(e){}
+  var oldSave=window.save;
+  if(typeof oldSave==='function'){
+    window.save=function(){var r=oldSave.apply(this,arguments);persist();return r};
+    try{save=window.save}catch(e){}
+  }
+  var oldReady=window.sbReady;
+  if(typeof oldReady==='function'){
+    window.sbReady=function(session){
+      var email=session&&session.user&&session.user.email;
+      switchAccount(email);
+      return oldReady.apply(this,arguments);
+    };
+    try{sbReady=window.sbReady}catch(e){}
+  }
+  /* Existing signed-in sessions are also routed through the account switch. */
+  try{
+    var ss=window.__sbSess;
+    if(ss&&ss.user&&ss.user.email)switchAccount(ss.user.email);
+  }catch(e){}
+  window.__sbAccountStorage={keyFor:key,active:function(){return activeEmail},switchTo:switchAccount};
+})();
+
+</script>
+
 </body>
 </html>
