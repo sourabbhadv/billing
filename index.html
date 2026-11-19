@@ -7394,16 +7394,20 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      Never take the first folder blindly: search every matching folder for the
      existing live file before creating anything new. */
   var q=encodeURIComponent("name='"+FOLDER+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
-  return api('https://www.googleapis.com/drive/v3/files?q='+q+'&pageSize=100&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime),nextPageToken',{},t)
+  var dq=encodeURIComponent("name='"+FILE+"' and trashed=false"),direct=[];
+  /* Fix3: also look for the live file by NAME anywhere, because Google can be slow to list the new folders. Every phone then sees the same files and picks the same oldest one. */
+  return api('https://www.googleapis.com/drive/v3/files?q='+dq+'&pageSize=100&fields=files(id,name,modifiedTime,createdTime,parents)',{},t)
+   .then(function(r){return r.json()}).then(function(x){direct=(x.files||[]).map(function(f){f.__folder=(f.parents||[])[0]||null;return f});lg('Fix3: '+direct.length+' live file(s) found by name')},function(){direct=[]})
+   .then(function(){return api('https://www.googleapis.com/drive/v3/files?q='+q+'&pageSize=100&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime),nextPageToken',{},t)})
    .then(function(r){return r.json()}).then(function(j){
     var folders=j.files||[];lg('Drive: '+folders.length+' backup folder(s) found');
-    if(!folders.length)return createFolder(t).then(function(f){return {id:null,folder:f}});
+    if(!folders.length&&!direct.length)return createFolder(t).then(function(f){return {id:null,folder:f}});
     return Promise.all(folders.map(function(fd){
      var fq=encodeURIComponent("name='"+FILE+"' and '"+fd.id+"' in parents and trashed=false");
      return api('https://www.googleapis.com/drive/v3/files?q='+fq+'&pageSize=100&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime,createdTime,parents)',{},t)
       .then(function(r){return r.json()}).then(function(x){return (x.files||[]).map(function(f){f.__folder=fd.id;return f})});
     })).then(function(groups){
-     var found=[].concat.apply([],groups);lg('Drive: '+found.length+' live file(s) found');
+     var found=[].concat.apply([],groups);var seen={};found.forEach(function(f){seen[f.id]=1});direct.forEach(function(f){if(!seen[f.id]){seen[f.id]=1;found.push(f)}});lg('Drive: '+found.length+' live file(s) found');
      if(found.length){found.sort(function(a,b){return String(a.createdTime||'').localeCompare(String(b.createdTime||''))||String(a.id).localeCompare(String(b.id))});   /* all devices pick the OLDEST live file, so they always agree */
       var best=found[0];folder=best.__folder;fileId=best.id;ls('gdFolder',folder);ls('lvFile',fileId);return {id:fileId,folder:folder,multiple:found.length>1};}
      var mk=ls('gdMade');if(mk)lg('Fix2: using the folder I made earlier.');folder=mk||folders[0].id;ls('gdFolder',folder);return {id:null,folder:folder};
