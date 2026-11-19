@@ -6978,10 +6978,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
  function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
- function getTokInternal(ask,chooseAccount,requestedEmail){
+ function getTokInternal(ask,chooseAccount,requestedEmail,minLeft){
   var requestGeneration=__gdAuthGeneration;
   /* An explicit account-selection action must never reuse a cached token or an old account hint. */
-  if(tok&&Date.now()<tokExp-60000&&!chooseAccount)return Promise.resolve(tok);
+  if(tok&&Date.now()<tokExp-(minLeft||60000)&&!chooseAccount)return Promise.resolve(tok);
   if(chooseAccount){
    try{if(tok&&window.google&&google.accounts&&google.accounts.oauth2)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
    tok=null;tokExp=0;window.__gdTok=null;
@@ -7009,7 +7009,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    var promptMode=chooseAccount?'select_account':(ask?((LS('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':''));
    c.requestAccessToken({prompt:promptMode})})};if(chooseAccount)return loadGsi().then(function(){return _run('')});if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
  var __gdAuthPending=null,__gdAuthGeneration=0;
- function getTok(ask,chooseAccount,requestedEmail){
+ function getTok(ask,chooseAccount,requestedEmail,minLeft){
   /* One OAuth request shared by daily backup, live sync, restore and manual account selection. */
   if(chooseAccount){
    /* A manual account choice supersedes any background token request already in flight. */
@@ -7017,15 +7017,16 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    __gdAuthPending=null;
   }
   if(__gdAuthPending)return __gdAuthPending;
-  var p=getTokInternal(ask,chooseAccount,requestedEmail);
+  var p=getTokInternal(ask,chooseAccount,requestedEmail,minLeft);
   __gdAuthPending=p;
   var clear=function(){if(__gdAuthPending===p)__gdAuthPending=null};
   p.then(clear,clear);
   return p
  }
- window.gdGetSharedDriveToken=function(first){
-  return getTok(!!first,false).then(function(){return tok})
+ window.gdGetSharedDriveToken=function(first,minLeft){
+  return getTok(!!first,false,undefined,minLeft).then(function(){return tok})
  };
+ window.gdSharedTokenExpiry=function(){return tokExp};
 
 
  /* ---------- Google Drive calls ---------- */
@@ -7211,7 +7212,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
  var $id=function(i){return document.getElementById(i)};
  var client=function(){return (ls('gdCid')||DEFAULT_GOOGLE_CLIENT_ID).trim()},email=function(){return (ls('gdEmail')||'').trim()};
- var tok=null,exp=0,fileId=ls('lvFile')||null,folder=ls('gdFolder')||null,on=ls('lvOn')==='1',busy=false,timer=null,pollT=null,suppress=false,needTap=false,armed=false,lastStamp=ls('lvStamp')||'',lastMsg='';
+ var gen=0,roundG=0,tok=null,exp=0,fileId=ls('lvFile')||null,folder=ls('gdFolder')||null,on=ls('lvOn')==='1',busy=false,timer=null,pollT=null,suppress=false,needTap=false,armed=false,lastStamp=ls('lvStamp')||'',lastMsg='';
  var base=loadBase(),dev=ls('lvDev')||(function(){var d='d'+Math.random().toString(36).slice(2,8);ls('lvDev',d);return d})();
  (function(){try{var o=JSON.parse(ls('lvTok')||'null');if(o&&o.t&&o.e>Date.now()+60000){tok=o.t;exp=o.e;var tm=o.m||'';setTimeout(function(){lockMail().then(function(lk){if(lk&&tm!==lk){tok=null;exp=0;ls('lvTok',null)}})},0)}}catch(e){}})();   /* login survives a refresh */
  function loadBase(){try{var b=JSON.parse(ls('lvBase')||'null');if(b&&b.h)return b}catch(e){}return {h:{},q:{},m:{}}}
@@ -7247,13 +7248,14 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
  function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
- function getTok(first){
+ function getTok(first,minLeft){
   /* Live sync uses the same OAuth request/token as daily backup.
      A second TokenClient here caused competing Google account sessions. */
   if(typeof window.gdGetSharedDriveToken!=='function')
    return Promise.reject(new Error('Google Drive sign-in is still loading. Please try again.'));
-  return window.gdGetSharedDriveToken(!!first).then(function(t){
-   tok=t;exp=Date.now()+55*60*1000;
+  return window.gdGetSharedDriveToken(!!first,minLeft).then(function(t){
+   /* use the REAL expiry of the shared token (it may be an older, cached one) */
+   tok=t;exp=(window.gdSharedTokenExpiry&&+window.gdSharedTokenExpiry())||(Date.now()+55*60*1000);
    var who=String(ls('gdWho')||ls('gdAcct')||'').toLowerCase();
    ls('lvTok',JSON.stringify({t:t,e:exp,m:who}));
    needTap=false;lastErr='';
@@ -7261,13 +7263,19 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   })
  }
  /* if Google needs a tap (browsers block its window otherwise) the very next tap anywhere reconnects */
- var lastErr='';function armTapE(e){if(e&&e.message&&!e.blocked)lastErr=String(e.message);armTap()}
- function armTap(){
-  needTap=true;setStatus(lastErr?('Press "Sync now" to try again. Last problem: '+lastErr):'Tap once anywhere to keep live sync running');
-  if(armed||lastErr)return;armed=true;
-  document.addEventListener('click',function h(){document.removeEventListener('click',h,true);armed=false;
-   if(!on||tokOk())return;
-   getTok(false).then(function(){go('reconnect')},function(e){armTapE(e)})},true)}
+ var lastErr='';
+ function armTapE(e){var m=e&&e.message?String(e.message):'';
+  /* a blocked / closed Google window only means "needs a tap"; it is not a real problem */
+  lastErr=(!m||e.blocked||/block|pop-?up|window was closed|did not finish/i.test(m))?'':m;
+  armTap()}
+ function armTap(){needTap=true;setStatus(lastErr?('Tap anywhere or press "Sync now" to try again. Last problem: '+lastErr):'Tap once anywhere to keep live sync running')}
+ /* ONE permanent tap listener: a tap anywhere renews the Google token when it is missing, expired or about to expire */
+ var tapAt=0;
+ document.addEventListener('click',function(){
+  if(!on||document.hidden)return;
+  if(tok&&exp-Date.now()>4*60000)return;
+  if(Date.now()-tapAt<4000)return;tapAt=Date.now();
+  getTok(false,20*60000).then(function(){needTap=false;lastErr='';go('reconnect')},function(e){if(!tokOk())armTapE(e)})},true);
  /* renew in the background BEFORE the hour ends, with no tap (works where the browser allows it; a tap anywhere is the backup) */
  var lastBg=0;
  setInterval(function(){
@@ -7275,10 +7283,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var left=exp-Date.now();
   if(left>6*60000||Date.now()-lastBg<75000)return;
   lastBg=Date.now();
-  getTok(false).then(function(){needTap=false;setStatus('Connected '+stamp())},function(){/* browser needs a tap: the next tap anywhere renews */})},15000);
- document.addEventListener('visibilitychange',function(){if(document.hidden||!on||busy||!exp)return;if(exp-Date.now()<6*60000){lastBg=Date.now();getTok(false).then(function(){needTap=false},function(){})}});
- /* renew a little BEFORE it expires, inside a tap, so a busy shop never notices */
- document.addEventListener('click',function(){if(on&&tok&&!needTap&&exp-Date.now()<4*60000&&exp-Date.now()>0&&!busy){getTok(false).catch(function(){})}},true);
+  getTok(false,20*60000).then(function(){needTap=false;lastErr=''},function(){/* browser needs a tap: the next tap anywhere renews */})},15000);
+ document.addEventListener('visibilitychange',function(){if(document.hidden||!on||busy||!exp)return;if(exp-Date.now()<6*60000){lastBg=Date.now();getTok(false,20*60000).then(function(){needTap=false;lastErr=''},function(){})}});
 
  /* ---------- Drive calls ---------- */
  function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
@@ -7351,11 +7357,13 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   suppress=true;try{Object.keys(o).forEach(function(k){D[k]=o[k]});
    try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){}
    if(typeof softRender==='function')softRender();else if(typeof render==='function')render()}finally{suppress=false}}
- function snapshotBase(){
+ function makeBase(){
   var b={h:{},q:{},m:{}};
   colsOf(D).forEach(function(c){(D[c]||[]).forEach(function(r){b.h[c+'/'+r.id]=hs(r);if(c==='items'&&typeof r.qty==='number')b.q[r.id]=r.qty})});
   Object.keys(D).forEach(function(k){if(colsOf(D).indexOf(k)<0&&k.charAt(0)!=='_')b.m[k]=cs(D[k]===undefined?null:D[k])});
-  base=b;saveBase()}
+  return b}
+ function snapshotBase(){base=makeBase();saveBase()}
+ function pack(){return {body:build(),snap:makeBase()}}   /* body + the exact state it represents, taken in the same instant */
  function build(){var x={};Object.keys(D).forEach(function(k){x[k]=D[k]});x._app='Stock & Billing';x._format='ashirwad_billing_live';x._saved=new Date().toISOString();x._dev=dev;return JSON.stringify(x)}
 
  /* ---------- one sync round: read Drive, merge, write only if Drive is missing something ---------- */
@@ -7391,28 +7399,29 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(fileId&&ls('lvFolderScanV2')==='1')return Promise.resolve(fileId);
   return discoverLiveFile(t).then(function(found){ls('lvFolderScanV2','1');return found.id||null});
  }
- function commit(t,j,res){   /* trust the written state only if Drive still holds OUR version a moment later */
+ function commit(t,j,res,snap){   /* trust the written state only if Drive still holds OUR version a moment later */
   lastStamp=j.md5Checksum||j.modifiedTime||'';
   return new Promise(function(ok){setTimeout(ok,RACE_WAIT)}).then(function(){return getMeta(t,fileId)}).then(function(m){
-   if((m.md5Checksum||m.modifiedTime||'')===lastStamp){snapshotBase();return res}
+   if((m.md5Checksum||m.modifiedTime||'')===lastStamp){if(snap){base=snap;saveBase()}else snapshotBase();return res}
    lastStamp='';ls('lvDirty','1');return 'race'})}
  function round(why){
+  roundG=gen;
   if(!hasData()){base={h:{},q:{},m:{}}}   /* an empty device must never delete anything in Drive */
   var t=tok;
   return ensureFile(t).then(function(id){
    if(!id){   /* first device: create the file */
-    stampLocal();return folderId(t).then(function(f){return writeFile(t,f,null,build())}).then(function(j){fileId=j.id;ls('lvFile',fileId);return commit(t,j,'created')})}
+    stampLocal();var pk;return folderId(t).then(function(f){pk=pack();return writeFile(t,f,null,pk.body)}).then(function(j){fileId=j.id;ls('lvFile',fileId);return commit(t,j,'created',pk.snap)})}
    return getMeta(t,id).then(function(m){
     var st=m.md5Checksum||m.modifiedTime||'';
     var localDirty=ls('lvDirty')==='1';
     if(st===lastStamp&&!localDirty&&why!=='force')return 'same';
     return readFile(t,id).then(function(remote){
-     stampLocal();
+     if(Object.keys(base.h).length)stampLocal();   /* first sync of this device: do not pretend every record was just edited here, or old local data would beat newer Drive data */
      var r=mergeAll(D,remote),note=fixNums(r.out);if(note){r.chL=true;r.chR=true}
      if(r.chL)applyMerged(r.out);
-     if(r.chR){return writeFile(t,folder,id,build()).then(function(j){return commit(t,j,note||(r.chL?'merged':'saved'))})}
+     if(r.chR){var pk2=pack();return writeFile(t,folder,id,pk2.body).then(function(j){return commit(t,j,note||(r.chL?'merged':'saved'),pk2.snap)})}
      lastStamp=st;snapshotBase();return r.chL?'pulled':'same'})})
-  }).then(function(res){ls('lvStamp',lastStamp);ls('lvDirty',null);ls('lvAt',String(Date.now()));return res})}
+  }).then(function(res){ls('lvStamp',lastStamp);ls('lvDirty',(res==='race'||gen!==roundG)?'1':null);ls('lvAt',String(Date.now()));return res})}   /* a save made DURING this round keeps the dirty flag */
  var n404=0;
  function go(why,quiet){
   if(!on||busy||!(window.PLAN&&PLAN.pro()))return Promise.resolve();
@@ -7420,7 +7429,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   busy=true;if(!quiet&&why!=='poll'&&why!=='wake')setStatus('Syncing...');
   return round(why).then(function(res){busy=false;n404=0;
    if(res==='race'){setStatus('Another device saved at the same moment, merging...');setTimeout(function(){go('force',1)},400);return}
-   setStatus((res==='pulled'||res==='merged'?'Updated from another device ':'Synced ')+stamp()+(res&&res.length>12?' \u2022 '+res:''));paint()},
+   setStatus((res==='pulled'||res==='merged'?'Updated from another device ':'Synced ')+stamp()+(res&&res.length>12?' \u2022 '+res:''));paint();
+   if(gen!==roundG&&!timer)setTimeout(function(){go('save',1)},500)},   /* something was saved while this round ran: push it now, not at some later poll */
    function(e){busy=false;
     if(e&&e.status===401){armTap()}
     else if(e&&e.status===404){
@@ -7432,7 +7442,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 
  /* ---------- when to run ---------- */
  function schedule(){
-  if(suppress||!on)return;ls('lvDirty','1');
+  if(suppress||!on)return;gen++;ls('lvDirty','1');
   if(!tokOk()){setStatus('Saved on this device. Reconnect Google Drive to upload.');if(!needTap)getTok(false).then(function(){lastErr='';go('save')},function(e){armTapE(e)});else armTap();return}
   if(timer)clearTimeout(timer);timer=setTimeout(function(){timer=null;go('save')},PUSH_DELAY)}
  function poll(){
