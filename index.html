@@ -52,19 +52,6 @@
  function readSb(){try{return JSON.parse(LS('sb')||'null')}catch(e){return null}}
  function hasRows(d){return !!(d&&((d.items&&d.items.length)||(d.parties&&d.parties.length)||(d.bills&&d.bills.length)||(d.docs&&d.docs.length)||(d.pays&&d.pays.length)))}
  function labelled(d,em){var p=(d&&d.ps)||{};return String(p.owner||'').toLowerCase()===em||!!(p.emails&&p.emails[em])}
- var askOpen=0,askCont=null;
- /* data on this device that belongs to nobody yet: ask ONCE, without showing any firm name */
- function ask(email,cont){
-  askCont=cont;if(askOpen)return;askOpen=1;
-  var o=document.createElement('div');o.id='acctq';
-  o.style.cssText='position:fixed;inset:0;background:#101338;color:#fff;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font:17px/1.45 sans-serif';
-  o.innerHTML='<div style="max-width:380px"><div style="font-size:20px;font-weight:700;margin-bottom:10px">Old shop data found</div><div>Some shop data is already saved on this device from before sign-in. Is it YOUR shop data?</div><div style="margin-top:18px;display:flex;flex-direction:column;gap:10px"><button id="acqY" style="padding:13px;font-size:16px;border-radius:10px;border:0;background:#1a73e8;color:#fff">Yes, it is my shop data</button><button id="acqN" style="padding:13px;font-size:16px;border-radius:10px;border:0;background:#fff;color:#101338">No, I am a new shop</button></div></div>';
-  (document.body||document.documentElement).appendChild(o);
-  document.getElementById('acqY').onclick=function(){
-   try{localStorage.setItem('sbOwner',email)}catch(e){}
-   try{var d=window.D&&window.D.items?window.D:readSb();if(d){d.ps=d.ps||{};d.ps.owner=email;d.ps.emails=d.ps.emails||{};if(window.D&&window.D.items){if(window.save)window.save()}else localStorage.setItem('sb',JSON.stringify(d))}}catch(e){}
-   o.remove();askOpen=0;var c=askCont;askCont=null;if(c)c()};
-  document.getElementById('acqN').onclick=function(){o.remove();askOpen=0;askCont=null;swap(email,'__legacy__')}}
  window.acctCheck=function(email,cont){
   email=String(email||'').toLowerCase();if(!email)return false;
   var o=LS('sbOwner');
@@ -72,7 +59,8 @@
   if(!o){
    var d=readSb();
    if(!hasRows(d)||labelled(d,email)){try{localStorage.setItem('sbOwner',email)}catch(e){}return false}
-   ask(email,cont);return true}
+   /* old data of nobody: keep it safe aside, never show it to this account and never ask */
+   swap(email,'__legacy__');return true}
   swap(email,o);return true};
  /* at start: a signed-in account that is not the owner must never see the owner's data */
  (function(){var se=sessEmail();if(se)window.acctCheck(se)})();
@@ -8178,8 +8166,9 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   +'<div class="fg"><div class="w"><label>Firm name *</label><input id="fnn" placeholder="Firm name" autocomplete="off"></div>'
   +'<div><label>Phone number</label><input id="fnp" type="tel" inputmode="tel" placeholder="Phone"></div><div><label>GST number (optional)</label><input id="fng" placeholder="GSTIN"></div>'
   +'<div class="w"><label>Address</label><textarea id="fna" placeholder="Shop address, city"></textarea></div></div>'
-  +'<div class="er" id="fne"></div><div class="fa">'+(login?'<button class="s" onclick="fnOut()">Log out</button>':'<button class="s" onclick="fnClose()">Cancel</button>')+'<button class="b" onclick="fnSave()">Save</button></div>')};
+  +(login?'<div class="fa col" style="margin-top:10px"><button class="s" onclick="fnDrive()">I already use this app: load my data from Google Drive</button></div>':'')+'<div class="er" id="fne"></div><div class="fa">'+(login?'<button class="s" onclick="fnOut()">Log out</button>':'<button class="s" onclick="fnClose()">Cancel</button>')+'<button class="b" onclick="fnSave()">Save</button></div>')};
  window.fnClose=close;
+ window.fnDrive=function(){window.__fnSkip=Date.now()+10*60*1000;close();try{if(window.gdList)gdList()}catch(e){}try{sub=null;form=false;pg='bk';render()}catch(e){}};
  window.fnOut=function(){close();try{if(window.sbOut)sbOut(0)}catch(e){}};
  window.fnSave=function(){
   var p=F(),em=openFor||email(),g=function(i){return((document.getElementById(i)||{}).value||'').trim()},er=document.getElementById('fne');
@@ -8195,7 +8184,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   alert('Firm "'+f.name+'" is ready.')};
  window.fmNew=function(){fnNewFirm('')};
  function check(){
-  if(document.getElementById('fnw')||document.getElementById('lgn')||document.getElementById('acctov')||document.getElementById('acctq'))return;
+  if(window.__fnSkip&&Date.now()<window.__fnSkip&&!hasData())return;
+  if(document.getElementById('fnw')||document.getElementById('lgn')||document.getElementById('acctov'))return;
   var em=email();if(!em)return;
   var p=F();if(p.emails[em]&&p.firms.some(function(x){return x.id===p.emails[em]}))return;
   /* this device data already belongs to this account only: never ask again if it already has a firm or data */
