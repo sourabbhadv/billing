@@ -9599,7 +9599,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    daily backup and live-sync file. It can differ from the sign-in account. Phone and laptop use the same screen. */
 (function(){
  var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
- var later=false,busy=false,view='start',doneMail='',changing=false,prevMail='';
+ var later=false,busy=false,view='start',doneMail='',changing=false,prevMail='',want='';
  function nm(m){m=String(m||'').toLowerCase().trim();var q=m.split('@');if(q.length==2&&(q[1]==='gmail.com'||q[1]==='googlemail.com'))return q[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
  var E=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
  function pro(){try{return !!(window.PLAN&&PLAN.pro&&PLAN.pro())}catch(e){return false}}
@@ -9631,6 +9631,12 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     +'<div class="gdwr"><span>Live sync (all devices)</span><b>'+(P?'Starting':'Pro plan')+'</b></div>'
     +'<p class="mu" style="font-size:13.5px">On every other phone or computer, sign in here and choose <b>this same Drive account</b>.</p>'
     +'<button class="b gdwb" onclick="gdwClose()">Done</button>';
+  }else if(view==='diff'){
+   h+='<div class="gdwi" style="background:#fff4e5;color:#b06000">!</div><h2>Different account chosen</h2>'
+    +'<p class="mu">You asked for <b>'+E(want)+'</b>, but Google connected <b>'+E(doneMail)+'</b>.</p>'
+    +'<div class="gdww">In the Google window pick <b>'+E(want)+'</b>. If it is not in the list, tap <b>Use another account</b> and sign in to it.</div>'
+    +'<button class="b gdwb" onclick="gdwChange()">Try again</button>'
+    +'<button class="s gdwo" onclick="gdwClose()">Keep '+E(doneMail)+'</button>';
   }else if(view==='same'){
    h+='<div class="gdwi" style="background:#fff4e5;color:#b06000">!</div><h2>Same account again</h2>'
     +'<p class="mu">Google picked <b>'+E(doneMail)+'</b> again, so nothing changed.</p>'
@@ -9648,6 +9654,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     +'<p class="mu">Your daily backup'+(P?' and live sync':'')+' will be saved in the Google Drive you choose. It can be a <b>different account</b> from the one you signed in with.</p>'
     +(od?'<div class="gdwh">Your other device uses <b>'+E(od)+'</b>. Choose the same account so all devices stay together.</div>':'')
     +'<ol class="gdwl"><li>Tap <b>Choose Google account</b></li><li>Pick the Drive account and tap <b>Allow</b></li><li>Use the <b>same account</b> on every phone and computer</li></ol>'
+    +'<label class="mu" style="display:block;margin-top:10px;font-size:13.5px" for="gdwE">Gmail to use for Drive <span style="opacity:.7">(type it so Google opens exactly this account)</span></label>'
+    +'<input id="gdwE" type="email" inputmode="email" autocomplete="off" placeholder="example@gmail.com" value="'+E(want)+'" style="width:100%;box-sizing:border-box;min-height:44px;margin-top:4px">'
     +'<button id="gdwGo" class="b gdwb" onclick="gdwGo()">Choose Google account</button>'
     +'<div id="gdwm" class="gdwm"></div>'
     +'<button class="gdwt" onclick="gdwLater()">Set up later</button>'
@@ -9669,9 +9677,13 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(busy)return;
   if(typeof window.gdConnect!=='function')return say('Not ready yet. Wait a moment and press again.');
   busy=true;var b=document.getElementById('gdwGo');if(b)b.disabled=true;say('Opening Google...');
+  var typed=String((document.getElementById('gdwE')||{}).value||'').trim().toLowerCase();
+  if(typed&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typed)){busy=false;if(b)b.disabled=false;return say('That email does not look right. Check it and try again.')}
+  want=typed;if(typed)LS('gdEmail',typed);
   var h=otherDevice();if(h&&!LS('gdEmail'))LS('gdEmail',h);
   window.gdConnect().then(function(w){
    busy=false;doneMail=w||LS('gdWho')||'';
+   if(want&&nm(doneMail)!==nm(want)){view='diff';paintW();return}
    if(changing&&prevMail&&nm(doneMail)===nm(prevMail)){view='same';paintW();return}
    changing=false;prevMail='';
    try{if(window.SB&&SB.auth&&SB.auth.updateUser&&doneMail)SB.auth.updateUser({data:{drive_email:doneMail}})}catch(e){}   /* so the next device can suggest the same account */
