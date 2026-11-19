@@ -6981,11 +6981,13 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   }
   if(!cid())return Promise.reject(new Error('First paste your Google Client ID (open One-time setup).'));
   var _run=function(lock){return new Promise(function(res,rej){
-   var hint=chooseAccount?(String(requestedEmail||em()||'').trim().toLowerCase()||undefined):(lock||em()||undefined);
+   /* During a manual account change, let the user-selected Google account be authoritative.
+      Do not send login_hint: Google may use it to select an existing session. */
+   var hint=chooseAccount?undefined:(lock||em()||undefined);
    function accept(t,r,w){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');
     if(w){LS('gdWho',w);LS('gdEmail',w);window.__lmC=String(w).toLowerCase();window.__gdTok={t:t,e:tokExp,w:w}}else{whoIs(t).then(function(x){if(x){LS('gdWho',x);try{paint()}catch(e){}}})}
     res(tok)}
-   var c=google.accounts.oauth2.initTokenClient({client_id:cid(),scope:SCOPE,login_hint:hint,hint:hint,
+   var cfg={client_id:cid(),scope:SCOPE,
     callback:function(r){
      if(!(r&&r.access_token))return rej(new Error((r&&(r.error_description||r.error))||'Google did not allow it.'));
      
@@ -6993,7 +6995,9 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
       if(!w){if(!lock)return accept(r.access_token,r);try{google.accounts.oauth2.revoke(r.access_token,function(){})}catch(e){}return rej(new Error('Could not confirm which Google account this is. Please try again.'))}
       if(lock&&!chooseAccount&&normM(w)!==normM(lock))return rej(wrongAcct(r.access_token,lock,w));acctSw(w);
       accept(r.access_token,r,w)})},
-    error_callback:function(e){var t=e&&e.type;rej(new Error(t==='popup_failed_to_open'||t==='popup_blocked_by_browser'?'The browser blocked the Google window. Allow pop-ups for this site, then press Back up now again.':t==='popup_closed'?'The Google window was closed before it finished. Press again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press again.'))}});
+    error_callback:function(e){var t=e&&e.type;rej(new Error(t==='popup_failed_to_open'||t==='popup_blocked_by_browser'?'The browser blocked the Google window. Allow pop-ups for this site, then press Back up now again.':t==='popup_closed'?'The Google window was closed before it finished. Press again, pick your account and tap Allow. If Google showed an error page, this web address or your email is not yet allowed in the Google project.':'Google sign-in did not finish ('+(t||'unknown')+'). Press again.'))}};
+   if(hint){cfg.login_hint=hint;cfg.hint=hint}
+   var c=google.accounts.oauth2.initTokenClient(cfg);
    var promptMode=chooseAccount?'select_account':(ask?((LS('gdLinked')!=='1')?'consent select_account':'select_account'):((function(){try{return localStorage.getItem('gdWrongAcct')==='1'}catch(e){return false}})()?'select_account':''));
    c.requestAccessToken({prompt:promptMode})})};if(chooseAccount)return loadGsi().then(function(){return _run('')});if(window.__lmC!==undefined&&window.google&&google.accounts&&google.accounts.oauth2)return _run(window.__lmC);return lockMail().then(function(lock){return loadGsi().then(function(){return _run(lock)})})}
 
@@ -7069,10 +7073,18 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    var ch=0;['trs','dsp','sls'].forEach(function(c){if(!Array.isArray(x[c]))return;D[c]=D[c]||[];x[c].forEach(function(r){if(!r||!r.id)return;var i=D[c].findIndex(function(z){return z.id===r.id});if(i<0)D[c].push(r);else D[c][i]=r;ch=1})});
    if(x.shop&&!D.shop)D.shop=x.shop;if(ch)save();
    impGo(x)}).then(null,function(e){alert(String(e&&e.message||e))})};
+ window.gdResetForAccountChange=function(){
+  try{if(tok&&window.google)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
+  tok=null;tokExp=0;files=null;
+  ['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho','gdAcct','gdWrongAcct','gdEmail','lvFile','lvTok','lvBase','lvStamp','lvOn'].forEach(function(k){LS(k,null)});
+  LS('lvOff','1');LS('gdSkip',null);window.__gdTok=null;window.__lmC='';
+  try{if(window.lvDisconnect)lvDisconnect()}catch(e){}
+  hidePend();paint()
+ };
  window.gdOff=function(){
   if(!confirm('Disconnect Google Drive? Your backups already in Drive stay there.'))return;
-  try{if(tok&&window.google)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
-  tok=null;files=null;['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho','gdAcct','gdWrongAcct','lvFile','lvTok','lvBase','lvStamp'].forEach(function(k){LS(k,null)});LS('gdSkip','1');window.__gdTok=null;window.__lmC='';try{if(window.lvDisconnect)lvDisconnect()}catch(e){}hidePend();paint()};
+  window.gdResetForAccountChange();LS('gdSkip','1');paint()
+ };
  window.gdSetup=function(){var e=document.getElementById('gdSetup');if(e)e.style.display=e.style.display==='none'?'block':'none'};
 
  /* ---------- screens ---------- */
@@ -9674,10 +9686,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.gdwOpen=function(force){if(force)later=false;view=(force&&connected())?'change':'start';paintW()};
  window.gdwChange=function(){
   var prev=LS('gdWho')||LS('gdAcct')||doneMail||'';
-  if(typeof window.gdOff==='function')window.gdOff();
-  if(connected())return;            /* the person pressed Cancel in the confirm box */
-  LS('gdEmail',null);changing=true;prevMail=prev;
-  try{if(window.SB&&SB.auth&&SB.auth.updateUser)SB.auth.updateUser({data:{drive_email:null}})}catch(e){}   /* forget the old suggestion so Google does not pre-pick it */
+  /* This is an intentional account switch, so reset without a second confirmation. */
+  if(typeof window.gdResetForAccountChange==='function')window.gdResetForAccountChange();
+  changing=true;prevMail=prev;
+  try{if(window.SB&&SB.auth&&SB.auth.updateUser)SB.auth.updateUser({data:{drive_email:null}})}catch(e){}
   view='start';paintW()};
  window.gdwGo=function(){
   if(busy)return;
