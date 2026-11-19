@@ -3399,7 +3399,7 @@ function rpPerUI(){var p=pv('rep'),r=rpRange(),o=[['all','All Time'],['today','T
 function rpRows(){var e=[],f=function(t){return inPer('rep',t)};
  D.bills.forEach(function(b){if(!f(b.date))return;var p=P(b.pid),pd=Math.min(paidOn(b),b.total),s=saleStatus(b);e.push({f:'sale',d:b.date,no:b.no,n:p?p.name:'?',ty:'Sale',tot:b.total,rec:pd,bal:Math.max(b.total-pd,0),st:s==='Partly paid'?'Partial':s,pt:b.pt||'',k:'viewB='+b.no+';render()',pr:'printBill('+b.no+')',sh:'wa('+b.no+')',mo:'billMenu('+b.no+')'})});
  D.pays.forEach(function(x){if(!f(x.date)||/^With (bill|purchase)/.test(x.note||''))return;var p=P(x.pid),ty=x.ret?'Sale Return':x.out?'Payment-Out':'Payment-In';
-  e.push({f:x.ret?'sret':x.out?'pout':'pin',d:x.date,no:x.no||'',n:p?p.name:'?',ty:ty,tot:x.amt,rec:x.ret?0:x.amt,bal:x.ret?x.amt:0,st:x.x?'Cancelled':x.ret?'Returned':'Unused',pt:x.pt||'',k:"openP='"+x.pid+"';render()",pr:"rpPrintPay('"+x.id+"')",sh:"rpSharePay('"+x.id+"')",mo:"payMenu('"+x.id+"')"})});
+  e.push({f:x.ret?'sret':x.out?'pout':'pin',d:x.date,no:x.no||'',n:p?p.name:'?',ty:ty,tot:x.amt,rec:x.ret?0:x.amt,bal:x.ret?x.amt:0,st:x.x?'Cancelled':x.ret?'Returned':'Unused',pt:x.pt||'',payId:x.id,pid:x.pid,k:"openP='"+x.pid+"';render()",pr:"rpPrintPay('"+x.id+"')",sh:"rpSharePay('"+x.id+"')",mo:"payMenu('"+x.id+"')"})});
  D.docs.forEach(function(d){if(!f(d.date))return;var p=P(d.pid),s=docStatus(d),pd=d.t==='pur'?Math.min(paidDoc(d),d.total):0;
   e.push({f:d.t,d:d.date,no:d.no,n:p?p.name:'?',ty:DT[d.t].s,tot:d.total,rec:pd,bal:(d.t==='pur'||d.t==='pret')?Math.max(d.total-pd,0):0,st:s==='Partly paid'?'Partial':s,pt:d.pt||'',k:"viewD='"+d.id+"';render()",pr:"printDoc('"+d.id+"')",sh:"docWA('"+d.id+"')",mo:"docMenu('"+d.id+"')"})});
  return e}
@@ -8515,6 +8515,97 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 })();
 </script>
 
+\n<script id="firms-step13">
+/* ---- FIRMS (step 13): independent logo and bank details for each firm.
+   The owner's legacy/first firm continues using the existing Settings > Print
+   logo and bank fields. Other firms store their own logo/bank on the firm record.
+   Every bill/document print path temporarily supplies the matching firm's data. ---- */
+(function(){
+  var activeFirm=null;
+  var basePS=window.PS;
+  function rawSettings(){return typeof basePS==='function'?basePS():{}}
+  function firms(){return (rawSettings().firms||[])}
+  function getFirm(id){return firms().find(function(f){return f.id===id})}
+  function legacy(){var p=rawSettings();return (p.owner&&p.emails&&p.emails[p.owner])||(p.firms&&p.firms[0]&&p.firms[0].id)||'f1'}
+  function withFirm(id,fn){
+    var before=activeFirm;if(id)activeFirm=id;
+    try{return fn()}finally{activeFirm=before}
+  }
+  /* Step 9 already scopes the rest of the print settings by bill firm.
+     Add only the firm-specific logo and bank text here. */
+  if(typeof basePS==='function'){
+    window.PS=function(){
+      var p=basePS.apply(this,arguments);
+      if(!activeFirm||activeFirm===legacy())return p;
+      var f=getFirm(activeFirm);if(!f)return p;
+      return Object.assign({},p,{logo:f.logo||'',bank:f.bank||''});
+    };
+    try{PS=window.PS}catch(e){}
+  }
+  function billFirm(no){var b=(D.bills||[]).find(function(x){return +x.no===+no});return b&&window.fmBillF?fmBillF(b):(b&&b.fm)||legacy()}
+  function docFirm(id){var d=window.docById&&docById(id);return d&&window.fmDocF?fmDocF(d):(d&&d.fm)||legacy()}
+  function wrap(name,getId){
+    var old=window[name];if(typeof old!=='function')return;
+    var wrapped=function(){var a=arguments,self=this,id=null;try{id=getId.apply(self,a)}catch(e){}
+      return withFirm(id,function(){return old.apply(self,a)})};
+    window[name]=wrapped;try{window[name]=wrapped;eval(name+'=wrapped')}catch(e){}
+  }
+  wrap('printBill',function(no){return billFirm(no)});
+  wrap('shareBill',function(no){return billFirm(no)});
+  wrap('wa',function(no){return billFirm(no)});
+  wrap('printDoc',function(id){return docFirm(id)});
+  /* Save & Print and other direct printHtml calls use the bill number in the title. */
+  wrap('printHtml',function(title){var m=/^Bill\s+(\d+)/i.exec(String(title||''));return m?billFirm(+m[1]):null});
+
+  function brandSave(id){var f=getFirm(id);if(f){save();render()}}
+  window.fmBrandBank=function(id,value){var f=getFirm(id);if(!f)return;f.bank=String(value||'');save()};
+  window.fmBrandLogo=function(id,input){
+    var f=getFirm(id),file=input&&input.files&&input.files[0];if(!f||!file)return;
+    if(!/^image\//i.test(file.type||'')){alert('Please choose an image file.');input.value='';return}
+    var reader=new FileReader();reader.onload=function(){
+      var im=new Image();im.onload=function(){
+        var scale=Math.min(1,300/Math.max(im.width,im.height)),c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round(im.width*scale));c.height=Math.max(1,Math.round(im.height*scale));
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        var data=c.toDataURL('image/png');if(data.length>250000)data=c.toDataURL('image/jpeg',.82);
+        f.logo=data;brandSave(id);
+      };
+      im.onerror=function(){alert('Could not read this picture. Try a PNG or JPG file.')};im.src=reader.result;
+    };reader.onerror=function(){alert('Could not read this picture.')};reader.readAsDataURL(file);
+  };
+  window.fmBrandLogoDel=function(id){var f=getFirm(id);if(!f)return;if(!confirm('Remove the logo for '+(f.name||'this firm')+'?'))return;delete f.logo;brandSave(id)};
+
+  /* Add per-firm branding controls to the owner’s Settings > Firms page.
+     The first/legacy firm deliberately keeps using the existing Print settings. */
+  var oldSettings=window.vSettings;
+  if(typeof oldSettings==='function'){
+    window.vSettings=vSettings=function(){
+      var h=oldSettings.apply(this,arguments);
+      if(typeof sTab==='undefined'||sTab!=='firms')return h;
+      var restrictedId=window.fmRestricted&&fmRestricted();if(restrictedId)return h;
+      var L=firms().filter(function(f){return String(f.name||'').trim()});
+      if(!L.length)return h;
+      var main=legacy(),cards=L.map(function(f){
+        if(f.id===main){
+          var p=basePS?basePS():{};
+          return '<div class="card" style="max-width:600px;margin-top:10px"><b>'+esc(f.name)+' · Logo and bank</b><div class="mu" style="margin-top:5px">This is your main firm. Its logo and bank details are managed in Settings → Print, so your existing print setup remains unchanged.</div>'
+            +(p.logo?'<div style="margin-top:8px"><img src="'+p.logo+'" alt="Main firm logo" style="max-height:42px;max-width:110px;object-fit:contain"></div>':'')
+            +'<div class="mu" style="margin-top:5px">Bank details: '+(p.bank?'Configured in Print settings':'Not configured')+'</div></div>';
+        }
+        return '<div class="card" style="max-width:600px;margin-top:10px"><b>'+esc(f.name)+' · Logo and bank</b>'
+          +'<div class="mu" style="margin:5px 0 8px">These details are used only on this firm’s printed bills and documents.</div>'
+          +'<div class="row" style="justify-content:flex-start;align-items:center;gap:10px">'
+          +(f.logo?'<img src="'+f.logo+'" alt="'+esc(f.name)+' logo" style="max-height:48px;max-width:120px;object-fit:contain;border:1px solid var(--bd);border-radius:6px;padding:3px;background:#fff">':'<span class="mu">No logo uploaded</span>')
+          +'<label class="s" style="display:inline-flex;align-items:center;padding:8px 14px;cursor:pointer">'+(f.logo?'Change logo':'Upload logo')+'<input type="file" accept="image/*" style="display:none" onchange="fmBrandLogo(\''+f.id+'\',this)"></label>'
+          +(f.logo?'<button class="s" onclick="fmBrandLogoDel(\''+f.id+'\')">Remove</button>':'')+'</div>'
+          +'<label class="mu" style="display:block;margin-top:12px">Bank / UPI details to print</label>'
+          +'<textarea rows="3" placeholder="Bank name, account number, IFSC, UPI ID" onchange="fmBrandBank(\''+f.id+'\',this.value)">'+esc(f.bank||'')+'</textarea></div>';
+      }).join('');
+      return h+'<div style="margin-top:16px"><h3 style="font-size:16px;margin:8px 0">Firm-wise print branding</h3>'+cards+'</div>';
+    };
+  }
+})();
+</script>
 </body></html>
 
 <script id="firms-step11">
@@ -8696,5 +8787,85 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     return result;
   };
   try{saveEdit=window.saveEdit}catch(e){}
+})();
+</script>
+
+<script id="firms-step14">
+/* ---- FIRMS (step 14): show the owning firm on payment rows in Transactions.
+   Covers desktop All Transactions report and mobile transaction cards. Existing
+   payment records are resolved from their explicit firm, linked bill/purchase,
+   or the legacy first firm; this is display-only and does not rewrite records. ---- */
+(function(){
+  function firmId(x){
+    if(!x)return window.fmLegacy?fmLegacy():'f1';
+    if(x.fm)return x.fm;
+    var no=null,m=/With bill #(\d+)/i.exec(String(x.note||''));
+    if(m)no=+m[1];else if(x.bn!=null)no=+x.bn;
+    if(no!=null){var b=(D.bills||[]).find(function(z){return +z.no===no});if(b)return window.fmBillF?fmBillF(b):(b.fm||(window.fmLegacy?fmLegacy():'f1'));}
+    if(x.dn){var d=(D.docs||[]).find(function(z){return z.id===x.dn});if(d)return window.fmDocF?fmDocF(d):(d.fm||(window.fmLegacy?fmLegacy():'f1'));}
+    return window.fmLegacy?fmLegacy():'f1';
+  }
+  function firmName(id){
+    var p=typeof PS==='function'?PS():{},f=(p.firms||[]).find(function(z){return z.id===id});
+    return f&&f.name?f.name:'Firm';
+  }
+  function label(x){return firmName(firmId(x))}
+  var oldRows=window.rpRows;
+  if(typeof oldRows==='function'){
+    window.rpRows=function(){
+      var rows=oldRows.apply(this,arguments);
+      rows.forEach(function(r){
+        if(r.f==='pin'||r.f==='pout'||r.f==='sret'){
+          var x=(D.pays||[]).find(function(z){return z.id===r.payId})
+          if(x)r.firmLabel=label(x);
+        }
+      });
+      return rows;
+    };
+    try{rpRows=window.rpRows}catch(e){}
+  }
+  var oldReport=window.rpTx;
+  if(typeof oldReport==='function'){
+    window.rpTx=function(){
+      var out=oldReport.apply(this,arguments);
+      try{
+        (out.list||[]).forEach(function(x,i){
+          if(x.firmLabel&&RCUR&&RCUR.r&&RCUR.r[i])RCUR.r[i][4]=x.firmLabel;
+          if(!x.firmLabel)return;
+          var needle='<td>'+esc(x.n)+'</td><td></td><td>'+x.ty+'</td>';
+          var repl='<td>'+esc(x.n)+'</td><td><span class="fm-tx-tag">'+esc(x.firmLabel)+'</span></td><td>'+x.ty+'</td>';
+          out.html=out.html.replace(needle,repl);
+        });
+      }catch(e){}
+      return out;
+    };
+    try{rpTx=window.rpTx}catch(e){}
+  }
+  var oldMobileRows=window.mTxRows;
+  if(typeof oldMobileRows==='function'){
+    window.mTxRows=function(){
+      var rows=oldMobileRows.apply(this,arguments);
+      rows.forEach(function(r){if(r.k==='pay'){
+        var x=(D.pays||[]).find(function(z){return z.id===r.id});
+        if(x)r.firmLabel=label(x);
+      }});
+      return rows;
+    };
+    try{mTxRows=window.mTxRows}catch(e){}
+  }
+  var oldCard=window.mTxCard;
+  if(typeof oldCard==='function'){
+    window.mTxCard=function(r,showParty){
+      var h=oldCard.apply(this,arguments);
+      if(r&&r.k==='pay'&&r.firmLabel){
+        h=h.replace('<div class="mc3">','<div class="fm-pay-firm">Firm: '+esc(r.firmLabel)+'</div><div class="mc3">');
+      }
+      return h;
+    };
+    try{mTxCard=window.mTxCard}catch(e){}
+  }
+  var st=document.createElement('style');st.id='firms-step14-style';
+  st.textContent='.fm-tx-tag{display:inline-block;padding:3px 8px;border-radius:12px;background:#eef2ff;color:#3949ab;font-size:11px;font-weight:600;white-space:nowrap}.fm-pay-firm{display:inline-block;margin-top:5px;padding:3px 8px;border-radius:12px;background:#eef2ff;color:#3949ab;font-size:11px;font-weight:600}';
+  document.head.appendChild(st);
 })();
 </script>
