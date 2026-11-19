@@ -7284,11 +7284,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function api(url,opt,t){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+t},opt.headers||{});
   return fetch(url,opt).then(function(r){if(r.ok)return r;return r.text().then(function(tx){var m='';try{m=JSON.parse(tx).error.message}catch(e){}
    var er=new Error(r.status===403&&/not been used|disabled/i.test(m)?'Turn on "Google Drive API" in your Google project.':(m||('Google Drive error '+r.status)));er.status=r.status;if(r.status===401){tok=null;exp=0;ls('lvTok',null)}throw er})})}
- function folderId(t){if(folder)return Promise.resolve(folder);
-  var q=encodeURIComponent("name='"+FOLDER+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
-  return api('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)&spaces=drive',{},t).then(function(r){return r.json()}).then(function(j){
-   if(j.files&&j.files.length){folder=j.files[0].id;ls('gdFolder',folder);return folder}
-   return api('https://www.googleapis.com/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER,mimeType:'application/vnd.google-apps.folder'})},t).then(function(r){return r.json()}).then(function(j){folder=j.id;ls('gdFolder',folder);return folder})})}
+ function folderId(t){if(folder)return Promise.resolve(folder);return createFolder(t)}
  function findFile(t,f){var q=encodeURIComponent("name='"+FILE+"' and '"+f+"' in parents and trashed=false");
   return api('https://www.googleapis.com/drive/v3/files?q='+q+'&pageSize=10&fields=files(id,name,modifiedTime)',{},t).then(function(r){return r.json()}).then(function(j){return j.files&&j.files[0]||null})}
  function getMeta(t,id){return api('https://www.googleapis.com/drive/v3/files/'+id+'?fields=id,modifiedTime,md5Checksum',{},t).then(function(r){return r.json()})}
@@ -7363,11 +7359,38 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function build(){var x={};Object.keys(D).forEach(function(k){x[k]=D[k]});x._app='Stock & Billing';x._format='ashirwad_billing_live';x._saved=new Date().toISOString();x._dev=dev;return JSON.stringify(x)}
 
  /* ---------- one sync round: read Drive, merge, write only if Drive is missing something ---------- */
+ function discoverLiveFile(t){
+  /* Several folders with the same backup name can exist after account changes.
+     Never take the first folder blindly: search every matching folder for the
+     existing live file before creating anything new. */
+  var q=encodeURIComponent("name='"+FOLDER+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+  return api('https://www.googleapis.com/drive/v3/files?q='+q+'&pageSize=100&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime),nextPageToken',{},t)
+   .then(function(r){return r.json()}).then(function(j){
+    var folders=j.files||[];
+    if(!folders.length)return createFolder(t).then(function(f){return {id:null,folder:f}});
+    return Promise.all(folders.map(function(fd){
+     var fq=encodeURIComponent("name='"+FILE+"' and '"+fd.id+"' in parents and trashed=false");
+     return api('https://www.googleapis.com/drive/v3/files?q='+fq+'&pageSize=100&orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime,parents)',{},t)
+      .then(function(r){return r.json()}).then(function(x){return (x.files||[]).map(function(f){f.__folder=fd.id;return f})});
+    })).then(function(groups){
+     var found=[].concat.apply([],groups);
+     if(found.length){found.sort(function(a,b){return String(b.modifiedTime||'').localeCompare(String(a.modifiedTime||''))||String(a.id).localeCompare(String(b.id))});
+      var best=found[0];folder=best.__folder;fileId=best.id;ls('gdFolder',folder);ls('lvFile',fileId);return {id:fileId,folder:folder,multiple:found.length>1};}
+     folder=folders[0].id;ls('gdFolder',folder);return {id:null,folder:folder};
+    });
+   });
+ }
+ function createFolder(t){
+  return api('https://www.googleapis.com/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER,mimeType:'application/vnd.google-apps.folder'})},t)
+   .then(function(r){return r.json()}).then(function(j){folder=j.id;ls('gdFolder',folder);return folder});
+ }
  function ensureFile(t){
-  if(fileId)return Promise.resolve(fileId);
-  return folderId(t).then(function(f){return findFile(t,f).then(function(found){
-   if(found){fileId=found.id;ls('lvFile',fileId);return fileId}
-   return null})})}
+  /* One-time migration scan on every device, including devices that cached an
+     older file ID. Thereafter use the resolved shared ID; a 404 clears it and
+     triggers discovery again. */
+  if(fileId&&ls('lvFolderScanV2')==='1')return Promise.resolve(fileId);
+  return discoverLiveFile(t).then(function(found){ls('lvFolderScanV2','1');return found.id||null});
+ }
  function commit(t,j,res){   /* trust the written state only if Drive still holds OUR version a moment later */
   lastStamp=j.md5Checksum||j.modifiedTime||'';
   return new Promise(function(ok){setTimeout(ok,RACE_WAIT)}).then(function(){return getMeta(t,fileId)}).then(function(m){
