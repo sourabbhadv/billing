@@ -182,7 +182,7 @@ function addLine(){
 }
 function saveBill(){
  if(!draft.pid)return alert('Select a party');
- var paid=+($('#bp').value||0),total=draft.lines.reduce(function(a,l){return a+l.amt},0),no=D.seq++;
+ var paid=+($('#bp').value||0),total=draft.lines.reduce(function(a,l){return a+l.amt},0),no=(function(){var m=(window.__realBills||D.bills||[]).reduce(function(m,x){return Math.max(m,+x.no||0)},0);var n=m>0?m+1:(+D.seq||1);D.seq=n+1;return n})();
  draft.lines.forEach(function(l){var i=I(l.iid);if(i)i.qty=Math.round((i.qty-l.qty)*100)/100});
  D.bills.push({no:no,pid:draft.pid,date:Date.now(),lines:draft.lines,total:total,paid:paid});
  if(paid>0)D.pays.push({id:uid(),pid:draft.pid,date:Date.now(),amt:paid,note:'With bill #'+no});
@@ -287,7 +287,7 @@ function saveBill2(){
  var nm=(draft.name||'').trim();if(!nm)return alert('Enter party name');
  var ph=(draft.phone||'').trim(),p=findP(nm);
  if(!p){p={id:uid(),name:nm,phone:ph,open:0};D.parties.push(p)}else if(ph&&p.phone!==ph)p.phone=ph;
- var paid=+($('#bp').value||0),total=0,no=D.seq++;
+ var paid=+($('#bp').value||0),total=0,no=(function(){var m=(window.__realBills||D.bills||[]).reduce(function(m,x){return Math.max(m,+x.no||0)},0);var n=m>0?m+1:(+D.seq||1);D.seq=n+1;return n})();
  draft.lines.forEach(function(l){
   var i=findI(l.name);if(!i){i={id:uid(),name:l.name,unit:l.unit,rate:l.rate,qty:0,low:0};D.items.push(i)}
   l.iid=i.id;i.qty=Math.round((i.qty-l.qty)*100)/100;i.rate=l.rate;total+=l.amt;
@@ -7369,7 +7369,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   function dedupe(a,key,label){var seen={},max=0;(a||[]).forEach(function(b){max=Math.max(max,+b.no||0)});
    (a||[]).slice().sort(function(x,y){return (x.date||0)-(y.date||0)||(String(x.id)<String(y.id)?-1:1)}).forEach(function(b){var kk=key(b);if(seen[kk]){var old=b.no;b.no=++max;b._u=Date.now();msg+=label+' #'+old+' was used on two devices, the later one is now #'+b.no+'. '}else seen[kk]=1});return max}
   var mx=dedupe(o.bills,function(b){return b.no},'Bill');
-  if(mx>=(+o.seq||0))o.seq=mx+1;
+  if(mx>0)o.seq=mx+1;else if(!(+o.seq))o.seq=1;   /* FIX: next bill no always follows the highest real bill, so every device shows the same number */
   var groups={};(o.docs||[]).forEach(function(d){(groups[d.t]=groups[d.t]||[]).push(d)});
   Object.keys(groups).forEach(function(t){dedupe(groups[t],function(b){return b.no},'Document')});
   return msg}
