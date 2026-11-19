@@ -7406,13 +7406,13 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
      var found=[].concat.apply([],groups);lg('Drive: '+found.length+' live file(s) found');
      if(found.length){found.sort(function(a,b){return String(a.createdTime||'').localeCompare(String(b.createdTime||''))||String(a.id).localeCompare(String(b.id))});   /* all devices pick the OLDEST live file, so they always agree */
       var best=found[0];folder=best.__folder;fileId=best.id;ls('gdFolder',folder);ls('lvFile',fileId);return {id:fileId,folder:folder,multiple:found.length>1};}
-     folder=folders[0].id;ls('gdFolder',folder);return {id:null,folder:folder};
+     var mk=ls('gdMade');folder=mk||folders[0].id;ls('gdFolder',folder);return {id:null,folder:folder};
     });
    });
  }
  function createFolder(t){
   return api('https://www.googleapis.com/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER,mimeType:'application/vnd.google-apps.folder'})},t)
-   .then(function(r){return r.json()}).then(function(j){folder=j.id;ls('gdFolder',folder);return folder});
+   .then(function(r){return r.json()}).then(function(j){folder=j.id;ls('gdFolder',folder);ls('gdMade',folder);return folder});
  }
  function ensureFile(t){
   /* One-time migration scan on every device, including devices that cached an
@@ -7423,7 +7423,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var due=Date.now()-lastScan>60000;
   if(fileId&&ls('lvFolderScanV2')==='1'&&!due)return Promise.resolve(fileId);
   var prev=fileId;
-  return discoverLiveFile(t).then(function(found){ls('lvFolderScanV2','1');lastScan=Date.now();
+  return discoverLiveFile(t).then(function(found){if(!found.id&&prev){return getMeta(t,prev).then(function(m){return m&&m.id?{id:prev,folder:folder}:found},function(){return found})}return found}).then(function(found){ls('lvFolderScanV2','1');lastScan=Date.now();
    if(found.id&&prev&&found.id!==prev){lg('Devices were using different live files. Switched to the oldest one (...'+String(found.id).slice(-5)+') and merging.');lastStamp='';ls('lvDirty','1')}
    return found.id||null});
  }
