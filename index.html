@@ -10248,6 +10248,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  function hasPh(p){try{return !!(p&&phone(p))}catch(e){return false}}
  function sendBill(no){
   var b=bl(no),p=b&&P(b.pid);if(!hasPh(p))return;
+  if(typeof window.__sendChat==='function'&&!PS().autoWA){window.__sendChat(b,p);return}
   if(isM()){shareBill(no);return}
   var cs=navigator.canShare;navigator.canShare=function(){return false};
   var back=function(){if(cs)navigator.canShare=cs;else{try{delete navigator.canShare}catch(e){}}};
@@ -10301,9 +10302,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    document.head.appendChild(st);document.body.appendChild(r);
    var imgs=Array.prototype.slice.call(r.querySelectorAll('img')).filter(function(i){return !i.complete});
    var wait=imgs.length?Promise.race([Promise.all(imgs.map(function(i){return new Promise(function(ok){i.onload=i.onerror=ok})})),new Promise(function(ok){setTimeout(ok,2500)})]):Promise.resolve();
-   var done=false,fin=function(){if(done)return;done=true;setTimeout(clean,300)};
-   window.addEventListener('afterprint',fin,{once:true});
-   wait.then(function(){setTimeout(function(){try{window.focus();window.print()}catch(e){alert('Printing is not available in this browser. Open the app in Chrome.');fin()}setTimeout(fin,120000)},250)});
+   if(window.__prFin)window.removeEventListener('afterprint',window.__prFin);
+   var done=false,fin=function(){if(done)return;done=true;window.removeEventListener('afterprint',fin);if(window.__prFin===fin)window.__prFin=null;setTimeout(clean,300)};
+   window.__prFin=fin;window.addEventListener('afterprint',fin);
+   var go=function(){try{window.focus();window.print()}catch(e){alert('Printing is not available in this browser. Open the app in Chrome.');fin()}setTimeout(fin,120000)};
+   if(!imgs.length)go();else wait.then(function(){setTimeout(go,100)});
   }catch(e){clean();alert('Could not start printing')}};
  /* the Print button inside the phone preview */
  window.prGo=function(){var c=window.__prc,t=window.__prt;if(!c)return;window.__printInline(window.prFull(c,t,false))};
@@ -10499,6 +10502,16 @@ window.addEventListener('resize',function(){if(!ok())closeD()});
   toast('Bill picture copied. In the WhatsApp chat click the message box, press Ctrl+V (phone: long-press, Paste) and press Send.');
   openWA(p,capTxt(b,p));
   return true}
+ /* after Save: open THAT party's chat with the message ready; bill picture is copied so it can be pasted */
+ window.__sendChat=function(b,p){
+  var mob=false;try{mob=isM()}catch(e){}
+  var txt=capTxt(b,p),wr=null;
+  try{if(navigator.clipboard&&window.ClipboardItem){wr=navigator.clipboard.write([new ClipboardItem({'image/png':billImg(b,p)})]);wr.catch(function(){})}}catch(e){wr=null}
+  var open=function(ok){
+   openWA(p,txt);
+   if(ok)toast(mob?'Bill picture copied. In the chat, press and hold the message box, tap Paste, then Send.':'Bill picture copied. In the chat click the message box, press Ctrl+V, then Send.')};
+  if(mob||!wr){open(!!wr);return}
+  wr.then(function(){open(true)},function(){open(false)})};
  async function sendPic(no,fallback){
   var b=bl(no),p=b&&P(b.pid);if(!b||!p)return fallback();
   try{
