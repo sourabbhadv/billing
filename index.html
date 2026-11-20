@@ -10292,5 +10292,80 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 })();
 </script>
 
+<script>
+/* ===== Desktop "Create new" mega menu (Vyapar-style). Mobile (<900px) untouched: falls back to the old list. ===== */
+(function(){
+var oldQM=window.quickMenu;
+var st=document.createElement('style');
+st.textContent='@media(min-width:900px){'+
+'#cmx{position:fixed;inset:0;z-index:55;background:transparent}'+
+'#cmx .cmbox{position:fixed;background:#fff;color:#1f2437;border-radius:6px;box-shadow:0 12px 40px rgba(16,19,56,.28);overflow:visible;font-family:inherit}'+
+'#cmx .cmbox:before{content:"";position:absolute;top:-8px;right:var(--arr,40px);width:16px;height:16px;background:#fff;transform:rotate(45deg);border-radius:2px}'+
+'#cmx .cmcols{display:grid;grid-template-columns:repeat(3,1fr);gap:0 36px;padding:26px 30px 22px;position:relative;background:#fff;border-radius:6px 6px 0 0}'+
+'#cmx .cmh{font-size:18px;font-weight:700;letter-spacing:.3px;color:#1f2437;margin:0 0 18px}'+
+'#cmx .cmi{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 0;margin:0 0 10px;text-align:left;cursor:pointer;font-size:16px;color:#1f2437;height:auto}'+
+'#cmx .cmi:before{content:"";flex:none;border-left:9px solid #1565c0;border-top:5px solid transparent;border-bottom:5px solid transparent}'+
+'#cmx .cmi span.n{flex:1}'+
+'#cmx .cmi small{display:block;color:#8a90a6;font-size:12px;margin-top:2px}'+
+'#cmx .cmi kbd{font-family:inherit;font-size:13px;color:#4a5068;background:none;border:0;white-space:nowrap}'+
+'#cmx .cmi:hover,#cmx .cmi:focus{color:#1565c0;border-bottom-color:#1565c0;outline:none}'+
+'#cmx .cmf{background:#ffe58f;padding:14px 30px;border-radius:0 0 6px 6px;font-size:16px;color:#3b3320;display:flex;align-items:center;gap:10px}'+
+'#cmx .cmf kbd{background:#fff3c4;border-radius:6px;padding:6px 12px;font-family:inherit;font-weight:700;color:#7a5a00}'+
+'}';
+document.head.appendChild(st);
+
+var COLS=[
+ ['SALE',[['Sale Invoice','newSale()','S'],['Payment-In','newPay(0)','I'],['Sale Return','newRet()','R','Cr Note'],['Sale Order',"newDoc('so')",'F'],['Estimate/Quotation',"newDoc('est')",'M'],['Delivery Challan',"newDoc('chal')",'D']]],
+ ['PURCHASE',[['Purchase Bill',"newDoc('pur')",'P'],['Payment-Out','newPay(1)','O'],['Purchase Return',"newDoc('pret')",'L','Dr Note']]],
+ ['OTHERS',[['Add Item',"leave();pg='items';iform={};render()",''],['Add Party',"leave();pg='party';pform={};render()",'']]]
+];
+var KEYS={};
+COLS.forEach(function(c){c[1].forEach(function(x){if(x[2])KEYS[x[2].toLowerCase()]=x[1]})});
+
+function isDesk(){return window.innerWidth>=900}
+function closeCM(){var m=document.getElementById('cmx');if(m)m.remove()}
+window.cmRun=function(code){closeCM();try{if(typeof closeM==='function')closeM()}catch(e){}(new Function(code))()};
+
+function openCM(btn){
+ closeCM();
+ var m=document.createElement('div');m.id='cmx';
+ m.onclick=function(e){if(e.target===m)closeCM()};
+ var h='<div class="cmbox" id="cmbox"><div class="cmcols">';
+ COLS.forEach(function(c){
+  h+='<div><div class="cmh">'+c[0]+'</div>';
+  c[1].forEach(function(x){
+   h+='<button class="cmi" onclick="cmRun(this.getAttribute(\'data-c\'))" data-c="'+x[1].replace(/"/g,'&quot;')+'"><span class="n">'+x[0]+(x[3]?'<small>'+x[3]+'</small>':'')+'</span>'+(x[2]?'<kbd>ALT + '+x[2]+'</kbd>':'')+'</button>';
+  });
+  h+='</div>';
+ });
+ h+='</div><div class="cmf">Shortcut to open this menu : <kbd>Ctrl</kbd> + <kbd>Enter</kbd></div></div>';
+ m.innerHTML=h;document.body.appendChild(m);
+ var box=document.getElementById('cmbox'),vw=window.innerWidth,w=Math.min(880,vw-32);
+ box.style.width=w+'px';
+ var r=btn?btn.getBoundingClientRect():{left:vw-60,right:vw-40,bottom:60,width:20};
+ var cx=r.left+r.width/2,left=Math.max(16,Math.min(cx+40-w,vw-w-16));
+ box.style.left=left+'px';box.style.top=(r.bottom+12)+'px';
+ box.style.setProperty('--arr',Math.max(16,left+w-cx-8)+'px');
+}
+
+window.quickMenu=function(){
+ if(!isDesk()){return oldQM&&oldQM.apply(this,arguments)}
+ var b=document.querySelector('#top button[onclick="quickMenu()"]');
+ openCM(b);
+};
+
+document.addEventListener('keydown',function(e){
+ if(!isDesk())return;
+ if(e.key==='Escape'&&document.getElementById('cmx')){closeCM();return}
+ if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();document.getElementById('cmx')?closeCM():window.quickMenu();return}
+ if(e.altKey&&!e.ctrlKey&&!e.metaKey&&e.key&&e.key.length===1){
+  var c=KEYS[e.key.toLowerCase()];
+  if(c){e.preventDefault();window.cmRun(c)}
+ }
+},true);
+window.addEventListener('resize',function(){if(!isDesk())closeCM()});
+})();
+</script>
+
 </body>
 </html>
