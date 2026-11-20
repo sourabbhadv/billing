@@ -10385,6 +10385,166 @@ document.addEventListener('keydown',function(e){
 },true);
 window.addEventListener('resize',function(){if(!isDesk())closeCM()});
 })();
+
+/* ===== MOBILE ONLY: "Showing Saved Parties" picker for the Sale customer field ===== */
+(function(){
+var st=document.createElement('style');
+st.textContent='@media(max-width:899px){'+
+'.pkw{position:relative}'+
+'#pkd{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #e3e7ee;border-radius:8px;box-shadow:0 6px 18px rgba(20,25,60,.18);z-index:60;overflow:hidden}'+
+'#pkd .pkh{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #eef0f5;font-size:14px;font-weight:600;color:#2b2f4a}'+
+'#pkd .pkn{border:0;background:#e8f1fd;color:#1a73e8;border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600;width:auto;margin:0}'+
+'#pkd .pkl{max-height:min(46vh,340px);overflow-y:auto;-webkit-overflow-scrolling:touch}'+
+'#pkd .pkr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-bottom:1px solid #f2f3f8}'+
+'#pkd .pkr:active{background:#eef4fd}#pkd .pkr:last-child{border-bottom:0}'+
+'#pkd .pkr .a{min-width:0}#pkd .pkr .a b{display:block;font-size:14.5px;font-weight:500;color:#2b2f4a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+'#pkd .pkr .a small{display:block;font-size:12px;color:#8e92b0;margin-top:3px}'+
+'#pkd .pkr .m{flex:none;font-size:12.5px;color:#8e92b0;white-space:nowrap}#pkd .pkr .m.g{color:#12a05c}#pkd .pkr .m.r{color:#e5333f}'+
+'#pkd .pke{padding:16px 14px;color:#8e92b0;font-size:13px}}'+
+'@media(min-width:900px){#pkd{display:none!important}}';
+document.head.appendChild(st);
+
+function ok(){return typeof isM==='function'&&isM()&&document.body.classList.contains('sfm')}
+function esc2(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function inp(){return document.getElementById('bn')}
+function closeD(){var d=document.getElementById('pkd');if(d)d.remove()}
+function amt(p){
+ var b=0;try{b=bal(p)}catch(e){}
+ if(b>0.009)return '<span class="m g">&#8601; '+money(b)+'</span>';
+ if(b<-0.009)return '<span class="m r">&#8599; '+money(-b)+'</span>';
+ return '<span class="m">'+money(0)+'</span>';
+}
+function build(){
+ var e=inp();if(!e||!ok())return;
+ var q=(e.value||'').trim().toLowerCase(),qd=q.replace(/\D/g,'');
+ var ps=D.parties.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})}).filter(function(p){
+  if(!q)return true;
+  var n=String(p.name||'').toLowerCase(),ph=String(p.phone||'').replace(/\D/g,'');
+  return n.indexOf(q)>=0||(qd&&ph.indexOf(qd)>=0)
+ });
+ var w=e.closest('.fl');if(!w)return;w.classList.add('pkw');
+ var d=document.getElementById('pkd');
+ if(!d){d=document.createElement('div');d.id='pkd';w.appendChild(d)}
+ d.innerHTML='<div class="pkh"><span>Showing Saved Parties</span><button type="button" class="pkn" id="pknew">+ New Party</button></div><div class="pkl">'+
+  (ps.length?ps.map(function(p){return '<div class="pkr" data-id="'+esc2(p.id)+'"><div class="a"><b>'+esc2(p.name)+'</b><small>'+esc2(p.phone||'No phone')+'</small></div>'+amt(p)+'</div>'}).join(''):'<div class="pke">No saved party matches. Tap + New Party to add "'+esc2(e.value.trim())+'".</div>')+'</div>';
+}
+function pick(id){
+ var p=D.parties.find(function(x){return x.id===id});if(!p)return;
+ var e=inp();draft.name=p.name;if(e)e.value=p.name;
+ closeD();
+ try{fillP()}catch(x){}
+ var ph=document.getElementById('bph');if(ph&&p.phone){ph.value=p.phone;draft.phone=p.phone}
+ if(e)e.blur();
+}
+function stripList(){var e=inp();if(e&&ok()&&e.hasAttribute('list'))e.removeAttribute('list')}
+
+document.addEventListener('focusin',function(ev){if(ev.target&&ev.target.id==='bn'&&ok()){stripList();build()}});
+document.addEventListener('input',function(ev){if(ev.target&&ev.target.id==='bn'&&ok()){stripList();build()}});
+document.addEventListener('click',function(ev){
+ var t=ev.target;if(!t||!t.closest)return;
+ if(t.closest('#pknew')){
+  closeD();var ph=document.getElementById('bph');if(ph)ph.focus();return}
+ var r=t.closest('#pkd .pkr');if(r){pick(r.getAttribute('data-id'));return}
+ if(!t.closest('#pkd')&&t.id!=='bn')closeD();
+});
+var _rPK=render;render=function(){_rPK.apply(this,arguments);try{stripList()}catch(e){}if(!ok())closeD()};
+window.addEventListener('resize',function(){if(!ok())closeD()});
+})();
+</script>
+
+
+<script id="bill-pic-ad-wa">
+/* ===== Bill picture: advertisement strip + WhatsApp button sends the PICTURE (phone) + quick "open WhatsApp after Save" switch (phone) ===== */
+(function(){
+ function S(){return PS()}
+ function adOn(){var s=S();return s.adOn!==0&&(!!s.adImg||!!String(s.adTxt||'').trim())}
+ function loadImg(src){return new Promise(function(res,rej){var i=new Image();i.onload=function(){res(i)};i.onerror=rej;i.src=src})}
+ function wrap(g,text,maxW){var out=[];String(text||'').split('\n').forEach(function(par){if(!par.trim()){out.push('');return}var cur='';par.split(' ').forEach(function(w){var t=cur?cur+' '+w:w;if(g.measureText(t).width>maxW&&cur){out.push(cur);cur=w}else cur=t});out.push(cur)});return out}
+
+ /* 1. advertisement strip under every bill picture */
+ var _bi=billImg;
+ billImg=async function(){
+  var blob=await _bi.apply(this,arguments);
+  try{
+   if(!adOn())return blob;
+   var s=S(),url=URL.createObjectURL(blob),base=await loadImg(url);URL.revokeObjectURL(url);
+   var W=base.width,pad=20,inner=W-2*pad-40,ad=null,ih=0,iw=0;
+   if(s.adImg){try{ad=await loadImg(s.adImg);iw=Math.min(inner,ad.width);ih=Math.round(ad.height*iw/ad.width);if(ih>360){ih=360;iw=Math.round(ad.width*ih/ad.height)}}catch(e){ad=null}}
+   var tc=document.createElement('canvas'),tg=tc.getContext('2d');tg.font='bold 28px sans-serif';
+   var lines=String(s.adTxt||'').trim()?wrap(tg,s.adTxt,inner):[];
+   var th=lines.length?lines.length*38+24:0,boxH=(ad?ih+20:0)+th+20,H=base.height+boxH+pad;
+   var c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
+   x.fillStyle='#fff';x.fillRect(0,0,W,H);x.drawImage(base,0,0);
+   var by=base.height-10;
+   x.strokeStyle='#1a73e8';x.lineWidth=2;x.strokeRect(pad,by,W-2*pad,boxH);
+   var y=by+10;
+   if(ad){x.drawImage(ad,(W-iw)/2,y,iw,ih);y+=ih+10}
+   if(lines.length){x.fillStyle='#1a73e8';x.font='bold 28px sans-serif';x.textAlign='center';x.textBaseline='alphabetic';lines.forEach(function(l,i){x.fillText(l,W/2,y+28+i*38)})}
+   return await new Promise(function(r){c.toBlob(r,'image/png')});
+  }catch(e){console.error(e);return blob}
+ };
+
+ /* 2. phone: the WhatsApp button sends the bill PICTURE (share sheet), text goes along as the caption */
+ var _wa=wa;
+ async function waPic(no){
+  var b=bl(no),p=b&&P(b.pid);if(!b||!p)return _wa(no);
+  try{
+   var blob=await billImg(b,p),f=new File([blob],'bill-'+no+'.png',{type:'image/png'}),due=Math.max(b.total-paidOn(b),0);
+   var txt='Namaste '+p.name+',\nBill #'+b.no+' ('+dt(b.date)+') from '+D.shop+'\nTotal: '+money(b.total)+(due>0?'\nDue on this bill: '+money(due):'')+'\nTotal pending balance: '+money(Math.max(bal(p),0))+'\n\nThank you!';
+   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:txt});return}catch(e){if(e&&e.name==='AbortError')return}}
+   return shareBill(no);
+  }catch(e){return _wa(no)}
+ }
+ wa=function(no){
+  var b,p;try{b=bl(no);p=b&&P(b.pid)}catch(e){}
+  if(!isM()||!b||!p||S().autoWA)return _wa.apply(this,arguments);
+  return waPic(no)};
+ try{window.wa=wa}catch(e){}
+
+ /* 3. phone: quick on/off switch on the Sale screen (same setting as Settings > General > "Open WhatsApp after saving") */
+ var st=document.createElement('style');
+ st.textContent='.wsw{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 0;padding:10px 12px;border:1px solid #e3e7ee;border-radius:10px;background:#f6fbf8;font-size:14px;color:#2b2f4a}'+
+ '.wsw small{display:block;color:#8e92b0;font-size:11.5px;margin-top:2px}'+
+ '.wsw .sw{position:relative;flex:none;width:44px;height:26px}.wsw .sw input{opacity:0;width:100%;height:100%;margin:0;position:absolute;inset:0;z-index:2}'+
+ '.wsw .sw i{position:absolute;inset:0;background:#c5c9d8;border-radius:999px;transition:.15s}.wsw .sw i:after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.15s}'+
+ '.wsw .sw input:checked+i{background:#25d366}.wsw .sw input:checked+i:after{left:21px}'+
+ '@media(min-width:900px){.wsw{display:none}}';
+ document.head.appendChild(st);
+ window.__waSw=function(on){S().wa_auto=on?1:0;try{save()}catch(e){}var l=document.getElementById('wswl');if(l)l.textContent=on?'ON: WhatsApp opens after Save':'OFF: WhatsApp will not open'};
+ var _vb=vBill2;
+ vBill2=function(){
+  var h=_vb.apply(this,arguments);
+  try{
+   if(isM()&&typeof h==='string'&&h.indexOf('<div class="sfbar">')>=0&&!(draft&&draft.edit)){
+    var on=S().wa_auto!==0;
+    h=h.replace('<div class="sfbar">','<div class="wsw"><div><b>Open WhatsApp after Save</b><small id="wswl">'+(on?'ON: WhatsApp opens after Save':'OFF: WhatsApp will not open')+'</small></div><label class="sw"><input type="checkbox" '+(on?'checked':'')+' onchange="__waSw(this.checked)"><i></i></label></div><div class="sfbar">');
+   }
+  }catch(e){}
+  return h};
+ try{window.vBill2=vBill2}catch(e){}
+
+ /* 4. Settings > General: advertisement for the bill picture */
+ window.__adSet=function(k,v){S()[k]=v;try{save()}catch(e){}};
+ window.__adPick=function(inp){
+  var f=inp.files&&inp.files[0];if(!f)return;
+  var r=new FileReader();r.onload=function(){loadImg(r.result).then(function(i){
+   var m=Math.min(1,800/i.width),c=document.createElement('canvas');c.width=Math.round(i.width*m);c.height=Math.round(i.height*m);
+   var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(i,0,0,c.width,c.height);
+   S().adImg=c.toDataURL('image/jpeg',.8);try{save()}catch(e){}render()}).catch(function(){alert('Could not read this picture')})};
+  r.readAsDataURL(f)};
+ window.__adDel=function(){delete S().adImg;try{save()}catch(e){}render()};
+ var _v=window.vSettings;
+ if(typeof _v==='function'){
+  var nv=function(){var h=_v.apply(this,arguments);if(typeof sTab==='undefined'||sTab!=='gen'||typeof h!=='string')return h;
+   var k=h.lastIndexOf('</div>');if(k<0)return h;var s=S();
+   var card='<div class="card" style="margin-top:14px"><b>Advertisement on bill picture</b><div class="mu" style="margin:2px 0 6px">Shown at the bottom of every bill picture you send on WhatsApp.</div>'+
+    tg('adOn','Show advertisement on bill picture','Turn off to send the bill picture without it.')+
+    '<label class="mu">Advertisement text (optional)</label><textarea rows="3" placeholder="e.g. Tiles, Sanitaryware, Bathroom Fittings. Visit our showroom!" oninput="__adSet(\'adTxt\',this.value)">'+esc(s.adTxt||'')+'</textarea>'+
+    '<label class="mu">Advertisement picture / banner (optional)</label>'+(s.adImg?'<div style="margin:6px 0"><img src="'+s.adImg+'" style="max-width:100%;max-height:160px;border:1px solid var(--bd);border-radius:6px"></div><button class="s" onclick="__adDel()">Remove picture</button> ':'')+
+    '<input type="file" accept="image/*" onchange="__adPick(this)" style="margin-top:6px"></div>';
+   return h.slice(0,k)+card+h.slice(k)};
+  window.vSettings=nv;try{vSettings=nv}catch(e){}}
+})();
 </script>
 
 </body>
