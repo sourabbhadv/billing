@@ -10484,21 +10484,39 @@ window.addEventListener('resize',function(){if(!ok())closeD()});
   }catch(e){console.error(e);return blob}
  };
 
- /* 2. phone: the WhatsApp button sends the bill PICTURE (share sheet), text goes along as the caption */
- var _wa=wa;
- async function waPic(no){
-  var b=bl(no),p=b&&P(b.pid);if(!b||!p)return _wa(no);
+ /* 2. WhatsApp button / after-save: send the bill PICTURE.
+    Phone with share sheet -> share sheet with picture. PC (or no share sheet) -> picture is COPIED, chat opens, user presses Ctrl+V then Send. */
+ var _wa=wa,_sb=shareBill;
+ function toast(t){var e=document.getElementById('wptoast');if(e)e.remove();e=document.createElement('div');e.id='wptoast';
+  e.style.cssText='position:fixed;left:12px;right:12px;bottom:80px;max-width:460px;margin:0 auto;background:#128c4a;color:#fff;padding:12px 14px;border-radius:10px;z-index:99999;font-size:14px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.3);text-align:center';
+  e.textContent=t;document.body.appendChild(e);setTimeout(function(){if(e.parentNode)e.remove()},12000)}
+ function capTxt(b,p){var due=Math.max(b.total-paidOn(b),0);return 'Namaste '+p.name+',\nBill #'+b.no+' ('+dt(b.date)+') from '+D.shop+'\nTotal: '+money(b.total)+(due>0?'\nDue on this bill: '+money(due):'')+'\nTotal pending balance: '+money(Math.max(bal(p),0))+'\n\nThank you!'}
+ async function clipSend(b,p){
+  var blob=await billImg(b,p);
+  if(!(navigator.clipboard&&window.ClipboardItem))return false;
+  try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})])}catch(e){return false}
+  toast('Bill picture copied. In the WhatsApp chat click the message box, press Ctrl+V (phone: long-press, Paste) and press Send.');
+  openWA(p,capTxt(b,p));
+  return true}
+ async function sendPic(no,fallback){
+  var b=bl(no),p=b&&P(b.pid);if(!b||!p)return fallback();
   try{
-   var blob=await billImg(b,p),f=new File([blob],'bill-'+no+'.png',{type:'image/png'}),due=Math.max(b.total-paidOn(b),0);
-   var txt='Namaste '+p.name+',\nBill #'+b.no+' ('+dt(b.date)+') from '+D.shop+'\nTotal: '+money(b.total)+(due>0?'\nDue on this bill: '+money(due):'')+'\nTotal pending balance: '+money(Math.max(bal(p),0))+'\n\nThank you!';
-   if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:txt});return}catch(e){if(e&&e.name==='AbortError')return}}
-   return shareBill(no);
-  }catch(e){return _wa(no)}
- }
+   if(isM()&&navigator.canShare){
+    var blob=await billImg(b,p),f=new File([blob],'bill-'+no+'.png',{type:'image/png'});
+    if(navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:capTxt(b,p)});return}catch(e){if(e&&e.name==='AbortError')return}}
+   }
+   if(await clipSend(b,p))return;
+  }catch(e){console.error(e)}
+  return fallback()}
+ shareBill=async function(no){
+  var b,p;try{b=bl(no);p=b&&P(b.pid)}catch(e){}
+  if(!b||!p||S().autoWA)return _sb.apply(this,arguments);
+  var a=arguments,t=this;return sendPic(no,function(){return _sb.apply(t,a)})};
+ try{window.shareBill=shareBill}catch(e){}
  wa=function(no){
   var b,p;try{b=bl(no);p=b&&P(b.pid)}catch(e){}
-  if(!isM()||!b||!p||S().autoWA)return _wa.apply(this,arguments);
-  return waPic(no)};
+  if(!b||!p||S().autoWA)return _wa.apply(this,arguments);
+  var a=arguments,t=this;return sendPic(no,function(){return _wa.apply(t,a)})};
  try{window.wa=wa}catch(e){}
 
  /* 3. phone: quick on/off switch on the Sale screen (same setting as Settings > General > "Open WhatsApp after saving") */
