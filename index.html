@@ -3724,6 +3724,7 @@ function prFull(c,type,prev){var body,css;
  else{var th=g('pr_theme','classic'),nc=prev?1:Math.max(1,Math.min(3,+g('pr_nc',1))),cl=g('pr_cl',''),parts=[];
   for(var i=0;i<nc;i++){var d=regDoc(c,th,nc>1?COPIES[i]:cl);parts.push(i<nc-1?d.replace('class="pgw','class="pgw brk'):d)}
   body=parts.join('');css=regCss(th,prev)}
+ try{if(window.__upiInject)body=window.__upiInject(body,c,type)}catch(e){console.error(e)}
  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(c.title+' '+c.no)+'</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+body+'</body></html>'}
 window.__printFrame=function(html){var f=document.createElement('iframe');f.style.cssText='position:fixed;width:0;height:0;border:0;left:-99px;top:0';
  f.onload=function(){setTimeout(function(){try{f.contentWindow.focus();f.contentWindow.print()}catch(e){alert('Printing is not available in this browser. Open the app in Chrome.')}setTimeout(function(){f.remove()},120000)},500)};
@@ -10033,6 +10034,46 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     };
   }
 
+  // --- QR injector: called from prFull (the old thDoc/regDoc hooks above cannot reach the bill builder) ---
+  window.__upiInject = function(body, c, type){
+    if(!c || !c.hasPay || c.x) return body;
+    var cfg = getUpiCfg();
+    if(!cfg.id) return body;
+    var bill = null;
+    try{ bill = (window.D && D.bills || []).filter(function(x){ return x.no === c.no; })[0] || null; }catch(e){}
+    if(bill && bill.show_qr === false) return body;
+    var isTh = (type === 'th');
+    if(isTh ? !cfg.thEnabled : !cfg.enabled) return body;
+    var due = Math.max(c.total - c.paid, 0);
+    var amt = due > 0 ? due : c.total;
+    var svg = makeUpiSvg(cfg.id, cfg.name, amt, 'Bill #' + (c.no || ''), 3);
+    if(!svg) return body;
+    var E = function(t){ return (typeof esc === 'function') ? esc(t) : t; };
+    var pay = (typeof F === 'function') ? F(amt).replace('₹','') : amt;
+    if(isTh){
+      var tb = '<div class="dl"></div>' +
+        '<div class="tc b" style="font-size:11px;letter-spacing:0.5px;margin:4px 0 2px">SCAN TO PAY (UPI)</div>' +
+        '<div style="width:115px;height:115px;margin:4px auto;padding:3px;background:#fff;display:flex;align-items:center;justify-content:center">' + svg + '</div>' +
+        '<div class="tc b sm" style="margin-top:2px;font-size:11px;word-break:break-all">' + E(cfg.id) + '</div>' +
+        (cfg.name ? '<div class="tc sm" style="color:#444;font-size:10px">' + E(cfg.name) + '</div>' : '') +
+        '<div class="tc b" style="font-size:11px;margin-top:2px">Pay: ₹' + pay + '</div>' +
+        '<div class="tc sm" style="font-size:9px;color:#555;margin-top:2px">Scan with GPay · PhonePe · Paytm · Any UPI</div>';
+      var m = body.match(/<div class="dl"><\/div><div class="tc">[^<]*<\/div><div style="height:/);
+      if(m) return body.replace(m[0], tb + m[0]);
+      var e = body.lastIndexOf('<div style="height:');
+      return e >= 0 ? body.slice(0, e) + tb + body.slice(e) : body + tb;
+    }
+    var rb = '<div style="margin-top:8px;display:flex;gap:10px;align-items:center;border:1px solid #d9dde8;border-radius:6px;padding:6px 10px;background:#fff;max-width:320px;break-inside:avoid">' +
+      '<div style="width:82px;height:82px;flex:none;background:#fff;padding:2px;border:1px solid #e3e7ee;border-radius:4px">' + svg + '</div>' +
+      '<div style="line-height:1.3;font-size:12px">' +
+        '<div style="font-weight:700;font-size:11px;letter-spacing:.4px;color:#1d3a8a;text-transform:uppercase">Scan &amp; Pay via UPI</div>' +
+        '<div style="font-weight:600;margin-top:2px;word-break:break-all;color:#111">' + E(cfg.id) + '</div>' +
+        (cfg.name ? '<div style="color:#555;font-size:11px">' + E(cfg.name) + '</div>' : '') +
+        '<div style="font-weight:700;color:#0f6e56;margin-top:2px">Pay: ₹' + pay + '</div>' +
+      '</div></div>';
+    return body.split('</div><div class="br">').join(rb + '</div><div class="br">');
+  };
+
   // --- 4. Populate UPI context in ctxBill ---
   if(typeof ctxBill === 'function'){
     var origCtxBill = ctxBill;
@@ -10173,6 +10214,81 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 
   console.log('✓ UPI QR Payment Module loaded successfully (Offline-First)');
+})();
+</script>
+
+<script id="wa-auto-send">
+/* ---- Open WhatsApp after saving (new Sale / Payment / Sale Return / Purchase). On/Off switch: Settings > General ---- */
+(function(){
+ var skip=0;
+ function on(){try{return PS().wa_auto!==0}catch(e){return true}}
+ function active(){return !navigator.userActivation||navigator.userActivation.isActive}
+ function ok(){return !skip&&on()&&active()&&!PS().autoWA}
+ function hasPh(p){try{return !!(p&&phone(p))}catch(e){return false}}
+ function sendBill(no){
+  var b=bl(no),p=b&&P(b.pid);if(!hasPh(p))return;
+  if(isM()){shareBill(no);return}
+  var cs=navigator.canShare;navigator.canShare=function(){return false};
+  var back=function(){if(cs)navigator.canShare=cs;else{try{delete navigator.canShare}catch(e){}}};
+  Promise.resolve(shareBill(no)).then(back,back)}
+ function wrapNew(name,count,after){
+  var o=window[name];if(typeof o!=='function')return;
+  var w=function(){var n0=count(),r=o.apply(this,arguments);
+   try{if(count()>n0&&ok())after()}catch(e){console.error(e)}
+   return r};
+  window[name]=w;try{eval(name+'=w')}catch(e){}}
+ function holdWhile(name){
+  var o=window[name];if(typeof o!=='function')return;
+  var w=function(){skip++;try{return o.apply(this,arguments)}finally{skip--}};
+  window[name]=w;try{eval(name+'=w')}catch(e){}}
+ holdWhile('saveAndPrint');holdWhile('dkSaveThen');holdWhile('dkDocThen');
+ wrapNew('saveBill2',function(){return D.bills.length},function(){var b=D.bills[D.bills.length-1];if(b)sendBill(b.no)});
+ function payAfter(){var x=D.pays[D.pays.length-1],p=x&&P(x.pid);if(x&&hasPh(p)&&typeof rpSharePay==='function')rpSharePay(x.id)}
+ wrapNew('saveRet',function(){return D.pays.length},payAfter);
+ /* Payment-In / Payment-Out already ask "Send on WhatsApp?" after saving: answer YES by itself when this switch is on */
+ var _cf=window.confirm;
+ window.confirm=function(m){
+  if(/^(Saved\.|Payment saved\.) Send .*WhatsApp\?$/.test(String(m||''))&&!skip&&on()&&active()&&!PS().autoWA)return true;
+  return _cf.apply(window,arguments)};
+ wrapNew('saveDoc',function(){return D.docs.length},function(){var d=D.docs[D.docs.length-1],p=d&&P(d.pid);if(d&&hasPh(p)&&typeof docWA==='function')docWA(d.id)});
+ var _v=window.vSettings;
+ if(typeof _v==='function'){
+  var nv=function(){var h=_v.apply(this,arguments);if(typeof sTab==='undefined'||sTab!=='gen'||typeof h!=='string')return h;
+   var k=h.lastIndexOf('</div>');if(k<0)return h;
+   var card='<div class="card" style="margin-top:14px"><b>WhatsApp after saving</b>'+tg('wa_auto','Open WhatsApp after saving','After you save a new Sale, Payment, Sale Return or Purchase, WhatsApp opens for that party. Phone: bill picture share opens. PC: picture is saved and the WhatsApp chat opens. The party needs a phone number.')+'</div>';
+   return h.slice(0,k)+card+h.slice(k)};
+  window.vSettings=nv;try{vSettings=nv}catch(e){}}
+})();
+</script>
+
+<script id="print-fix">
+/* ---- Phone Print fix: print the bill inside the page itself (a hidden frame does not print on many phones) ---- */
+(function(){
+ function splitCss(css){
+  var pages=[],rest=css.replace(/@page[^{]*\{[^}]*\}/g,function(m){pages.push(m);return ''});
+  return {pages:pages.join('\n'),rest:rest}}
+ function clean(){['prroot','prroot-st'].forEach(function(id){var e=document.getElementById(id);if(e)e.remove()})}
+ window.__printInline=function(html){
+  try{
+   clean();
+   var doc=new DOMParser().parseFromString(html,'text/html');
+   var css=Array.prototype.map.call(doc.querySelectorAll('style'),function(s){return s.textContent}).join('\n');
+   var sp=splitCss(css);
+   var st=document.createElement('style');st.id='prroot-st';
+   st.textContent=sp.pages+'\n@media screen{#prroot{display:none!important}}\n@media print{html,body{background:#fff!important;overflow:visible!important;height:auto!important;margin:0!important;padding:0!important}body>*:not(#prroot){display:none!important}#prroot{display:block!important}'+sp.rest+'}';
+   var r=document.createElement('div');r.id='prroot';r.innerHTML=doc.body.innerHTML;
+   document.head.appendChild(st);document.body.appendChild(r);
+   var imgs=Array.prototype.slice.call(r.querySelectorAll('img')).filter(function(i){return !i.complete});
+   var wait=imgs.length?Promise.race([Promise.all(imgs.map(function(i){return new Promise(function(ok){i.onload=i.onerror=ok})})),new Promise(function(ok){setTimeout(ok,2500)})]):Promise.resolve();
+   var done=false,fin=function(){if(done)return;done=true;setTimeout(clean,300)};
+   window.addEventListener('afterprint',fin,{once:true});
+   wait.then(function(){setTimeout(function(){try{window.focus();window.print()}catch(e){alert('Printing is not available in this browser. Open the app in Chrome.');fin()}setTimeout(fin,120000)},250)});
+  }catch(e){clean();alert('Could not start printing')}};
+ /* the Print button inside the phone preview */
+ window.prGo=function(){var c=window.__prc,t=window.__prt;if(!c)return;window.__printInline(window.prFull(c,t,false))};
+ /* every other print on a phone-size screen (reports, statements, bills) */
+ var _pf=window.__printFrame;
+ if(typeof _pf==='function')window.__printFrame=function(html){if(window.innerWidth<900)return window.__printInline(html);return _pf.apply(this,arguments)};
 })();
 </script>
 
