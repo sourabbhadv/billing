@@ -1802,6 +1802,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
  function pos(){if(!cur)return;var r=cur.getBoundingClientRect(),vh=(window.visualViewport?visualViewport.height:innerHeight);box.style.left=Math.max(4,r.left)+'px';var ww=Math.max(r.width,240);if(box.className==='dk')ww=Math.max(ww,box.dataset.k==='i'?640:460);box.style.width=Math.min(ww,innerWidth-8)+'px';
   var h=box.offsetHeight;if(r.bottom+h+6>vh&&r.top>h+6)box.style.top=(r.top-h-4)+'px';else box.style.top=(r.bottom+3)+'px'}
  function show(inp){
+  if(inp.id==='bn'&&window.innerWidth<900&&document.body.classList.contains('sfm')){hide();return}
   var l=document.getElementById(inp.dataset.dl);if(!l){hide();return}
   var q=inp.value.trim().toLowerCase(),ws=q.split(/\s+/).filter(Boolean),wp=null,M=[],sph=window.sugPh||function(x){return x};
   [].forEach.call(l.options,function(o){var v=String(o.value),lb=o.label||o.getAttribute('label')||'',a=v.toLowerCase(),t=(a+' '+lb.toLowerCase()),k;
