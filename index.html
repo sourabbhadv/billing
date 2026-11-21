@@ -105,7 +105,7 @@ nav{position:fixed;left:0;top:96px;bottom:0;width:210px;flex-direction:column;ba
 #top{display:flex;gap:8px;align-items:center;padding:8px 12px;flex-wrap:wrap}#top input{flex:1;min-width:140px;margin:0}
 nav .sb{display:none}nav button.gon{background:var(--ac);color:#fff;border-color:var(--ac)}
 .pills{display:flex;gap:6px;overflow-x:auto;margin:6px 0 4px}.pills button{flex:0 0 auto;white-space:nowrap}
-@media(min-width:900px){nav .sb{display:block!important;padding-left:30px!important;font-size:14px!important}.pills{display:none}#top{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd);z-index:4}nav button.gon{background:transparent;color:#fff;font-weight:700;border:0}}/* ===== Vyapar look (v3) ===== */
+@media(min-width:900px){nav .sb{display:block!important;padding-left:30px!important;font-size:14px!important}.pills{display:none}#top{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd);z-index:4}nav button.gon{background:transparent;color:#fff;font-weight:700;border:0}}/* ===== Desktop look (v3) ===== */
 :root,:root:not([data-theme="light"]){color-scheme:light;--bg:#eef1f7;--card:#fff;--tx:#1f2437;--mu:#7b8194;--ac:#1a73e8;--ac2:#d6e9f9;--bd:#e4e8f0;--rd:#e5333f;--gn:#17a56b}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:light;--bg:#eef1f7;--card:#fff;--tx:#1f2437;--mu:#7b8194;--ac:#1a73e8;--ac2:#d6e9f9;--bd:#e4e8f0;--rd:#e5333f;--gn:#17a56b}}
 html{scroll-behavior:smooth}body{font-family:Roboto,system-ui,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
@@ -418,7 +418,7 @@ function saveBill2(){
 }
 /* backup, daily copies, restore */
 function mergeIn(x){COLS.forEach(function(c){(x[c]||[]).forEach(function(r){if(c==='bills'&&!r.id)r.id='b'+r.no;if(r.id)upsert(c,r.id,r)})});if(x.shop)D.shop=x.shop;save();render()}
-function rs(){try{var x=JSON.parse($('#bt').value);if(!x.items||!x.parties)throw 0;if(confirm('Restore records from this backup? Newer records stay.')){mergeIn(x);alert('Restored')}}catch(e){alert('Invalid backup text')}}
+function rs(){try{var x=JSON.parse($('#bt').value);if(!x.items||!x.parties)throw 0;impGo(x)}catch(e){alert('Invalid backup text')}}
 function snapDaily(){
  var day=new Date().toISOString().slice(0,10),r=DB.doc('snapshots/'+day+'_1');
  try{DB.pruneSnaps(new Date(Date.now()-7*864e5).toISOString().slice(0,10)).catch(function(){})}catch(e){}
@@ -429,8 +429,7 @@ function loadSnaps(){
  DB.collection('snapshots').where('n','==',1).get().then(function(q){var ds=q.docs.map(function(d){return d.data()}).sort(function(a,b){return a.day<b.day?1:-1});e=$('#ss');if(!e)return;e.innerHTML=ds.length?ds.map(function(d){return '<div class="row" style="margin-top:6px"><span>'+d.day+'</span><button class="s" data-d="'+d.day+'" onclick="rollback(this.dataset.d)">Restore</button></div>'}).join(''):'None yet. One copy is made automatically each day.'}).catch(function(){});
 }
 function rollback(day){
- if(!confirm('Restore records as they were on '+day+'? Newer bills and parties stay.'))return;
- DB.collection('snapshots').where('day','==',day).get().then(function(q){var ps=q.docs.map(function(d){return d.data()}).sort(function(a,b){return a.n-b.n});mergeIn(JSON.parse(ps.map(function(p){return p.data}).join('')));alert('Restored')}).catch(function(){alert('Could not restore')});
+ DB.collection('snapshots').where('day','==',day).get().then(function(q){var ps=q.docs.map(function(d){return d.data()}).sort(function(a,b){return a.n-b.n});impGo(JSON.parse(ps.map(function(p){return p.data}).join('')))}).catch(function(){alert('Could not restore')});
 }
 function dlBk(){saveFile('backup-'+new Date().toISOString().slice(0,10)+'.json',new Blob([JSON.stringify(D)],{type:'application/json'}))}
 var _vBk=vBk;
@@ -761,7 +760,7 @@ document.addEventListener('keydown',function(e){
  else if(id==='dpd'){e.preventDefault();saveDoc()}
 });
 
-/* ================= VYAPAR-STYLE LAYOUT (v2) ================= */
+/* ================= BILLING-STYLE LAYOUT (v2) ================= */
 D.docs=D.docs||[];D.docs.forEach(function(d){if(!d.id)d.id='d'+uid()});if(COLS.indexOf('docs')<0)COLS.push('docs');
 var pg='home',form=false,viewD=null,ddraft=null,selP=null,selI=null,iform=null,pform=null,rsel=null,txq='',txk='all',sif='all',pst='',RCUR=null;
 var GR={sale:[['si','Sale Invoices'],['est','Estimate / Quotation'],['pin','Payment-In'],['so','Sale Order'],['chal','Delivery Challan'],['sret','Sale Return']],pur:[['pur','Purchase Bills'],['pout','Payment-Out'],['pret','Purchase Return']]};
@@ -1210,7 +1209,7 @@ var _vH4=vHome;vHome=function(){var h=_vH4();
  .replace(/<div class="bars">[\s\S]*?<\/div><\/div>(?=<div class="card"><b>Most used)/,function(){return homeChart()+'</div>'});
  return h};
 
-/* ================= VYAPAR IMPORT + SPEED (v3) ================= */
+/* ================= BILLING IMPORT + SPEED (v3) ================= */
 var IM={},BC=null,IMPORTING=0;
 function upsertRaw(c,id,data){var a=D[c],m=IM[c];
  function mk(){m={a:a,n:a.length,k:{}};for(var j=0;j<a.length;j++)m.k[a[j].id]=j;IM[c]=m}
@@ -1232,35 +1231,48 @@ bal=function(p){if(!BC)BC=balMap();return (+p.open||0)+(BC[p.id]||0)};
 pv=function(k){return PER[k]||(PER[k]={v:'month',a:'',b:''})};
 function impMsg(t){var e=document.getElementById('impm');if(!e){e=document.createElement('div');e.id='impm';e.style.cssText='position:fixed;left:0;right:0;top:0;z-index:70;background:#1a5fb4;color:#fff;padding:14px;text-align:center;font-weight:600';document.body.appendChild(e)}e.textContent=t;e.style.display=t?'block':'none'}
 function impFile(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();
- r.onload=function(){var x;try{x=JSON.parse(r.result)}catch(e){return alert('This is not the right file. Please choose vyapar_data.json')}
-  if(!x||!x.parties||!x.items||!x.bills||!x.pays)return alert('This is not the right file. Please choose vyapar_data.json');impGo(x)};
+ r.onload=function(){var x;try{x=JSON.parse(r.result)}catch(e){return alert('This is not the right file. Please choose a backup file')}
+  if(!x||!x.parties||!x.items||!x.bills||!x.pays)return alert('This is not the right file. Please choose a backup file');impGo(x)};
  r.readAsText(f);inp.value=''}
+var RCOLS=['parties','items','bills','pays','docs','trs','dsp'];
 function impGo(x){
- x.docs=x.docs||[];D.docs=D.docs||[];
- var old=D.parties.length+D.items.length+D.bills.length+D.pays.length+D.docs.length,rep=false,
- info='The Vyapar file has:\n'+x.parties.length+' parties\n'+x.items.length+' items\n'+x.bills.length+' sale bills\n'+x.pays.length+' payments and returns\n'+x.docs.length+' purchases, orders and estimates';
- if(old){
-  rep=confirm(info+'\n\nYour app already has '+D.bills.length+' bills, '+D.parties.length+' parties and '+D.items.length+' items.\n\nPress OK = REPLACE the old data with Vyapar data (best if the old data was only for testing). A backup file of your old data is saved to your computer first.\n\nPress Cancel = keep the old data and ADD Vyapar data.');
-  if(!rep&&!confirm('ADD Vyapar data on top of the old data?\n\nBill numbers can clash if you already made bills in this app.\n\nOK = add anyway, Cancel = stop.'))return;
- }else if(!confirm(info+'\n\nPut this in the app now?'))return;
+ if(!x||!Array.isArray(x.parties)||!Array.isArray(x.items))return alert('This is not a valid backup file.');
+ x.bills=x.bills||[];x.pays=x.pays||[];x.docs=x.docs||[];D.docs=D.docs||[];
+ var old=D.parties.length+D.items.length+D.bills.length+D.pays.length+D.docs.length,
+ info='The backup has <b>'+x.parties.length+'</b> parties, <b>'+x.items.length+'</b> items, <b>'+x.bills.length+'</b> sale bills, <b>'+x.pays.length+'</b> payments and returns, <b>'+x.docs.length+'</b> purchases, orders and estimates.';
+ if(!old){if(!confirm(plain(info)+'\n\nPut this in the app now?'))return;return impRun(x,false)}
+ window.__rx=x;
+ modal('<b style="font-size:16px">Restore this backup</b><p class="mu" style="margin:8px 0">'+info+'</p><p class="mu" style="margin:0 0 12px">Your app already has <b>'+D.bills.length+'</b> bills, <b>'+D.parties.length+'</b> parties and <b>'+D.items.length+'</b> items. What should happen to them?</p>'
+ +'<button class="b" style="width:100%;background:#e8213a" onclick="rxPick(1)">Replace</button><p class="mu" style="margin:4px 0 14px;font-size:12px">Erases ALL current data. Only the data from this backup will remain.</p>'
+ +'<button class="b" style="width:100%" onclick="rxPick(0)">Merge</button><p class="mu" style="margin:4px 0 14px;font-size:12px">Keeps your current data and adds this backup on top. Records with the same ID are updated from the backup. Bill numbers can clash if you made different bills with the same numbers.</p>'
+ +'<button class="s" style="width:100%" onclick="closeM();window.__rx=null">Cancel</button>')}
+function rxPick(rep){var x=window.__rx;closeM();if(!x)return;
+ if(rep&&!confirm('REPLACE will permanently erase all current parties, items, bills, payments and documents in this app (and in the cloud, if connected). Only the backup data will remain.\n\nA copy of your current data is downloaded to this computer first.\n\nOK = erase and restore. Cancel = stop.'))return;
+ window.__rx=null;impRun(x,!!rep)}
+function impRun(x,rep){
+ var cols=RCOLS,db=(DB&&synced)?DB:null;
  if(rep)dlBk();
- var cols=['parties','items','bills','pays','docs'],db=(DB&&synced)?DB:null;
  IMPORTING=1;impMsg('Please wait... putting the data in the app');
  setTimeout(function(){
   var wipe=Promise.resolve();
-  if(rep){cols.forEach(function(c){D[c]=[];IM[c]=null});Object.keys(SM).forEach(function(k){if(/^(parties|items|bills|pays|docs)\//.test(k))delete SM[k]});
+  cols.forEach(function(c){D[c]=D[c]||[]});
+  if(rep){cols.forEach(function(c){D[c]=[];IM[c]=null});D.sls=[];Object.keys(SM).forEach(function(k){if(/^(parties|items|bills|pays|docs|trs|dsp)\//.test(k))delete SM[k]});
    if(db)wipe=Promise.all(cols.map(function(c){return db.wipe(c)}))}
-  cols.forEach(function(c){(x[c]||[]).forEach(function(r){upsertRaw(c,r.id,r)})});
-  D.seq=Math.max(+D.seq||1,+x.seq||1);BC=null;local();
-  if(!db){IMPORTING=0;impMsg('');render();return alert('The data is in the app on THIS computer only, because you are not signed in to the cloud. Sign in and press Import again to save it in the cloud.')}
+  cols.forEach(function(c){(x[c]||[]).forEach(function(r){if(c==='bills'&&r&&!r.id)r.id='b'+r.no;if(r&&r.id)upsertRaw(c,r.id,r)})});
+  if(Array.isArray(x.sls)){D.sls=D.sls||[];x.sls.forEach(function(r){if(r&&r.id)upsertRaw('sls',r.id,r)})}
+  if(x.shop&&(rep||!D.shop))D.shop=x.shop;
+  D.seq=Math.max(+D.seq||1,+x.seq||1);BC=null;
+  try{openP=null;viewB=null;openB=null}catch(e){}
+  local();
+  if(!db){IMPORTING=0;impMsg('');render();return alert((rep?'Old data erased and backup restored':'Backup merged into the app')+' on THIS computer only, because you are not signed in to the cloud. Sign in and restore again to save it in the cloud.')}
   wipe.then(function(){var ch=Promise.resolve();
    cols.forEach(function(c){ch=ch.then(function(){return db.bulk(c,x[c]||[],function(i,n){impMsg('Saving in cloud: '+c+' '+i+' of '+n+' . Please do not close this page.')}).then(function(){(x[c]||[]).forEach(function(r){SM[c+'/'+r.id]=cs(r)})})})});
-   return ch}).then(function(){IMPORTING=0;impMsg('');render();alert('Done! All your Vyapar data is now in the app and saved in the cloud.')})
-  .catch(function(e){IMPORTING=0;impMsg('');render();alert('Saving stopped ('+((e&&e.message)||e)+'). Nothing is lost. Please press Import again and choose the same file.')});
+   return ch}).then(function(){IMPORTING=0;impMsg('');render();alert(rep?'Done! Old data erased. Only the backup data is now in the app and saved in the cloud.':'Done! The backup is merged into your data and saved in the cloud.')})
+  .catch(function(e){IMPORTING=0;impMsg('');render();alert('Saving stopped ('+((e&&e.message)||e)+'). Nothing is lost. Please restore again.')});
  },80)}
-var _vBk3=vBk;vBk=function(){return _vBk3()+'<div class="card"><b>Import from Vyapar</b><p class="mu">Press the button and choose your Vyapar backup file (<b>.vyb</b>) straight from Vyapar. No conversion needed. It brings in your parties, items, sale bills, purchases, payments, returns, orders and estimates.</p><button class="b" style="width:100%;max-width:420px;padding:12px" onclick="vybPick()">Choose Vyapar backup file</button></div>'};
-/* ================= VYAPAR BACKUP READER (.vyb / .vyp) ================= */
-/* Reads the Vyapar backup file directly: unzip -> read database -> convert -> same Import as before. */
+var _vBk3=vBk;vBk=function(){return _vBk3()+'<div class="card"><b>Import from another billing software</b><p class="mu">Press the button and choose the backup file (<b>.vyb</b>) exported from your old billing software. No conversion needed. It brings in your parties, items, sale bills, purchases, payments, returns, orders and estimates.</p><button class="b" style="width:100%;max-width:420px;padding:12px" onclick="vybPick()">Choose old software backup file</button></div>'};
+/* ================= BILLING BACKUP READER (.vyb / .vyp) ================= */
+/* Reads the old software backup file directly: unzip -> read database -> convert -> same Import as before. */
 function vybConvert(Tb){
  var out={parties:[],items:[],bills:[],pays:[],docs:[],seq:1},r,i;
  function num(v){return +v||0}
@@ -1363,14 +1375,14 @@ function vybConvert(Tb){
 function vybUnzip(u8){
  var dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength),e=-1,i;
  for(i=u8.length-22;i>=Math.max(0,u8.length-70000);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}
- if(e<0)return Promise.reject(new Error('This is not a Vyapar backup (zip not found).'));
+ if(e<0)return Promise.reject(new Error('This is not a valid backup file (zip not found).'));
  var n=dv.getUint16(e+10,true),p=dv.getUint32(e+16,true),best=null;
  for(i=0;i<n;i++){
   if(dv.getUint32(p,true)!==0x02014b50)break;
   var m=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),us=dv.getUint32(p+24,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
   if(!best||us>best.us)best={m:m,cs:cs,us:us,lo:lo};
   p+=46+nl+el+cl}
- if(!best)return Promise.reject(new Error('The Vyapar backup is empty.'));
+ if(!best)return Promise.reject(new Error('The backup file is empty.'));
  var lnl=dv.getUint16(best.lo+26,true),lel=dv.getUint16(best.lo+28,true),st=best.lo+30+lnl+lel,comp=u8.subarray(st,st+best.cs);
  if(best.m===0)return Promise.resolve(comp);
  if(typeof DecompressionStream==='function'){
@@ -1435,7 +1447,7 @@ function vybFromBytes(u8){
  var head=String.fromCharCode.apply(null,u8.subarray(0,16));
  var pr=head.slice(0,2)==='PK'?vybUnzip(u8):Promise.resolve(u8);
  return pr.then(function(db){
-  if(String.fromCharCode.apply(null,db.subarray(0,15))!=='SQLite format 3')throw new Error('This file is not a Vyapar backup.');
+  if(String.fromCharCode.apply(null,db.subarray(0,15))!=='SQLite format 3')throw new Error('This file is not a valid backup.');
   return vybConvert(vybDb(db))})}
 
 /* ---- file picker that works on phone and laptop (made fresh, so a page refresh can never remove it) ---- */
@@ -1447,10 +1459,10 @@ function vybHandle(f){
  rdr.onload=function(){
   var u8=new Uint8Array(rdr.result),c=u8[0];
   if(c===0x7b||c===0x5b||(c===0xef&&u8[1]===0xbb)){ /* JSON text */
-   var x;try{x=JSON.parse(new TextDecoder().decode(u8))}catch(e){impMsg('');return alert('This file is not a Vyapar backup and not a backup of this app.')}
+   var x;try{x=JSON.parse(new TextDecoder().decode(u8))}catch(e){impMsg('');return alert('This file is not a valid backup and not a backup of this app.')}
    impMsg('');if(!x||!x.parties||!x.items||!x.bills||!x.pays)return alert('This JSON file is not a backup of this app.');return impGo(x)}
   setTimeout(function(){
-   vybFromBytes(u8).then(function(x){impMsg('');impGo(x)},function(e){impMsg('');alert('Could not read the Vyapar file.\n\n'+((e&&e.message)||e))})},30)};
+   vybFromBytes(u8).then(function(x){impMsg('');impGo(x)},function(e){impMsg('');alert('Could not read the backup file.\n\n'+((e&&e.message)||e))})},30)};
  rdr.readAsArrayBuffer(f)}
 function vybPick(){
  var i=document.createElement('input');i.type='file';
@@ -1488,7 +1500,7 @@ vBillView=function(){var h=_bvv(),b=bl(viewB);if(!b)return h;
 var _bh3=billHtml;
 billHtml=function(b){var h=_bh3(b),x=((b.tn||b.vn)?'<p class="m">Transport: '+esc(b.tn||'-')+' · Vehicle: '+esc(b.vn||'-')+'</p>':'')+(b.disc>0?'<p class="r">Discount -'+money(b.disc)+'</p>':'');return h.replace('<p class="r"><b>Total',x+'<p class="r"><b>Total')};
 
-/* ---------- STEP 2: bill picture in Vyapar layout ---------- */
+/* ---------- STEP 2: bill picture in old software layout ---------- */
 var SHOP_ADDR='Near Bhawani Mandir, Wadhu Chowk, Sindhi Colony, Gondia 441601',SHOP_PH='Ph: 7020645390',SHOP_TERMS='बिका हुआ माल वापस नहीं होगा';
 billImg=function(b,p){
  var L=b.lines,W=900,rh=46,AL=imgAddrLines(b,p),ofs=AL.length?AL.length*22+12:0,H=560+ofs+L.length*rh+L.reduce(function(a,l){return a+(window.szLines?szLines(l).length*20:0)},0),c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
@@ -1562,7 +1574,7 @@ function decoPL(){
 }
 var _r5=render;render=function(){_r5();try{decoPL()}catch(e){}};
 
-/* ---------- STEP 5: Sale screen copied from Vyapar "Add Sale" ---------- */
+/* ---------- STEP 5: Sale screen copied from old software "Add Sale" ---------- */
 function refTot(){var s=subTot(),d=+draft.disc||0,e=$('#dsT'),c=$('#dsc'),q=$('#dpc');if(e)e.textContent=money(Math.max(s-d,0));if(c&&document.activeElement!==c)c.value=d||'';if(q&&document.activeElement!==q)q.value=(d&&s)?Math.round(d/s*10000)/100:'';dueNow(s)}
 function discIn(v){draft.disc=Math.max(+v||0,0);refTot()}
 function discPct(v){draft.disc=Math.round(subTot()*(Math.max(+v||0,0))/100*100)/100;refTot()}
@@ -1608,7 +1620,7 @@ function stockChk(){
   rows.push({n:x.name,q:q,b:b,v:Math.max(q,0)*pr})});
  rows.sort(function(a,b){return b.v-a.v});
  var L=function(t,v,h){return '<div class="row" style="margin:8px 0"><span>'+t+(h?'<br><span class="mu">'+h+'</span>':'')+'</span><b>'+v+'</b></div>'};
- return '<b>Stock value check</b><p class="mu">Compare these numbers with Vyapar > Reports > Stock Summary.</p>'+
+ return '<b>Stock value check</b><p class="mu">Compare these numbers with the Stock Summary report of your old software.</p>'+
  L('Stock value shown in this app',money(A),'positive stock × purchase price (sale price if purchase price is empty)')+
  L('Same, using ONLY purchase price',money(Bp))+
  L('Items with stock but no purchase price',np+' items','value counted at sale price: '+money(Cv)+(nz?' · '+nz+' have no price at all (value 0)':''))+
@@ -1851,7 +1863,7 @@ sugUp=function(){_su10();
  if(needI)sgList('sgI',D.items.map(function(i){return '<option value="'+esc(i.name)+'" data-s="'+esc(stkTxt(i))+'" data-p="'+esc(stkPr(i))+'">'}).join(''),stkKey());
  q.forEach(function(i){i.dataset.dl=/item/i.test(i.placeholder)?'sgI':'sgP';i.setAttribute('autocomplete','off')})};
 
-/* ---------- LISTS SCROLL INSIDE THEIR OWN BOX (like Vyapar) + BACK FROM SETTINGS TABS ---------- */
+/* ---------- LISTS SCROLL INSIDE THEIR OWN BOX (like old software) + BACK FROM SETTINGS TABS ---------- */
 (function(){var st=document.createElement('style');st.textContent='.scl{overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px}.card.scl{border:0;border-radius:6px}.scl th{position:sticky;top:0;z-index:2}';document.head.appendChild(st)})();
 var SCR={};
 function scrKey(w,i){var l=w.classList.contains('scl-l');return (l?'L':'T')+i+'|'+(typeof tab!=='undefined'?tab:'')+'|'+(typeof pg!=='undefined'?pg:'')+(l?'':'|'+selP+'|'+selI+'|'+(typeof openP!=='undefined'?openP:''))}
@@ -1881,7 +1893,7 @@ goBack=function(){if(pg==='set'&&sTab!=='gen'){sTab='gen';render();window.scroll
 function fixBack(){if(pg!=='set')return;[].forEach.call(document.querySelectorAll('#v button'),function(b){if(/^←/.test(b.textContent.trim())){b.removeAttribute('onclick');b.onclick=function(){goBack()}}})}
 var _r11=render;render=function(){try{[].forEach.call(document.querySelectorAll('#v .scl[data-sk]'),function(w){SCR[w.dataset.sk]=w.scrollTop})}catch(e){}_r11();try{fixBack();decoScroll()}catch(e){}};
 
-/* ---------- PHONE LOOK (Vyapar style): light header, 4-tab bottom bar, cards, floating Add button ---------- */
+/* ---------- PHONE LOOK (old software style): light header, 4-tab bottom bar, cards, floating Add button ---------- */
 (function(){
  var st=document.createElement('style');
  st.textContent='#mfab{display:none}'+
@@ -1973,7 +1985,7 @@ mBar=function(){
  if(lab){fab.textContent='＋ '+lab;fab.onclick=fn;fab.classList.add('show')}else fab.classList.remove('show')};
 var _wasM=isM();window.addEventListener('resize',function(){var m=isM();if(m!==_wasM){_wasM=m;try{render()}catch(e){}}});
 
-/* ---------- SETTINGS: Vyapar-style tick boxes (turn features on / off) ---------- */
+/* ---------- SETTINGS: desktop-style tick boxes (turn features on / off) ---------- */
 (function(){var st=document.createElement('style');st.textContent=
  '.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;max-width:1100px;align-items:start}'+
  '.sec{background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.10);padding:14px 16px}'+
@@ -2018,7 +2030,7 @@ vSettings=function(){
  +ck('m_pret','Purchase Return','Show Purchase Return in the menu.')
  +'</div></div>'};
 
-/* ---------- SALE INVOICES (laptop): same look as Vyapar desktop ---------- */
+/* ---------- SALE INVOICES (laptop): same look as old software desktop ---------- */
 (function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
  '.sv .svh{display:flex;align-items:center;justify-content:space-between;background:#fff;padding:14px 18px;border-radius:6px;box-shadow:0 1px 4px rgba(25,35,80,.08);margin:0 0 10px}'+
  '.sv .svt{font-size:24px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}.sv .svt i{font-style:normal;font-size:18px;color:#5d647a}'+
@@ -2054,7 +2066,7 @@ vSI=function(){
  +'<div class="svc"><div class="svk"><div class="mu">Total Sales Amount</div><div class="a">'+money(ts)+'</div><div class="mu">Received: <b>'+money(tr)+'</b> &nbsp;|&nbsp; Balance: <b>'+money(tb)+'</b></div></div></div>'
  +'<div class="svc"><div class="row"><b>Transactions</b><span><input placeholder="Search party or number" oninput="flt(this.value)"><button class="xls" title="Download Excel (CSV)" onclick="csvCur()">xls</button></span></div>'+tbl2(head,rows,1).replace('<th></th></tr>','<th>Actions</th></tr>')+'</div></div>'};
 
-/* ---------- PHONE: tables become cards (no sideways swiping), Sale list like Vyapar, Add Txn menu ---------- */
+/* ---------- PHONE: tables become cards (no sideways swiping), Sale list like old software, Add Txn menu ---------- */
 (function(){var st=document.createElement('style');st.textContent=
  '#mtxn{display:none;position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45)}#mtxn.open{display:block}'+
  '#mtxn .sh{position:absolute;left:8px;right:8px;bottom:8px;background:#fff;border-radius:14px;padding:12px 12px calc(14px + env(safe-area-inset-bottom,0px));max-height:85vh;overflow-y:auto}'+
@@ -2878,7 +2890,7 @@ var _bn9=buildNav;buildNav=function(){_bn9();var n=$('nav');if(!n||n.querySelect
 
 
 
-/* ---------- VYAPAR-STYLE PHONE SCREENS: Parties list, Party Details, transaction cards, More Options sheet ---------- */
+/* ---------- BILLING-STYLE PHONE SCREENS: Parties list, Party Details, transaction cards, More Options sheet ---------- */
 (function(){
  var st=document.createElement('style');
  st.textContent='@media(max-width:899px){'+
@@ -2999,7 +3011,7 @@ mBar=function(){_mbVy();
   if(bar)bar.style.display='none';if(fab)fab.classList.remove('show')}};
 
 
-/* ---------- VYAPAR-STYLE PHONE SCREENS 2: Sale view, Home Quick Links, bill More Options ---------- */
+/* ---------- BILLING-STYLE PHONE SCREENS 2: Sale view, Home Quick Links, bill More Options ---------- */
 (function(){
  var st=document.createElement('style');
  st.textContent='@media(max-width:899px){'+
@@ -3216,7 +3228,7 @@ var _rSF=render;render=function(){_rSF();if(!isM()){document.body.classList.remo
 document.head.appendChild(st)})();
 
 
-/* ---------- ITEMS (phone): Vyapar-style list with filter + Item Details screen ---------- */
+/* ---------- ITEMS (phone): desktop-style list with filter + Item Details screen ---------- */
 var IFL='all';
 function draftTs(){var d=draft&&draft.dt;if(!d)return Date.now();var x=new Date(d+'T'+(draft.tm||'00:00')).getTime();return isNaN(x)?Date.now():x}
 function fmtQ(q){q=Math.round((+q||0)*100)/100;return Number.isInteger(q)?q.toFixed(1):String(q)}
@@ -3319,7 +3331,7 @@ var _vMoreL=vMore;vMore=function(){return _vMoreL()+'<div class="mg"><div class=
 var _bnL=buildNav;buildNav=function(){_bnL();var n=document.querySelector('nav');if(n&&!n.querySelector('.lgo'))n.insertAdjacentHTML('beforeend','<button class="lgo" onclick="sbOut(0)">'+(window.__sbSess?'Log out':'Sign in')+'</button>')};
 
 
-/* ---------- DESKTOP ONLY: Vyapar-style chrome, one consistent set of sizes (phone untouched) ---------- */
+/* ---------- DESKTOP ONLY: desktop-style chrome, one consistent set of sizes (phone untouched) ---------- */
 (function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
 ':root{--vr:10px;--vb:#e3e7ee;--vbl:#1a73e8;--vrd:#e8213a}'+
 'body{padding-left:250px!important}header,nav{width:250px!important}header{padding:18px 18px 12px!important}header h1{font-size:16px;font-weight:600;letter-spacing:.2px}'+
@@ -3345,7 +3357,7 @@ var _bnL=buildNav;buildNav=function(){_bnL();var n=document.querySelector('nav')
 var _bnD=buildNav;buildNav=function(){_bnD();try{var n=document.querySelector('nav');if(!n)return;[].forEach.call(n.querySelectorAll('button'),function(b){var m=/nav\('([a-z]+)'\)/.exec(b.getAttribute('onclick')||'');if(m&&GR[m[1]]&&!b.classList.contains('sb'))b.classList.add('grp')})}catch(e){}};
 
 
-/* ---------- DESKTOP ONLY: Home, Sale Invoices, Items in the Vyapar layout (phone untouched) ---------- */
+/* ---------- DESKTOP ONLY: Home, Sale Invoices, Items in the old software layout (phone untouched) ---------- */
 (function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
 '.vh{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}.vh .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}'+
 '.vk{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 20px;min-height:128px}.vk span{color:#7b8194;font-size:14px}.vk b{display:block;font-size:24px;font-weight:600;margin:6px 0 20px;color:#2d3350}.vk small{color:#7b8194;font-size:14px}'+
@@ -3427,7 +3439,7 @@ var _rAF=render;render=function(){_rAF.apply(this,arguments);
   var key=el.id+':'+(el.value?'f':'e');
   if(!el.value&&_afKey!==el.id+':e'){setTimeout(function(){var a=document.activeElement;if(!a||a===document.body||!/INPUT|TEXTAREA|SELECT/.test(a.tagName)){try{el.focus({preventScroll:false})}catch(x){el.focus()}}},60)}
   _afKey=key}catch(e){}};
-/* ---------- DESKTOP ONLY: Reports page in the Vyapar layout ---------- */
+/* ---------- DESKTOP ONLY: Reports page in the old software layout ---------- */
 (function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
 '.rpw{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;align-items:start;margin:-4px -8px 0}'+
 '.rpl{background:#fff;border-radius:10px;padding:8px 0 14px;max-height:calc(100vh - 90px);overflow-y:auto;position:sticky;top:64px}.rpl h4{margin:14px 18px 4px;font-size:13px;font-weight:500;color:#7b8194}.rpl a{display:block;padding:10px 24px;font-size:14px;color:#3b4258;cursor:pointer;border-left:3px solid transparent}.rpl a:hover{background:#f3f6fc}.rpl a.on{background:#e3eefb;color:#1a73e8;font-weight:600;border-left-color:#1a73e8}'+
@@ -3479,7 +3491,7 @@ vReps=function(){if(isM()||rsel==='sgraph')return _vRd();
  var showPer=isTx||(o&&o.per);
  return '<div class="rpw"><div class="rpl">'+L+'</div><div class="rpm"><div class="rpf">'+(showPer?rpPerUI():'<b style="font-size:20px;color:#2d3350">'+repName(cur)+'</b>')+'<span style="flex:1"></span><select title="Firm"><option>All Firms</option></select><select title="User"><option>All Users</option></select><button class="acc" onclick="rpAcct()">Share With Accountant</button><button class="ib" onclick="csvCur()"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM9 12l6 6M15 12l-6 6"/></svg>Excel Report</button><button class="ib" onclick="'+(isTx?'rpPrintTx()':'printRep()')+'"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M7 14h10v7H7z"/></svg>Print</button></div>'+(ex?'<div class="rpf">'+ex+'</div>':'')+body+'</div></div>'};
 function rpPrintTx(){var t=rpTx();printHtml('All Transactions','<h2>'+esc(D.shop)+'</h2><h3>All Transactions</h3><p class="m">Period: '+perTxt('rep')+'</p>'+tbl(RCUR.h,RCUR.r.map(function(r){return r.map(function(c,i){return i>=6&&i<=8?money(c):esc(String(c))})}))+'<p>'+t.list.length+' transactions</p>')}
-/* ---------- DESKTOP ONLY: Sale form in the Vyapar layout ---------- */
+/* ---------- DESKTOP ONLY: Sale form in the old software layout ---------- */
 (function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){'+
 '.dks{margin:-16px -22px 0;background:#f3f5f9;min-height:calc(100vh - 60px);padding-bottom:84px}'+
 '.dkt{display:flex;align-items:center;gap:10px;background:#e8ebf2;padding:8px 14px 0}.dkt .tb{background:#f3f5f9;border-radius:8px 8px 0 0;padding:9px 14px;font-size:14px;color:#2d3350;display:flex;gap:14px;align-items:center}.dkt .tb b{cursor:pointer;font-size:18px;color:#5d647a;font-weight:400}.dkt .pl{width:26px;height:26px;border-radius:50%;border:0;background:#1a73e8;color:#fff;font-size:18px;line-height:1;margin-bottom:6px;cursor:pointer}'+
@@ -3549,7 +3561,7 @@ var _sbDK2=saveBill2;saveBill2=function(){if(isM())return _sbDK2.apply(this,argu
 var _seDK2=saveEdit;saveEdit=function(){if(isM())return _seDK2.apply(this,arguments);DKSAVING=1;try{_seDK2.apply(this,arguments)}finally{if(DKSAVING&&draft&&draft.edit==null&&DKA>=0){DKT.splice(DKA,1);DKA=-1}DKSAVING=0}};
 var _rtDK=refTot;refTot=function(){_rtDK.apply(this,arguments);if(!isM()&&draft&&draft.mode==='cash'&&$('#dktg')){var b=$('#bp');if(b){b.value=Math.max(subTot()-(+draft.disc||0),0)||'';dueNow(subTot())}}};
 
-/* ---------- DESKTOP ONLY: every other transaction in the same Vyapar layout ---------- */
+/* ---------- DESKTOP ONLY: every other transaction in the same old software layout ---------- */
 (function(){var st=document.createElement('style');st.textContent='@media(min-width:900px){.dkp{max-width:760px;padding:10px 24px}.dkp .fl2{margin-bottom:22px}.dkp .tot2{display:flex;justify-content:space-between;align-items:center;border:1px solid #cfd5e3;background:#fff;border-radius:4px;padding:10px 14px;font-weight:700;font-size:16px;color:#2d3350}.dkn{font-size:12px;color:#7b8194;margin:8px 0}}';document.head.appendChild(st)})();
 function dkTabs(t,close,nw){return '<div class="dkt"><span class="tb"><span>'+t+'</span><b title="Close" onclick="'+close+'">&times;</b></span>'+(nw?'<button class="pl" title="New" onclick="'+nw+'">+</button>':'')+'</div>'}
 function dkHd(t,x){return '<div class="dkh"><h2>'+t+'</h2>'+(x||'')+'<span class="firm"><i></i>'+esc(PS().name||D.shop)+'</span></div>'}
@@ -6047,7 +6059,7 @@ nav button.sb::after{margin-left:auto}
 nav{padding-bottom:70px!important}
 /* bottom Save bar must start after the sidebar */
 .dkf{left:250px!important;box-shadow:0 -2px 10px rgba(25,35,80,.08)}
-/* Sale Invoices filter row like Vyapar: one neat line of pills */
+/* Sale Invoices filter row like old software: one neat line of pills */
 .vfl{display:flex!important;flex-wrap:nowrap;align-items:center;gap:10px;background:#fff;border:1px solid #e3e7ee;border-radius:10px;padding:10px 14px;margin:0 0 12px}
 .vfl>span:first-child{white-space:nowrap;font-weight:600;color:#3b4258}
 .vfl select{width:auto!important;min-width:0;height:36px;margin:0!important;border:0;border-radius:999px;background:#e3eefb;color:#2d3350;font-weight:500;padding:0 14px}
@@ -6939,8 +6951,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    x[c].forEach(function(r){if(c==='bills'&&!r.id)r.id='b'+r.no;if(!r.id)return;var a=D[c],i=a.findIndex(function(z){return z.id===r.id});if(i<0)a.push(r);else a[i]=r})});
   if(x.shop)D.shop=x.shop;save();render()}
  window.bkRestoreLocal=function(day){
-  if(!confirm('Restore records as they were on '+day+'? Newer bills and parties stay.'))return;
-  tx('snaps','readonly',function(s){return s.get(day)}).then(function(r){try{merge(JSON.parse(r.data));alert('Restored')}catch(e){alert(e.message||'Could not restore')}},function(){alert('Could not read the copy')})};
+  tx('snaps','readonly',function(s){return s.get(day)}).then(function(r){try{var xx=JSON.parse(r.data);if(!xx||!xx.items||!xx.parties)throw new Error('This is not a backup file of this app.');impGo(xx)}catch(e){alert(e.message||'Could not restore')}},function(){alert('Could not read the copy')})};
  window.bkDownloadLocal=function(day){tx('snaps','readonly',function(s){return s.get(day)}).then(function(r){saveFile('backup-'+day+'.json',new Blob([r.data],{type:'application/json'}))})};
  window.bkNow=function(){say('bkSt','Saving...');localSnap(true).then(function(ok){say('bkSt',ok?'Saved a copy inside this browser.':'Could not save (browser storage blocked?)');paint()})};
  window.bkFileNow=function(){writeFile(false).then(function(r){say('bkSt',r==='folder'?'Saved into your backup folder.':'File downloaded.');paint()})};
@@ -6951,7 +6962,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  window.bkOpt=function(k,v){LS(k,v);if(k==='bkMail'||k==='bkEmail')LS('bkMailErr',null);paint()};
  window.bkMailNow=function(){say('bkMailSt','Sending...');sendMail().then(function(){LS('bkMailErr',null);paint()},function(e){LS('bkMailErr',String(e&&e.message||e));paint()})};
  window.bkMailDraft=function(){var to=(LS('bkEmail')||'').trim();window.bkFileNow();location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent('Backup '+today())+'&body='+encodeURIComponent('Attach the file backup-'+today()+'.json that was just saved.')};
- window.bkLoadFile=function(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var x=JSON.parse(r.result);if(!x.items||!x.parties)throw new Error('This is not a backup file of this app.');if(confirm('Restore records from "'+f.name+'"? Newer bills and parties stay.')){merge(x);alert('Restored')}}catch(e){alert(e.message||'Invalid backup file')}inp.value=''};r.readAsText(f)};
+ window.bkLoadFile=function(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var x=JSON.parse(r.result);if(!x.items||!x.parties)throw new Error('This is not a backup file of this app.');impGo(x)}catch(e){alert(e.message||'Invalid backup file')}inp.value=''};r.readAsText(f)};
  window.bkSetup=function(){var e=document.getElementById('bkSetup');if(e)e.style.display=e.style.display==='none'?'block':'none'};
 
  /* --- the Backup page card --- */
@@ -6980,20 +6991,20 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
 /* =====================================================================
    GOOGLE DRIVE DAILY BACKUP
    Phone and laptop each get their own design. Backup file = same format
-   as vyapar_data.json, so the existing "Import from Vyapar" can read it.
+   as billing_backup.json, so the existing import can read it.
    ===================================================================== */
 (function(){
  var LS=function(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}};
  var isP=function(){return window.innerWidth<900};
  var pad=function(n){return (n<10?'0':'')+n};
  var today=function(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
- var KEEP=30,FOLDER='Ashirwad Billing Backup',SCOPE='https://www.googleapis.com/auth/drive.file',NAME=/^vyapar_data-\d{4}-\d\d-\d\d\.json$/;
+ var KEEP=30,FOLDER='Ashirwad Billing Backup',SCOPE='https://www.googleapis.com/auth/drive.file',NAME=/^(?:billing_backup|vyapar_data)-\d{4}-\d\d-\d\d\.json$/;
  var tok=null,tokExp=0,busy=false,files=null,lastTry=0;
  var DEFAULT_GOOGLE_CLIENT_ID='864007478846-i5r4ddpu95t9i80u57571h5cf7osr7ft.apps.googleusercontent.com';
  var cid=function(){return (LS('gdCid')||DEFAULT_GOOGLE_CLIENT_ID).trim()},em=function(){return (LS('gdEmail')||'').trim()};
  function hasData(){return !!D&&((D.bills||[]).length+(D.parties||[]).length+(D.items||[]).length)>0}
- function fname(day){return 'vyapar_data-'+(day||today())+'.json'}
- function build(){var o={};Object.keys(D).forEach(function(k){o[k]=D[k]});o._app='Stock & Billing';o._format='vyapar_data';o._saved=new Date().toISOString();return JSON.stringify(o)}
+ function fname(day){return 'billing_backup-'+(day||today())+'.json'}
+ function build(){var o={};Object.keys(D).forEach(function(k){o[k]=D[k]});o._app='Stock & Billing';o._format='billing_backup';o._saved=new Date().toISOString();return JSON.stringify(o)}
  function say(id,t){var e=document.getElementById(id);if(e)e.textContent=t}
  function ago(t){if(!t)return 'never';var m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':new Date(t).toLocaleDateString('en-IN')}
 
@@ -7136,8 +7147,6 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(!confirm('Restore from '+name+'?\nYou will be asked next whether to REPLACE the current data or ADD to it.'))return;
   getTok(true).then(function(t){return api('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{},t)}).then(function(r){return r.text()}).then(function(tx){
    var x=JSON.parse(tx);if(!x||!Array.isArray(x.parties)||!Array.isArray(x.items)||!Array.isArray(x.bills)||!Array.isArray(x.pays))throw new Error('This file is not a backup of this app.');
-   var ch=0;['trs','dsp','sls'].forEach(function(c){if(!Array.isArray(x[c]))return;D[c]=D[c]||[];x[c].forEach(function(r){if(!r||!r.id)return;var i=D[c].findIndex(function(z){return z.id===r.id});if(i<0)D[c].push(r);else D[c][i]=r;ch=1})});
-   if(x.shop&&!D.shop)D.shop=x.shop;if(ch)save();
    impGo(x)}).then(null,function(e){alert(String(e&&e.message||e))})};
  window.gdResetForAccountChange=function(){
   window.__gdAccountSwitching=true;
@@ -7175,13 +7184,13 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   return '<div class="mg gdm"><div class="mgt">Google Drive Backup</div><div id="gdSt" class="gdst">'+stat()+'</div>'+
    '<button class="b gdfull" onclick="gdNow()">Back up to Google Drive now</button>'+'<button class="s gdfull" style="margin-top:8px" onclick="gdwOpen(1)">'+(LS('gdWho')?'Change Drive account':'Choose Drive account')+'</button>'+
    '<div class="mr"><span>Back up every day</span><input type="checkbox" '+(on?'checked ':'')+'onchange="gdToggle(this.checked)"></div>'+
-   '<div class="gdst" style="padding-top:10px">Saved in the same format as your Vyapar data file, so it can be restored here with one tap.</div>'+
+   '<div class="gdst" style="padding-top:10px">Saved in the a standard backup file, so it can be restored here with one tap.</div>'+
    '<details class="gdd"><summary>Account and setup</summary>'+inputs()+'<div class="gdrow"><button class="s" onclick="gdOff()">Disconnect</button></div>'+steps()+'</details>'+
    '<div class="mgt" style="padding-top:14px">Copies in your Google Drive</div><div id="gdList" class="gdst"></div></div>'}
  /* laptop design: same bordered cards, blue buttons and rows as the other laptop pages */
  function cardD(){var on=LS('gdOn')==='1';
   return '<div class="card gdd" style="max-width:760px"><b style="font-size:16px">Google Drive backup (daily)</b>'+
-   '<p class="mu" style="margin:4px 0 8px">One backup file is saved in your Google Drive every day (folder: '+FOLDER+'), last '+KEEP+' days kept. It is in the same format as your Vyapar data file, so it can be restored here with one click. It runs when this page is open.</p>'+
+   '<p class="mu" style="margin:4px 0 8px">One backup file is saved in your Google Drive every day (folder: '+FOLDER+'), last '+KEEP+' days kept. It is a standard backup file, so it can be restored here with one click. It runs when this page is open.</p>'+
    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+inputs().replace('type="email"','type="email" style="max-width:300px"').replace('type="text"','type="text" style="max-width:420px"')+'</div>'+
    '<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" style="width:auto;margin:0" '+(on?'checked ':'')+'onchange="gdToggle(this.checked)"> Back up to Google Drive every day</label>'+
    '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="gdNow()">Back up now</button><button class="s" onclick="gdwOpen(1)">'+(LS('gdWho')?'Change Drive account':'Choose Drive account')+'</button><button class="s" onclick="gdList()">Show my Drive copies</button><button class="s" onclick="gdSetup()">One-time setup</button><button class="s" onclick="gdOff()">Disconnect</button></div>'+
@@ -7596,7 +7605,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 <script id="plan-gate">
 /* =====================================================================
    FREE / PRO PLANS
-   FREE : billing, stock, parties, reports, Vyapar import, data on THIS device only,
+   FREE : billing, stock, parties, reports, old-software import, data on THIS device only,
           daily Google Drive backup, WhatsApp opens on the user's own phone (they press Send).
    PRO  : live sync on many devices, Ask AI (questions, voice billing, bill photo scan),
           automatic WhatsApp sending (Outbox, auto reminders, campaigns).
@@ -7697,7 +7706,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Your data is stored on this one device and backed up to your Google Drive every day.</div></div>';
   /* comparison */
   h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 46px 46px;gap:4px;font-weight:600;font-size:13px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free</div><div style="text-align:center">Pro</div></div>'+
-   row('Billing, stock, parties, reports, Vyapar import',1,1)+
+   row('Billing, stock, parties, reports, old-software import',1,1)+
    row('Data stored on one device',1,1)+
    row('Daily backup to your Google Drive',1,1)+
    row('WhatsApp button opens WhatsApp on your phone, you press Send',1,1)+
@@ -10337,7 +10346,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </script>
 
 <script>
-/* ===== Desktop "Create new" mega menu (Vyapar-style). Mobile (<900px) untouched: falls back to the old list. ===== */
+/* ===== Desktop "Create new" mega menu (desktop-style). Mobile (<900px) untouched: falls back to the old list. ===== */
 (function(){
 var oldQM=window.quickMenu;
 var st=document.createElement('style');
