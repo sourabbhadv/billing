@@ -10742,6 +10742,52 @@ html body .mqg button:nth-child(1) i svg{filter:hue-rotate(-40deg) saturate(1.1)
 html body .mqg button:nth-child(2) i svg{filter:hue-rotate(-150deg) saturate(1.3)}
 html body .mqg button:nth-child(3) i svg{filter:hue-rotate(140deg) saturate(1.2)}
 html body .mqg button:nth-child(4) i svg{filter:hue-rotate(50deg) saturate(1.1)}
+/* ---- v2: different layout, shapes, icons (visual only) ---- */
+/* Shortcuts: 2x2 wide cards, icon on the left, instead of a row of four icons */
+html body .mqg{grid-template-columns:1fr 1fr!important;gap:10px!important}
+html body .mqg button{flex-direction:row!important;justify-content:flex-start;text-align:left;gap:10px!important;padding:10px!important;border-radius:16px!important;background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,255,255,.08)!important;font-size:13px!important}
+html body .mqg i,html body .mqg i.qi{width:36px!important;height:36px!important;border-radius:50%!important;flex:0 0 36px;font-size:18px;font-weight:800;position:relative}
+html body .mqg i.qi svg{display:none!important}
+html body .mqg button:nth-child(1) i::before{content:"+"}
+html body .mqg button:nth-child(2) i::before{content:"\2193"}
+html body .mqg button:nth-child(3) i::before{content:"\21BA"}
+html body .mqg button:nth-child(4) i::before{content:"\2261"}
+html body .mqg button:nth-child(1) i{color:#34e0b0}html body .mqg button:nth-child(2) i{color:#f2b84b}html body .mqg button:nth-child(3) i{color:#ff6b81}html body .mqg button:nth-child(4) i{color:#9b7dff}
+html body .mq>b{font-size:13px;letter-spacing:1.2px;text-transform:uppercase;opacity:.8}
+/* tabs: underline style instead of outlined pills */
+html body .mpills{gap:0!important;border-bottom:1px solid rgba(255,255,255,.12)}
+html body .mpills .mp{border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;padding:12px 6px!important;font-weight:700;opacity:.6;border-bottom:3px solid transparent!important}
+html body .mpills .mp.on{opacity:1;border-bottom-color:#34e0b0!important;background:none!important}
+/* cards: flat with a coloured edge, no glow */
+html[data-theme] .card,html[data-theme] .mq{border-radius:14px!important;border-left:4px solid #34e0b0!important;box-shadow:none!important}
+html[data-theme=green] .card,html[data-theme=green] .mq{border-left-color:#17784f!important}
+html[data-theme=classic] .card,html[data-theme=classic] .mq{border-left-color:#7c5cff!important}
+/* bottom bar: icon over label, active item shows a bar on top, not a filled blob */
+html body #mbar{border-radius:18px!important}
+html[data-theme] body #mbar button.on{background:none!important;box-shadow:inset 0 3px 0 #34e0b0;border-radius:0 0 12px 12px}
+html body #mbar button{text-transform:none!important;font-size:11px!important}
+/* floating action: docked bottom-left as a square-ish "+" button */
+html body #mfab.show{left:14px!important;right:auto!important;transform:none!important;border-radius:16px!important;bottom:calc(92px + env(safe-area-inset-bottom,0px))!important;padding:12px 18px!important}
+/* header: square avatar */
+html body #mtop,html body .mhd{letter-spacing:.2px}
+/* Classic: swap the signature red for violet */
+html[data-theme=classic] body #mfab,html[data-theme=classic] #mfab.show{background:linear-gradient(135deg,#6d4aff,#9b7dff)!important;color:#fff!important;box-shadow:0 8px 22px rgba(109,74,255,.35)!important}
+html[data-theme=classic] body .mpills .mp.on{color:#6d4aff!important;border-bottom-color:#6d4aff!important}
+html[data-theme=classic] body #mbar button.on{box-shadow:inset 0 3px 0 #6d4aff;color:#6d4aff!important}
 </style>
+<script id="own-wording">
+/* ===== own wording (display only): renames labels after they are drawn; buttons keep doing exactly what they did ===== */
+(function(){
+ var G={'Quick Links':'Shortcuts','Transaction Details':'Activity','Party Details':'People','Add New Sale':'New Bill','Total Receivable':'To Collect','Total Payable':'To Pay','Most Used Reports':'Favourite Reports','Remaining dispatch':'Pending delivery','View dispatch history':'Delivery history','No dispatches recorded yet':'No deliveries yet','Search for a transaction':'Find an entry','No transactions found':'No entries yet'};
+ var Q={'Add Txn':'New Entry','Payment-In':'Money In','Sale Return':'Goods Back','Sale Report':'Sales Summary'};
+ var N={'Home':'Today','Dashboard':'Overview','Items':'Stock','More':'Menu','Sale':'Bills','Parties':'People'};
+ function map(n){var t=n.nodeValue;if(!t)return;var s=t.trim();if(!s||s.length>40)return;var p=n.parentNode;if(!p||!p.closest)return;var m=p.closest('#mbar')?N:(p.closest('.mqg')?Q:G);if(Object.prototype.hasOwnProperty.call(m,s)){var v=t.replace(s,m[s]);if(v!==t)n.nodeValue=v}
+  else if(s.indexOf('Add New Sale')>-1){n.nodeValue=t.replace('Add New Sale','New Bill')}}
+ function ph(r){try{var L=r.nodeType===1?r.querySelectorAll('[placeholder]'):[];for(var i=0;i<L.length;i++){var v=L[i].getAttribute('placeholder');if(v&&Object.prototype.hasOwnProperty.call(G,v))L[i].setAttribute('placeholder',G[v])}if(r.nodeType===1&&r.getAttribute&&r.hasAttribute('placeholder')){var q=r.getAttribute('placeholder');if(Object.prototype.hasOwnProperty.call(G,q))r.setAttribute('placeholder',G[q])}}catch(e){}}
+ function walk(r){try{if(r.nodeType===3)return map(r);if(r.nodeType!==1)return;ph(r);if(/^(SCRIPT|STYLE|TEXTAREA|INPUT)$/.test(r.tagName))return;var w=document.createTreeWalker(r,4,null),x;while(x=w.nextNode())map(x)}catch(e){}}
+ function g(){var b=document.body;if(!b)return setTimeout(g,50);walk(b);
+  new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var m=ms[i];if(m.type==='characterData')map(m.target);else for(var j=0;j<m.addedNodes.length;j++)walk(m.addedNodes[j])}}).observe(b,{childList:true,subtree:true,characterData:true})}
+ g()})();
+</script>
 </body>
 </html>
