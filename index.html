@@ -6482,7 +6482,10 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  var MONEY={total:1,paid:1,amt:1,rate:1,buy:1,open:1};
  var ICON={add:'\u2795',edit:'\u270f\ufe0f',del:'\ud83d\uddd1\ufe0f',cancel:'\ud83d\udeab',restore:'\u21a9\ufe0f',login:'\ud83d\udc64',set:'\u2699\ufe0f',bulk:'\ud83d\udce6'};
  function r2(n){return Math.round(n*100)/100}
- function users(){try{var p=PS();return Array.isArray(p.users)?p.users:[]}catch(e){return []}}
+ function users(){try{var p=PS();if(Array.isArray(p.users)&&p.users.length){try{var s=JSON.stringify(p.users);if(localStorage.getItem('actUsersBk')!==s)localStorage.setItem('actUsersBk',s)}catch(e){}return p.users}
+  /* settings came back without the people list (cloud sync / restore): use the safe copy kept on this device */
+  try{var b=JSON.parse(localStorage.getItem('actUsersBk')||'null');if(Array.isArray(b)&&b.length){p.users=b;return p.users}}catch(e){}
+  return Array.isArray(p.users)?p.users:[]}catch(e){return []}}
  function hash(s){var h=7;s=String(s);for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return 'h'+h+'_'+s.length}
  function remOn(){try{return localStorage.getItem('actRem')!=='0'}catch(e){return true}}
  function me(){try{var n=localStorage.getItem('actUser')||'';if(!n)return '';var us=users(),u=us.filter(function(x){return x.n===n})[0];if(us.length&&!u)return '';if(sessionStorage.getItem('actOK')===n)return n;if(!remOn()||!u)return '';if(!u.p)return n;return (localStorage.getItem('actPinFor')===n&&Date.now()-(+localStorage.getItem('actPinAt')||0)<30*864e5)?n:''}catch(e){return ''}}
@@ -6602,7 +6605,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  window.actAdd=function(boot){
   ov('<b style="font-size:18px">Add person</b><div class="acm">PIN is optional. With a PIN, nobody else can use this name.</div><input id="acn" placeholder="Name (e.g. Papa)"><input id="acp" type="password" inputmode="numeric" maxlength="8" placeholder="PIN (optional, numbers)"><button type="button" class="b" style="text-align:center" onclick="actSave('+(boot?1:0)+')">Save</button>'+(users().length?'<button type="button" class="s" onclick="actWho('+(boot?1:0)+')">Back</button>':'<button type="button" class="s" onclick="actSkip()">Skip for now</button>'));
   setTimeout(function(){var e=document.getElementById('acn');if(e)e.focus()},40)};
- window.actSkip=function(){try{sessionStorage.setItem('actSkip','1')}catch(e){}actClose()};
+ window.actSkip=function(){try{sessionStorage.setItem('actSkip','1');localStorage.setItem('actSkip','1')}catch(e){}actClose()};
  window.actSave=function(boot){
   var n=((document.getElementById('acn')||{}).value||'').trim(),p=((document.getElementById('acp')||{}).value||'').trim();
   if(!n)return alert('Enter a name');
@@ -6616,7 +6619,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
    if(u.p){var v=prompt('Enter PIN of '+u.n+' to remove this person');if(v===null)return;if(hash(v.trim())!==u.p)return alert('Wrong PIN')}
    var self=(u.n===me()||u.n===(localStorage.getItem('actUser')||''));
    if(!confirm('Remove '+u.n+(self?' (this is you on this device)':'')+'? Their past activity stays in the history.'))return;
-   var ps=PS();entry('set','set','Person removed: '+u.n,[]);ps.users=users().filter(function(x,j){return j!==i});
+   var ps=PS();entry('set','set','Person removed: '+u.n,[]);ps.users=users().filter(function(x,j){return j!==i});if(!ps.users.length){try{localStorage.removeItem('actUsersBk')}catch(e){}}
    if(self){try{localStorage.removeItem('actUser');localStorage.removeItem('actPinFor');sessionStorage.removeItem('actOK')}catch(e){}}
    save();try{render()}catch(e){}
    if(self){if(users().length)actWho(1);else actAdd(1)}else if(mng())actManage(MB)};
@@ -6653,7 +6656,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  function boot(){
   if(!D||!ready())return setTimeout(boot,1500);
   if(prune())save();
-  if(me()||sessionStorage.getItem('actSkip'))return;
+  if(me()||sessionStorage.getItem('actSkip')||localStorage.getItem('actSkip'))return;
   actWho(1)}
  setTimeout(boot,1200);
 
@@ -10399,13 +10402,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    var css=Array.prototype.map.call(doc.querySelectorAll('style'),function(s){return s.textContent}).join('\n');
    var sp=splitCss(css);
    var st=document.createElement('style');st.id='prroot-st';
-   st.textContent=sp.pages+'\n@media screen{#prroot{display:none!important}}\n@media print{html,html[data-theme] body,body{background:#fff!important;overflow:visible!important;height:auto!important;margin:0!important;padding:0!important}body>*:not(#prroot){display:none!important}#prroot{display:block!important}'+sp.rest+'}';
+   st.textContent=sp.pages+'\n@media screen{#prroot{display:none!important}}\n@media print{html,html[data-theme] body,body{background:#fff!important;overflow:visible!important;height:auto!important;margin:0!important;padding:0!important}body>*:not(#prroot){display:none!important}html[data-theme] #prroot{display:block!important;background:#fff!important;color:#1a1d2e!important}'+sp.rest+'}';
    var r=document.createElement('div');r.id='prroot';r.innerHTML=doc.body.innerHTML;
    document.head.appendChild(st);document.body.appendChild(r);
    var imgs=Array.prototype.slice.call(r.querySelectorAll('img')).filter(function(i){return !i.complete});
    var wait=imgs.length?Promise.race([Promise.all(imgs.map(function(i){return new Promise(function(ok){i.onload=i.onerror=ok})})),new Promise(function(ok){setTimeout(ok,2500)})]):Promise.resolve();
    if(window.__prFin)window.removeEventListener('afterprint',window.__prFin);
-   var done=false,fin=function(){if(done)return;done=true;window.removeEventListener('afterprint',fin);if(window.__prFin===fin)window.__prFin=null;setTimeout(clean,300)};
+   var done=false,fin=function(){if(done)return;done=true;window.removeEventListener('afterprint',fin);if(window.__prFin===fin)window.__prFin=null;setTimeout(clean,45000)};
    window.__prFin=fin;window.addEventListener('afterprint',fin);
    var go=function(){try{window.focus();window.print()}catch(e){alert('Printing is not available in this browser. Open the app in Chrome.');fin()}setTimeout(fin,120000)};
    if(!imgs.length)go();else wait.then(function(){setTimeout(go,100)});
@@ -10692,9 +10695,9 @@ window.setTheme=function(t){try{localStorage.setItem('sbTheme',t)}catch(e){}
  document.documentElement.setAttribute('data-theme',t);
  var m=document.getElementById('themeMeta');if(m)m.content=(window.__themeColors||{})[t]||'#071631';
  try{render()}catch(e){}};
-function toClassic(){var t=curTheme();if(t!=='classic'){window.__thPrev=t;document.documentElement.setAttribute('data-theme','classic');clearTimeout(window.__thT);window.__thT=setTimeout(back,90000)}}
+function toClassic(){clearTimeout(window.__thB);var t=curTheme();if(t!=='classic'){window.__thPrev=t;document.documentElement.setAttribute('data-theme','classic');clearTimeout(window.__thT);window.__thT=setTimeout(back,90000)}}
 function back(){if(window.__thPrev){document.documentElement.setAttribute('data-theme',window.__thPrev);window.__thPrev=null}}
-window.addEventListener('beforeprint',toClassic);window.addEventListener('afterprint',back);
+window.addEventListener('beforeprint',toClassic);window.addEventListener('afterprint',function(){clearTimeout(window.__thB);window.__thB=setTimeout(back,4000)});
 var _pi=window.__printInline;if(typeof _pi==='function')window.__printInline=function(){toClassic();return _pi.apply(this,arguments)};
 var _pfr=window.__printFrame;if(typeof _pfr==='function')window.__printFrame=function(){return _pfr.apply(this,arguments)};
 var _prev=vSettings;
@@ -10704,5 +10707,41 @@ vSettings=function(){var h=_prev();if(typeof sTab!=='undefined'&&sTab!=='gen')re
  return h.slice(0,k)+b+h.slice(k)};
 })();
 </script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style id="own-look">
+/* ===== OWN LOOK ("Aurora Studio"): visual-only layer, no logic. Delete this whole block to go back to the old look. ===== */
+html body,html body button,html body input,html body select,html body textarea{font-family:'Plus Jakarta Sans','Inter','Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif}
+html[data-theme] .card,html[data-theme] .mq,html[data-theme] .mcard{border-radius:20px!important}
+html[data-theme] button.b,html[data-theme] button.s{border-radius:14px;letter-spacing:.2px}
+html[data-theme] input,html[data-theme] select,html[data-theme] textarea{border-radius:14px!important}
+/* palette: mint + amber instead of the old cyan/blue */
+html[data-theme=neon]:root{--ac:#34e0b0;--ac2:#10382f}
+html[data-theme=neon] button.b:not(.addb){background:linear-gradient(135deg,#1fc99a,#f2b84b)!important;color:#06231b!important;border-color:rgba(52,224,176,.5)!important;box-shadow:0 4px 16px rgba(52,224,176,.25)!important}
+html[data-theme=neon] button.s{background:rgba(52,224,176,.08)!important;color:#c8f5e6!important;border-color:rgba(52,224,176,.35)!important}
+html[data-theme=neon] .mp.on{background:rgba(52,224,176,.16)!important;border-color:#34e0b0!important;color:#7dffd9!important}
+html[data-theme=neon] input:focus,html[data-theme=neon] select:focus,html[data-theme=neon] textarea:focus{border-color:#34e0b0!important}
+html[data-theme=neon] .tbl tr:hover td{background:rgba(52,224,176,.07)!important}
+html[data-theme=neon] .pt{fill:#34e0b0!important}
+/* floating bottom bar instead of a full-width strip */
+html body #mbar{left:12px!important;right:12px!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;border-radius:24px;padding:6px 8px!important;border:1px solid rgba(255,255,255,.08);box-shadow:0 10px 30px rgba(0,0,0,.35)!important;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html[data-theme=neon] body #mbar{background:rgba(16,30,54,.82)!important}
+html body #mbar button{border-radius:18px;font-weight:600;font-size:11px;letter-spacing:.3px}
+html[data-theme=neon] body #mbar button.on{background:rgba(52,224,176,.16);color:#7dffd9!important}
+/* Add New Sale button: rounded square with amber glow, sits above the bar */
+html body #mfab.show{border-radius:18px!important;bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;padding:13px 22px!important}
+html[data-theme=neon] #mfab{background:linear-gradient(135deg,#f2b84b,#ff8a5c)!important;color:#2a1600!important;box-shadow:0 8px 24px rgba(242,184,75,.4)!important}
+/* Quick Links: each action gets its own colour tile */
+html body .mqg button{gap:7px;font-weight:600}
+html body .mqg i.qi,html body .mqg i{width:54px;height:54px;border-radius:18px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06)}
+html body .mqg i.qi svg{width:38px;height:36px}
+html body .mqg button:nth-child(1) i{background:rgba(52,224,176,.16)}
+html body .mqg button:nth-child(2) i{background:rgba(242,184,75,.18)}
+html body .mqg button:nth-child(3) i{background:rgba(255,107,129,.18)}
+html body .mqg button:nth-child(4) i{background:rgba(155,125,255,.2)}
+html body .mqg button:nth-child(1) i svg{filter:hue-rotate(-40deg) saturate(1.1)}
+html body .mqg button:nth-child(2) i svg{filter:hue-rotate(-150deg) saturate(1.3)}
+html body .mqg button:nth-child(3) i svg{filter:hue-rotate(140deg) saturate(1.2)}
+html body .mqg button:nth-child(4) i svg{filter:hue-rotate(50deg) saturate(1.1)}
+</style>
 </body>
 </html>
