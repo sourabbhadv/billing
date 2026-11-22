@@ -3183,7 +3183,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 14-Nov-L';
+var APPV='App version 22-Nov-B (QR and WhatsApp in Settings, firm box waits for Drive)';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -8722,6 +8722,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    p.emails[em]=named.id;if(!p.owner)p.owner=em;if(!named.em)named.em=em;save();try{render()}catch(e){}return}
   /* the saved copy on this device already holds shop data: never ask for a new firm */
   try{var sv=JSON.parse(localStorage.getItem('sb')||'null');if(sv&&((sv.items&&sv.items.length)||(sv.parties&&sv.parties.length)||(sv.bills&&sv.bills.length)))return}catch(e){}
+  /* Google Drive sync is on: give its first sync up to 25 seconds to bring the data in before asking anything */
+  try{if(localStorage.getItem('lvOn')==='1'||localStorage.getItem('gdOn')==='1'){
+   var t0=window.__fnT0||(window.__fnT0=Date.now()),lv=+localStorage.getItem('lvAt')||0;
+   if(lv<t0&&Date.now()-t0<25000)return}}catch(e){}
   fnNewFirm(em)}
  setInterval(check,2000);setTimeout(check,1500);
  var _v=vSettings;
