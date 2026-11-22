@@ -1799,6 +1799,28 @@ vItems=function(){return _viS().replace('<input placeholder="Search item" oninpu
 
 var _rIQ=render;render=function(){if(typeof pg!=='undefined'&&pg!=='items')ISQ='';_rIQ();try{if(ISQ&&typeof pg!=='undefined'&&pg==='items'){var e=[].slice.call(document.querySelectorAll('#v input[placeholder="Search item"]'))[0];if(e){e.value=ISQ;flt(ISQ)}}}catch(x){}};
 
+/* smooth sort on Items (desktop): reorder the rows already on screen instead of rebuilding the page */
+var _tIS=togIS;
+togIS=function(k){
+ try{
+  var r=document.querySelector('#v [data-n][onclick*="selI="]');
+  if(!r||window.innerWidth<900)return _tIS(k);
+  var box=r.parentElement,hd=box.previousElementSibling;
+  if(!hd||hd.textContent.indexOf('Quantity')<0)return _tIS(k);
+  var byId={};D.items.forEach(function(i){byId[i.id]=i});
+  var K=[].slice.call(box.children).filter(function(e){return e.hasAttribute('data-n')}).map(function(e){var m=/selI='([^']+)'/.exec(e.getAttribute('onclick')||'');return {el:e,i:m&&byId[m[1]]}});
+  if(!K.length||K.some(function(x){return !x.i}))return _tIS(k);
+  ISORT=k==='n'?(ISORT==='az'?'za':'az'):(ISORT==='hi'?'lo':'hi');
+  try{localStorage.setItem('isort',ISORT)}catch(e){}
+  K.sort(function(a,b){return itemCmp(a.i,b.i)});
+  var f=document.createDocumentFragment();K.forEach(function(x){f.appendChild(x.el)});box.appendChild(f);
+  var n=ISORT==='az'||ISORT==='za';
+  hd.outerHTML=sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo');
+  box.scrollTop=0;
+  if(box.animate)box.animate([{opacity:.35,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:200,easing:'ease-out'});
+ }catch(e){_tIS(k)}
+};
+
 /* every table: click a heading to sort, click again to reverse */
 var TSORT={};
 function cellTxt(td){return (td.textContent||'').replace(/\s+/g,' ').trim()}
