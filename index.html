@@ -3374,10 +3374,13 @@ vMItems=function(){var h=_vMIs.apply(this,arguments);if(!isM())return h;
 
 /* ---------- PC: Up / Down arrow keys walk through the Items / Parties / Godowns / Transporters / Salesmen lists ---------- */
 (function(){
- var SEL=/(?:sel[A-Z]|gsel|tsel)\s*=|slsOpen\(/,last=null;
+ var SEL=/(?:sel[A-Z]|gsel|tsel)\s*=|slsOpen\(/,last=null,pend=null,tm=null,hl=null;
  function okRow(e){return e&&e.hasAttribute('data-n')&&SEL.test(e.getAttribute('onclick')||'')}
- document.addEventListener('click',function(e){var r=e.target.closest&&e.target.closest('[data-n][onclick]');if(okRow(r))last=r.getAttribute('onclick')},true);
+ document.addEventListener('click',function(e){var r=e.target.closest&&e.target.closest('[data-n][onclick]');if(okRow(r)){last=r.getAttribute('onclick');if(!e.__nav){pend=null;if(tm){clearTimeout(tm);tm=null}}}},true);
  function rows(){return [].slice.call(document.querySelectorAll('#v [data-n][onclick]')).filter(function(e){return okRow(e)&&e.style.display!=='none'&&e.getClientRects().length})}
+ function fire(){tm=null;var r=pend;pend=null;hl=null;if(!r||!r.isConnected)return;
+  var go=r.getAttribute('onclick');last=go;r.click();
+  setTimeout(function(){var all=rows();for(var j=0;j<all.length;j++)if(all[j].getAttribute('onclick')===go){all[j].scrollIntoView({block:'nearest'});break}},40)}
  document.addEventListener('keydown',function(e){
   if((e.key!=='ArrowDown'&&e.key!=='ArrowUp')||e.ctrlKey||e.altKey||e.metaKey||e.shiftKey||window.innerWidth<900)return;
   var t=e.target,tg=t&&t.tagName;
@@ -3385,15 +3388,20 @@ vMItems=function(){var h=_vMIs.apply(this,arguments);if(!isM())return h;
   if(tg==='INPUT'&&!/flt\(/.test(t.getAttribute('oninput')||''))return;
   var sg=document.getElementById('sug');if(sg&&sg.style.display==='block')return;
   var R=rows();if(!R.length)return;
-  var i=-1;if(last)for(var k=0;k<R.length;k++)if(R[k].getAttribute('onclick')===last){i=k;break}
+  var i=-1;
+  if(pend&&pend.isConnected)i=R.indexOf(pend);
+  if(i<0&&last)for(var k=0;k<R.length;k++)if(R[k].getAttribute('onclick')===last){i=k;break}
   if(i<0)for(var k2=0;k2<R.length;k2++)if((R[k2].getAttribute('style')||'').indexOf('--ac2')>=0){i=k2;break}
   var n=e.key==='ArrowDown'?i+1:i-1;
   if(i<0)n=e.key==='ArrowDown'?0:R.length-1;
-  if(n<0||n>=R.length){e.preventDefault();return}
   e.preventDefault();
-  var go=R[n].getAttribute('onclick');last=go;R[n].click();
-  setTimeout(function(){var all=rows();for(var j=0;j<all.length;j++)if(all[j].getAttribute('onclick')===go){all[j].scrollIntoView({block:'nearest'});break}},40);
- });
+  if(n<0||n>=R.length)return;
+  /* move the highlight at once; open the item once the keys pause (no full redraw per key press) */
+  R.forEach(function(r){if((r.getAttribute('style')||'').indexOf('--ac2')>=0)r.style.background=''});
+  if(hl&&hl.isConnected)hl.style.background='';
+  pend=R[n];hl=pend;pend.style.background='var(--ac2)';
+  pend.scrollIntoView({block:'nearest'});
+  if(tm)clearTimeout(tm);tm=setTimeout(fire,130)});
 })();
 
 /* ---------- SMOOTH SCREENS: update only what changed instead of rebuilding the whole page (no flash, no scroll jump) ---------- */
@@ -3420,10 +3428,16 @@ vMItems=function(){var h=_vMIs.apply(this,arguments);if(!isM())return h;
   if(a.tagName==='SELECT'){kids(a,b);a.selectedIndex=b.selectedIndex;return}
   if(a.tagName==='TEXTAREA'){fx(a,b);return}
   fx(a,b);kids(a,b)}
+ function sg(n){return n.nodeType===1?n.nodeName+'#'+(n.id||''):String(n.nodeType)}
  function kids(a,b){
-  var bc=[].slice.call(b.childNodes),i=0;
-  for(;i<bc.length;i++){var ac=a.childNodes[i];if(ac)node(ac,bc[i]);else a.appendChild(bc[i])}
-  while(a.childNodes.length>bc.length)a.removeChild(a.lastChild)}
+  var bc=[].slice.call(b.childNodes),oc=[].slice.call(a.childNodes),oi=0,i,j,k;
+  for(i=0;i<bc.length;i++){
+   var bn=bc[i],sv=sg(bn),f=-1;
+   for(j=oi;j<oc.length&&j<oi+8;j++){if(sg(oc[j])===sv){f=j;break}}
+   if(f<0){a.insertBefore(bn,oc[oi]||null);continue}
+   for(k=oi;k<f;k++)a.removeChild(oc[k]);
+   node(oc[f],bn);oi=f+1}
+  for(;oi<oc.length;oi++)a.removeChild(oc[oi])}
  function key(){try{var m=window.innerWidth<900;return [pg,tab,!!form,sub,viewB,viewD,openB,!!ddraft,m,m?selI:'',m?selP:'',m&&!!iform,m&&!!pform].join('|')}catch(e){return ''}}
  Object.defineProperty(v,'innerHTML',{configurable:true,get:function(){return D0.get.call(v)},set:function(h){
   var k=key();
