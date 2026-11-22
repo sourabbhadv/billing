@@ -10474,7 +10474,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  function hasPh(p){try{return !!(p&&phone(p))}catch(e){return false}}
  function sendBill(no){
   var b=bl(no),p=b&&P(b.pid);if(!hasPh(p))return;
-  if(typeof window.__sendChat==='function'&&!PS().autoWA){window.__sendChat(b,p);return}
+  if(typeof window.__sendChat==='function'&&!PS().autoWA&&!isM()){window.__sendChat(b,p);return}
   if(isM()){shareBill(no);return}
   var cs=navigator.canShare;navigator.canShare=function(){return false};
   var back=function(){if(cs)navigator.canShare=cs;else{try{delete navigator.canShare}catch(e){}}};
@@ -10734,7 +10734,7 @@ window.addEventListener('resize',function(){if(!ok())closeD()});
   openWA(p,capTxt(b,p));
   return true}
  /* after Save: open THAT party's chat with the message ready; bill picture is copied so it can be pasted */
- window.__sendChat=function(b,p){
+ var __sc0=function(b,p){
   var mob=false;try{mob=isM()}catch(e){}
   var txt=capTxt(b,p),wr=null;
   try{if(navigator.clipboard&&window.ClipboardItem){wr=navigator.clipboard.write([new ClipboardItem({'image/png':billImg(b,p)})]);wr.catch(function(){})}}catch(e){wr=null}
@@ -10743,9 +10743,50 @@ window.addEventListener('resize',function(){if(!ok())closeD()});
    if(ok)toast(mob?'Bill picture copied. In the chat, press and hold the message box, tap Paste, then Send.':'Bill picture copied. In the chat click the message box, press Ctrl+V, then Send.')};
   if(mob||!wr){open(!!wr);return}
   wr.then(function(){open(true)},function(){open(false)})};
- async function sendPic(no,fallback){
+ window.__sendChat=function(b,p){linkSend(b,p).then(function(ok){if(!ok)__sc0(b,p)})};
+/* ---- Bill picture as a LINK (built for the Supabase FREE plan: 1 GB storage) ----
+   small JPEG (~25 KB), kept 3 days, same bill is never uploaded twice, own old files deleted, stops by itself near 800 MB ---- */
+ var BL_DAYS=3,BL_MAX=800*1024*1024,BL_KEY='bl_links_v1';
+ function blGet(){try{return JSON.parse(localStorage.getItem(BL_KEY)||'{}')}catch(e){return {}}}
+ function blSet(o){try{localStorage.setItem(BL_KEY,JSON.stringify(o))}catch(e){}}
+ function jpgBlob(png){return new Promise(function(res,rej){var u=URL.createObjectURL(png),im=new Image();im.onload=function(){var sc=Math.min(1,720/im.width),c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(function(b){b?res(b):rej(new Error('jpg'))},'image/jpeg',.65)};im.onerror=function(){rej(new Error('img'))};im.src=u})}
+ function sbReady(){try{return typeof SB!=='undefined'&&!!(SB&&SB.storage&&window.__sbSess)}catch(e){return false}}
+ /* 1) delete this device's own files older than 3 days (needs no list permission)  2) sweep the folder and check total size */
+ async function cleanBills(){try{
+  if(!sbReady())return;
+  var m=blGet(),old=[],cut=Date.now()-BL_DAYS*864e5;
+  Object.keys(m).forEach(function(k){if(m[k].t<cut){old.push(m[k].path);delete m[k]}});
+  if(old.length){try{await SB.storage.from('promo').remove(old)}catch(e){}blSet(m)}
+  var tot=0,gone=[];
+  for(var off=0;off<5000;off+=1000){
+   var l=await SB.storage.from('promo').list('bills',{limit:1000,offset:off});
+   if(!l||!l.data||!l.data.length)break;
+   l.data.forEach(function(f){var sz=(f.metadata&&f.metadata.size)||0;if(f.created_at&&Date.now()-new Date(f.created_at).getTime()>BL_DAYS*864e5)gone.push('bills/'+f.name);else tot+=sz});
+   if(l.data.length<1000)break}
+  if(gone.length)await SB.storage.from('promo').remove(gone.slice(0,500));
+  window.__billFull=tot>BL_MAX
+ }catch(e){}}
+ setTimeout(cleanBills,20000);
+ async function linkSend(b,p){
+  try{
+   if(!sbReady()||window.__billFull)return false;
+   var sig=b.no+'|'+b.total+'|'+(typeof paidOn==='function'?paidOn(b):0)+'|'+Math.max(bal(p),0),m=blGet(),url=null;
+   if(m[sig]&&m[sig].url&&Date.now()-m[sig].t<(BL_DAYS-1)*864e5)url=m[sig].url;   /* same bill already uploaded: reuse link, no new storage */
+   if(!url){
+    var jb=await jpgBlob(await billImg(b,p));
+    var nm='bills/b'+b.no+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)+'.jpg';
+    var up=await SB.storage.from('promo').upload(nm,jb,{contentType:'image/jpeg'});
+    if(!up||up.error)throw new Error(up&&up.error&&up.error.message||'upload failed');
+    url=SB.storage.from('promo').getPublicUrl(up.data.path).data.publicUrl;
+    m=blGet();m[sig]={url:url,path:up.data.path,t:Date.now()};blSet(m);
+    if(Math.random()<.25)setTimeout(cleanBills,5000)}
+   openWA(p,capTxt(b,p)+'\n\nView bill picture: '+url);
+   return true
+  }catch(e){console.error(e);return false}}
+  async function sendPic(no,fallback){
   var b=bl(no),p=b&&P(b.pid);if(!b||!p)return fallback();
   try{
+   if(await linkSend(b,p))return;
    if(isM()&&navigator.canShare){
     var blob=await billImg(b,p),f=new File([blob],'bill-'+no+'.png',{type:'image/png'});
     if(navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:capTxt(b,p)});return}catch(e){if(e&&e.name==='AbortError')return}}
