@@ -1999,7 +1999,8 @@ var _r11=render;render=function(){try{[].forEach.call(document.querySelectorAll(
  var f=document.createElement('button');f.id='mfab';document.body.appendChild(f);
 })();
 var MH='tx',MN=60,MQ='',MX={};
-function isM(){return window.innerWidth<900}
+var __imT=0,__imV=window.innerWidth<900;window.addEventListener('resize',function(){__imT=0});window.addEventListener('orientationchange',function(){__imT=0});
+function isM(){var n=Date.now();if(n-__imT>400){__imT=n;__imV=window.innerWidth<900}return __imV}
 var IC={home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',dash:'<svg viewBox="0 0 24 24"><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-8h4v8"/></svg>',items:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>',more:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'};
 function mDate(d){return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'}).replace(/ (\d\d)$/,', $1')}
 function mhRows(){var rows=[];
@@ -8708,7 +8709,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.fmNew=function(){fnNewFirm('')};
  function check(){
   if(window.__fnSkip&&Date.now()<window.__fnSkip&&!hasData())return;
-  if(document.getElementById('fnw')||document.getElementById('lgn')||document.getElementById('acctov'))return;
+  var fw0=document.getElementById('fnw');
+  /* the first-time box closes by itself when this device really has shop data (for example after Google Drive sync brings it in) */
+  if(fw0){var h0=fw0.querySelector('h3');if(h0&&h0.textContent==='Set up your firm'&&hasData()){close();try{render()}catch(e){}}return}
+  if(document.getElementById('lgn')||document.getElementById('acctov'))return;
   var em=email();if(!em)return;
   var p=F();if(p.emails[em]&&p.firms.some(function(x){return x.id===p.emails[em]}))return;
   /* this device data already belongs to this account only: never ask again if it already has a firm or data */
@@ -8716,6 +8720,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(named||hasData()){
    if(!named){named=p.firms[0];named.name=D.shop&&!/^my business$/i.test(D.shop)?D.shop:'My firm'}
    p.emails[em]=named.id;if(!p.owner)p.owner=em;if(!named.em)named.em=em;save();try{render()}catch(e){}return}
+  /* the saved copy on this device already holds shop data: never ask for a new firm */
+  try{var sv=JSON.parse(localStorage.getItem('sb')||'null');if(sv&&((sv.items&&sv.items.length)||(sv.parties&&sv.parties.length)||(sv.bills&&sv.bills.length)))return}catch(e){}
   fnNewFirm(em)}
  setInterval(check,2000);setTimeout(check,1500);
  var _v=vSettings;
@@ -10075,6 +10081,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         toggleHtml += '<div style="font-size:11.5px;color:var(--k337,#d97706);margin-top:-2px;margin-bottom:6px">⚠️ Set your UPI ID in Settings → Print layout to print QR code</div>';
       }
 
+      toggleHtml = ''; /* QR is controlled only in Settings now */
       // Insert right after Balance Due row or before Payment Type
       if(h.indexOf('<div class="sfpr"><span>Payment Type</span>') >= 0){
         h = h.replace('<div class="sfpr"><span>Payment Type</span>', toggleHtml + '<div class="sfpr"><span>Payment Type</span>');
@@ -10106,6 +10113,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           (!cfg.id ? '<span style="font-size:11.5px;color:var(--k337,#d97706);font-weight:400">(no UPI ID set)</span>' : '') +
         '</label>';
 
+      dkToggleHtml = ''; /* QR is controlled only in Settings now */
       // Insert into .dkr right before Paid by dropdown
       if(h.indexOf('<span>Paid by</span>') >= 0){
         h = h.replace('<span>Paid by</span>', dkToggleHtml + '<span>Paid by</span>');
@@ -10167,7 +10175,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if(!cfg.id) return body;
     var bill = null;
     try{ bill = (window.D && D.bills || []).filter(function(x){ return x.no === c.no; })[0] || null; }catch(e){}
-    if(bill && bill.show_qr === false) return body;
     var isTh = (type === 'th');
     if(isTh ? !cfg.thEnabled : !cfg.enabled) return body;
     var due = Math.max(c.total - c.paid, 0);
@@ -10219,7 +10226,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     thDoc = function(c, th){
       var o = origThDoc.apply(this, arguments);
       var cfg = getUpiCfg();
-      var show = (c && c.show_qr !== false) && cfg.thEnabled && !!cfg.id;
+      var show = cfg.thEnabled && !!cfg.id;
       if(!show) return o;
 
       var bal = (c.hasPay && c.total > c.paid) ? Math.max(0, c.total - c.paid) : c.total;
@@ -10256,7 +10263,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     regDoc = function(c, th, copy){
       var o = origRegDoc.apply(this, arguments);
       var cfg = getUpiCfg();
-      var show = (c && c.show_qr !== false) && cfg.enabled && !!cfg.id;
+      var show = cfg.enabled && !!cfg.id;
       if(!show) return o;
 
       var bal = (c.hasPay && c.total > c.paid) ? Math.max(0, c.total - c.paid) : c.total;
@@ -10652,7 +10659,7 @@ window.addEventListener('resize',function(){if(!ok())closeD()});
  vBill2=function(){
   var h=_vb.apply(this,arguments);
   try{
-   if(isM()&&typeof h==='string'&&h.indexOf('<div class="sfbar">')>=0&&!(draft&&draft.edit)){
+   if(false&&isM()&&typeof h==='string'&&h.indexOf('<div class="sfbar">')>=0&&!(draft&&draft.edit)){
     var on=S().wa_auto!==0;
     h=h.replace('<div class="sfbar">','<div class="wsw"><div><b>Open WhatsApp after Save</b><small id="wswl">'+(on?'ON: WhatsApp opens after Save':'OFF: WhatsApp will not open')+'</small></div><label class="sw"><input type="checkbox" '+(on?'checked':'')+' onchange="__waSw(this.checked)"><i></i></label></div><div class="sfbar">');
    }
