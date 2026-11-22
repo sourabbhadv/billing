@@ -1794,7 +1794,10 @@ function setISort(v){ISORT=v;try{localStorage.setItem('isort',v)}catch(e){}rende
 function togIS(k){setISort(k==='n'?(ISORT==='az'?'za':'az'):(ISORT==='hi'?'lo':'hi'))}
 function itemCmp(a,b){var n=NCMP(a.name,b.name);if(ISORT==='az')return n;if(ISORT==='za')return -n;var d=(+a.qty||0)-(+b.qty||0);return ISORT==='hi'?(-d||n):(d||n)}
 var _viS=vItems;
-vItems=function(){return _viS().replace('<input placeholder="Search item" oninput="flt(this.value)">',function(a){var n=ISORT==='az'||ISORT==='za';return a+sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo')})};
+var ISQ='';
+vItems=function(){return _viS().replace('<input placeholder="Search item" oninput="flt(this.value)">',function(a){var n=ISORT==='az'||ISORT==='za';return '<input placeholder="Search item" oninput="ISQ=this.value;flt(this.value)" value="'+esc(ISQ)+'">'+sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo')})};
+
+var _rIQ=render;render=function(){if(typeof pg!=='undefined'&&pg!=='items')ISQ='';_rIQ();try{if(ISQ&&typeof pg!=='undefined'&&pg==='items'){var e=[].slice.call(document.querySelectorAll('#v input[placeholder="Search item"]'))[0];if(e){e.value=ISQ;flt(ISQ)}}}catch(x){}};
 
 /* every table: click a heading to sort, click again to reverse */
 var TSORT={};
@@ -1888,6 +1891,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
   var h=box.offsetHeight;if(r.bottom+h+6>vh&&r.top>h+6)box.style.top=(r.top-h-4)+'px';else box.style.top=(r.bottom+3)+'px'}
  function show(inp){
   if(inp.id==='bn'&&window.innerWidth<900&&document.body.classList.contains('sfm')){hide();return}
+  if(window.innerWidth>=900&&/flt\(/.test(inp.getAttribute('oninput')||'')){hide();return}
   var l=document.getElementById(inp.dataset.dl);if(!l){hide();return}
   var q=inp.value.trim().toLowerCase(),ws=q.split(/\s+/).filter(Boolean),wp=null,M=[],sph=window.sugPh||function(x){return x};
   [].forEach.call(l.options,function(o){var v=String(o.value),lb=o.label||o.getAttribute('label')||'',a=v.toLowerCase(),t=(a+' '+lb.toLowerCase()),k;
