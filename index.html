@@ -3183,7 +3183,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 22-Nov-B (QR and WhatsApp in Settings, firm box waits for Drive)';
+var APPV='App version 22-Nov-C (data kept on device in big storage)';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -10933,6 +10933,42 @@ html body .sfbar .sh{flex:0 0 46px!important;height:46px;padding:0!important;bor
  function g(){var b=document.body;if(!b)return setTimeout(g,50);walk(b);
   new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var m=ms[i];if(m.type==='characterData')map(m.target);else for(var j=0;j<m.addedNodes.length;j++)walk(m.addedNodes[j])}}).observe(b,{childList:true,subtree:true,characterData:true})}
  g()})();
+</script>
+<script id="big-device-store">
+/* 22-Nov-C: keep the full data on this device in IndexedDB (big storage). localStorage is only about 5 MB and the data is now bigger. */
+(function(){
+ var DBN='sbMain',KEY='D',tmr=0,busy=0,again=0,big=0;
+ function has(x){x=x||D;return !!x&&((x.bills||[]).length+(x.parties||[]).length+(x.items||[]).length)>0}
+ function open(){return new Promise(function(res,rej){if(!window.indexedDB)return rej(new Error('no idb'));var r=indexedDB.open(DBN,1);r.onupgradeneeded=function(){if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
+ function put(){
+  if(busy){again=1;return}
+  if(!has())return;
+  var s;try{s=JSON.stringify(D)}catch(e){return}
+  busy=1;
+  open().then(function(db){return new Promise(function(res,rej){var tx=db.transaction('kv','readwrite');tx.objectStore('kv').put({t:Date.now(),n:(D.bills||[]).length,s:s},KEY);tx.oncomplete=function(){db.close();res()};tx.onerror=tx.onabort=function(){try{db.close()}catch(e){}rej(tx.error)}})})
+  .catch(function(){}).then(function(){busy=0;if(again){again=0;sched()}})}
+ function sched(){clearTimeout(tmr);tmr=setTimeout(put,1500)}
+ try{
+  window.local=local=function(){
+   if(!big){try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){big=1;try{localStorage.removeItem('sb')}catch(e2){}}}
+   sched()}
+ }catch(e){}
+ /* bring the data back from this device when the app opens with nothing in the small storage */
+ function restore(){
+  if(has())return;
+  open().then(function(db){return new Promise(function(res){var q=db.transaction('kv','readonly').objectStore('kv').get(KEY);q.onsuccess=function(){db.close();res(q.result)};q.onerror=function(){try{db.close()}catch(e){}res(null)}})})
+  .then(function(r){
+   if(!r||!r.s||has())return;
+   var x=JSON.parse(r.s);if(!x||!Array.isArray(x.items)||!Array.isArray(x.parties))return;
+   Object.keys(x).forEach(function(k){D[k]=x[k]});
+   try{render()}catch(e){}})
+  .catch(function(){})}
+ restore();
+ setTimeout(put,6000);
+ setInterval(put,30000);
+ document.addEventListener('visibilitychange',function(){if(document.hidden)put()});
+ window.addEventListener('pagehide',put);
+})();
 </script>
 </body>
 </html>
