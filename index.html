@@ -10534,7 +10534,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    if(!imgs.length)go();else wait.then(function(){setTimeout(go,100)});
   }catch(e){clean();alert('Could not start printing')}};
  /* the Print button inside the phone preview */
- window.prGo=function(){var c=window.__prc,t=window.__prt;if(!c)return;window.__printInline(window.prFull(c,t,false))};
+ window.prGo=function(){var c=window.__prc,t=window.__prt;if(!c)return;
+  /* iPhone/iPad app opened from the Home Screen: window.print() does nothing there. Open the share sheet with the bill picture instead (it has Print, Save Image, WhatsApp). */
+  try{var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),
+   sa=navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+   if(ios&&sa&&t!=='th'&&typeof window.shareBill==='function'&&typeof bl==='function'&&c.no&&bl(+c.no)&&typeof P==='function'&&P(bl(+c.no).pid)){return window.shareBill(+c.no)}}catch(e){}
+  window.__printInline(window.prFull(c,t,false))};
  /* every other print on a phone-size screen (reports, statements, bills) */
  var _pf=window.__printFrame;
  if(typeof _pf==='function')window.__printFrame=function(html){if(window.innerWidth<900)return window.__printInline(html);return _pf.apply(this,arguments)};
