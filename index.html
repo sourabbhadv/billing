@@ -1797,15 +1797,15 @@ var _viS=vItems;
 var ISQ='';
 vItems=function(){return _viS().replace('<input placeholder="Search item" oninput="flt(this.value)">',function(a){var n=ISORT==='az'||ISORT==='za';return '<input placeholder="Search item" oninput="ISQ=this.value;flt(this.value)" value="'+esc(ISQ)+'">'+sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo')})};
 
-var _rIQ=render;render=function(){if(typeof pg!=='undefined'&&pg!=='items')ISQ='';_rIQ();try{if(ISQ&&typeof pg!=='undefined'&&pg==='items'){var e=[].slice.call(document.querySelectorAll('#v input[placeholder="Search item"]'))[0];if(e){e.value=ISQ;flt(ISQ)}}}catch(x){}};
+var _rIQ=render;render=function(){if(typeof pg!=='undefined'&&pg!=='items')ISQ='';_rIQ();try{if(ISQ&&typeof pg!=='undefined'&&pg==='items'){var e=[].slice.call(document.querySelectorAll('#v input[placeholder="Search item"],#v input.msr[placeholder*="item"]'))[0];if(e){e.value=ISQ;flt(ISQ)}}}catch(x){}};
 
 /* smooth sort on Items (desktop): reorder the rows already on screen instead of rebuilding the page */
 var _tIS=togIS;
 togIS=function(k){
  try{
   var r=document.querySelector('#v [data-n][onclick*="selI="]');
-  if(!r||window.innerWidth<900)return _tIS(k);
-  var box=r.parentElement,hd=box.previousElementSibling;
+  if(!r)return _tIS(k);
+  var box=r.parentElement,tg=document.querySelector('#v [onclick*="togIS("]'),hd=tg&&tg.parentElement;
   if(!hd||hd.textContent.indexOf('Quantity')<0)return _tIS(k);
   var byId={};D.items.forEach(function(i){byId[i.id]=i});
   var K=[].slice.call(box.children).filter(function(e){return e.hasAttribute('data-n')}).map(function(e){var m=/selI='([^']+)'/.exec(e.getAttribute('onclick')||'');return {el:e,i:m&&byId[m[1]]}});
@@ -1816,7 +1816,7 @@ togIS=function(k){
   var f=document.createDocumentFragment();K.forEach(function(x){f.appendChild(x.el)});box.appendChild(f);
   var n=ISORT==='az'||ISORT==='za';
   hd.outerHTML=sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo');
-  box.scrollTop=0;
+  box.scrollTop=0;if(window.innerWidth<900)window.scrollTo(0,0);
   if(box.animate)box.animate([{opacity:.35,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:200,easing:'ease-out'});
  }catch(e){_tIS(k)}
 };
@@ -1913,7 +1913,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
   var h=box.offsetHeight;if(r.bottom+h+6>vh&&r.top>h+6)box.style.top=(r.top-h-4)+'px';else box.style.top=(r.bottom+3)+'px'}
  function show(inp){
   if(inp.id==='bn'&&window.innerWidth<900&&document.body.classList.contains('sfm')){hide();return}
-  if(window.innerWidth>=900&&/flt\(/.test(inp.getAttribute('oninput')||'')){hide();return}
+  if(/flt\(/.test(inp.getAttribute('oninput')||'')){hide();return}
   var l=document.getElementById(inp.dataset.dl);if(!l){hide();return}
   var q=inp.value.trim().toLowerCase(),ws=q.split(/\s+/).filter(Boolean),wp=null,M=[],sph=window.sugPh||function(x){return x};
   [].forEach.call(l.options,function(o){var v=String(o.value),lb=o.label||o.getAttribute('label')||'',a=v.toLowerCase(),t=(a+' '+lb.toLowerCase()),k;
@@ -3363,6 +3363,14 @@ var _vPi=vPage;vPage=function(){if(isM()&&pg==='items'&&I(selI)&&!iform&&!form)r
 '#mtop .mact{margin-left:auto;display:flex;gap:6px;align-items:center}#mtop .mact button{background:none;color:var(--k164,#3d4160);font-size:20px;padding:2px 8px}#mtop .mact .xls{background:var(--k192,#1d8f4e);color:var(--k1,#fff);font-size:12px;font-weight:700;padding:4px 7px;border-radius:5px}}';
 document.head.appendChild(st)})();
 var _rIt=render;render=function(){_rIt();try{var tp=document.getElementById('mtop');if(tp&&isM()&&pg==='items'&&I(selI)&&!iform&&!form&&!viewB&&!viewD){var t=tp.querySelector('.mttl');if(t)t.textContent='Item Details';if(!tp.querySelector('.mact'))tp.insertAdjacentHTML('beforeend','<div class="mact"><button class="xls" onclick="csvItem(selI)">xls</button><button onclick="iform={id:selI};render()" aria-label="Edit item">✎</button></div>')}}catch(e){}};
+
+/* phone Items: Item / Quantity sort header, search text kept when sorting or filtering */
+var _vMIs=vMItems;
+vMItems=function(){var h=_vMIs.apply(this,arguments);if(!isM())return h;
+ var n=ISORT==='az'||ISORT==='za',k='</svg></button></div>',i=h.indexOf(k);if(i<0)return h;
+ h=h.replace('class="msr" placeholder="Search for an item or code" oninput="flt(this.value)">','class="msr" placeholder="Search for an item or code" oninput="ISQ=this.value;flt(this.value)" value="'+esc(ISQ)+'">');
+ i=h.indexOf(k);
+ return h.slice(0,i+k.length)+sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo')+h.slice(i+k.length)};
 
 /* ---------- SPEED: batch saves (typing no longer re-saves the whole database on every keystroke) ---------- */
 var _loc0=local,_locT=null,_save0=save,_saveT=null;
