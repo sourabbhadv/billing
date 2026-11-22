@@ -3396,6 +3396,42 @@ vMItems=function(){var h=_vMIs.apply(this,arguments);if(!isM())return h;
  });
 })();
 
+/* ---------- SMOOTH SCREENS: update only what changed instead of rebuilding the whole page (no flash, no scroll jump) ---------- */
+(function(){
+ var v=document.getElementById('v');if(!v)return;
+ try{if(localStorage.getItem('nomorph')==='1')return}catch(e){}
+ var D0=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML'),lastKey=null;
+ function attrs(a,b){
+  for(var i=a.attributes.length-1;i>=0;i--){var n=a.attributes[i].name;if(!b.hasAttribute(n))a.removeAttribute(n)}
+  for(var j=0;j<b.attributes.length;j++){var q=b.attributes[j];if(a.getAttribute(q.name)!==q.value)a.setAttribute(q.name,q.value)}}
+ function fx(a,b){
+  var t=a.tagName;
+  if(t==='INPUT'){var ty=(a.type||'').toLowerCase();
+   if(ty==='checkbox'||ty==='radio'){a.checked=b.hasAttribute('checked');return}
+   if(ty==='file')return;
+   if(a===document.activeElement&&!b.hasAttribute('value'))return;
+   var nv=b.getAttribute('value')||'';if(a.value!==nv)a.value=nv}
+  else if(t==='TEXTAREA'){var tv=b.textContent||'';if(a===document.activeElement&&!tv)return;if(a.value!==tv)a.value=tv}}
+ function node(a,b){
+  if(a.nodeType!==b.nodeType||a.nodeName!==b.nodeName){a.parentNode.replaceChild(b,a);return}
+  if(a.nodeType!==1){if(a.nodeValue!==b.nodeValue)a.nodeValue=b.nodeValue;return}
+  if(a.isEqualNode(b))return;
+  attrs(a,b);
+  if(a.tagName==='SELECT'){kids(a,b);a.selectedIndex=b.selectedIndex;return}
+  if(a.tagName==='TEXTAREA'){fx(a,b);return}
+  fx(a,b);kids(a,b)}
+ function kids(a,b){
+  var bc=[].slice.call(b.childNodes),i=0;
+  for(;i<bc.length;i++){var ac=a.childNodes[i];if(ac)node(ac,bc[i]);else a.appendChild(bc[i])}
+  while(a.childNodes.length>bc.length)a.removeChild(a.lastChild)}
+ function key(){try{var m=window.innerWidth<900;return [pg,tab,!!form,sub,viewB,viewD,openB,!!ddraft,m,m?selI:'',m?selP:'',m&&!!iform,m&&!!pform].join('|')}catch(e){return ''}}
+ Object.defineProperty(v,'innerHTML',{configurable:true,get:function(){return D0.get.call(v)},set:function(h){
+  var k=key();
+  if(k!==lastKey||!v.firstChild){lastKey=k;D0.set.call(v,h);try{if(v.animate)v.animate([{opacity:.4},{opacity:1}],{duration:170,easing:'ease-out'})}catch(e){}return}
+  try{var t=document.createElement('template');t.innerHTML=h;kids(v,t.content)}
+  catch(e){try{console.error('morph',e)}catch(_){}D0.set.call(v,h)}}});
+})();
+
 /* ---------- SPEED: batch saves (typing no longer re-saves the whole database on every keystroke) ---------- */
 var _loc0=local,_locT=null,_save0=save,_saveT=null;
 function flushSaves(){if(_locT){clearTimeout(_locT);_locT=null;try{_loc0()}catch(e){}}if(_saveT){clearTimeout(_saveT);_saveT=null;try{_save0()}catch(e){}}}
