@@ -1,5 +1,108 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><link rel="preconnect" href="https://generativelanguage.googleapis.com" crossorigin><script>(function(){var t="classic";try{t=localStorage.getItem("sbTheme")||"classic"}catch(e){}if(!/^(neon|green|classic)$/.test(t))t="classic";document.documentElement.setAttribute("data-theme",t);window.__themeColors={"neon": "#070d1c", "green": "#0c2a1e", "classic": "#071631"}})();</script>
+<html lang="en"><head><meta charset="utf-8">
+<script id="digital-bill-codec">
+/* Embedded verbatim in the standalone document: no network, storage or account access. */
+(function (root) {
+  'use strict';
+  var MAX_LINK = 48000;
+  function text(value) { return value == null ? '' : String(value); }
+  function num(value) { var n = Number(value); return Number.isFinite(n) ? n : 0; }
+  function escape(value) { return text(value).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function validate(b) {
+    if (!b || b.v !== 1 || !Array.isArray(b.l) || !b.l.length || b.l.length > 250 ||
+        !Array.isArray(b.s) || !Array.isArray(b.p) || !['string','number'].includes(typeof b.n) ||
+        !Number.isFinite(b.t) || !Number.isFinite(b.r) || !Number.isFinite(b.d) ||
+        !Number.isFinite(new Date(b.d).getTime()) || b.t < 0 || b.r < 0 ||
+        !b.l.every(function (l) { return Array.isArray(l) && l.length >= 5 && typeof l[0] === 'string' && l.slice(2,5).every(Number.isFinite); })) {
+      throw new Error('This bill link is incomplete or invalid. Ask the seller to share it again.');
+    }
+    [b.n].concat(b.s,b.p,[b.note,b.terms]).forEach(function (s) {
+      if (s != null && (typeof s === 'object' || text(s).length > 6000)) throw new Error('Invalid bill details.');
+    });
+    return b;
+  }
+  function encode(b) {
+    validate(b);
+    var bytes = new TextEncoder().encode(JSON.stringify(b)), binary = '';
+    bytes.forEach(function (x) { binary += String.fromCharCode(x); });
+    var value = 'u1.' + btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    if (value.length > MAX_LINK) throw new Error('This invoice is too large for a WhatsApp bill link. Please use Print or Bill picture for this bill.');
+    return value;
+  }
+  function decode(value) {
+    if (value.length > MAX_LINK || !/^u1\.[A-Za-z0-9_-]+$/.test(value)) throw new Error('This bill link is incomplete or invalid. Ask the seller to share it again.');
+    var binary = atob(value.slice(3).replace(/-/g,'+').replace(/_/g,'/'));
+    var bytes = Uint8Array.from(binary, function (c) { return c.charCodeAt(0); });
+    return validate(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
+  }
+  function link(b, href) {
+    var url = new URL(href);
+    if (!/^https?:$/.test(url.protocol)) throw new Error('Open the hosted app before sharing a bill link.');
+    url.search = ''; url.hash = 'bill=' + encode(b);
+    return url.href;
+  }
+  function phone(value) {
+    var d = text(value).replace(/\D/g,'');
+    if (d.startsWith('00')) d = d.slice(2);
+    if (d.length === 11 && d[0] === '0') d = d.slice(1);
+    if (d.length === 10) d = '91' + d;
+    if (!/^[1-9]\d{9,14}$/.test(d)) throw new Error('Add a valid phone number for this party first.');
+    return d;
+  }
+  function whatsapp(number, message) { return 'https://wa.me/' + phone(number) + '?text=' + encodeURIComponent(message); }
+  function money(value) { return '₹' + num(value).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function render(b) {
+    validate(b);
+    var e = escape, sub = b.l.reduce(function (s,l) { return s + l[4]; },0), due = Math.max(b.t-b.r,0);
+    var tax = '';
+    if (b.tax && Array.isArray(b.tax.rows)) {
+      tax = '<section class="di-tax"><h2>Tax summary</h2>' + b.tax.rows.map(function (r) {
+        return '<div><span>HSN ' + e(r.h || '—') + ' · GST ' + e(num(r.r)) + '%</span><strong>' + money(r.tx) + '</strong></div>';
+      }).join('') + '<p>Prices include GST.</p></section>';
+    }
+    return '<main class="di-invoice"><header class="di-header"><div><p class="di-label">' + (b.tax ? 'Tax invoice' : 'Sale invoice') + '</p><h1>' + e(b.s[0]) + '</h1><p>' + e(b.s[1]).replace(/
+/g,'<br>') + '</p><p>' + e(b.s[2]) + (b.s[3] ? ' · GSTIN ' + e(b.s[3]) : '') + '</p></div><div class="di-number"><strong>#' + e(b.n) + '</strong><time>' + e(new Date(b.d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})) + '</time></div></header>' +
+      '<section class="di-party"><div><p class="di-label">Bill to</p><h2>' + e(b.p[0]) + '</h2><p>' + e(b.p[1]).replace(/
+/g,'<br>') + '</p>' + (b.p[2] ? '<p>GSTIN ' + e(b.p[2]) + '</p>' : '') + '</div><span class="di-status">' + (b.x ? 'Cancelled' : due > 0 ? 'Payment due' : 'Paid') + '</span></section>' +
+      '<table class="di-items"><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>' + b.l.map(function (l) {
+        return '<tr><td><b>' + e(l[0]) + '</b><small>' + e(l[5] || '') + '</small></td><td>' + e(l[2]) + ' ' + e(l[1]) + '</td><td>' + money(l[3]) + '</td><td>' + money(l[4]) + '</td></tr>';
+      }).join('') + '</tbody></table><section class="di-summary"><div><span>Subtotal</span><strong>' + money(sub) + '</strong></div>' +
+      (b.dc ? '<div><span>Discount</span><strong>−' + money(b.dc) + '</strong></div>' : '') + '<div class="di-total"><span>Total</span><strong>' + money(b.t) + '</strong></div><div><span>Received</span><strong>' + money(b.r) + '</strong></div><div class="di-due"><span>Balance due</span><strong>' + money(due) + '</strong></div></section>' + tax +
+      (b.p[3] ? '<section class="di-notes"><h2>Ship to</h2><p>' + e(b.p[3]).replace(/
+/g,'<br>') + '</p></section>' : '') +
+      (b.note ? '<section class="di-notes"><h2>Notes</h2><p>' + e(b.note).replace(/
+/g,'<br>') + '</p></section>' : '') +
+      (b.terms ? '<section class="di-notes"><h2>Terms</h2><p>' + e(b.terms).replace(/
+/g,'<br>') + '</p></section>' : '') +
+      '<footer><strong>Thank you for your business.</strong><p>Invoice copy · balances as issued</p></footer></main>';
+  }
+  var css = ':root{--di-paper:#fff;--di-bg:#edf1f2;--di-ink:#182c30;--di-muted:#637577;--di-accent:#087f73;--di-line:#dce5e4;--di-tint:#e8f5f1;--di-shadow:0 6px 30px #182c3010}*{box-sizing:border-box}body{margin:0;background:var(--di-bg);color:var(--di-ink);font:15px/1.6 Arial,sans-serif;letter-spacing:0}.di-toolbar{max-width:860px;margin:20px auto 12px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;color:var(--di-muted)}.di-print{width:42px;height:42px;display:grid;place-items:center;background:var(--di-paper);color:var(--di-accent);border:1px solid var(--di-line);border-radius:6px;cursor:pointer}.di-invoice{max-width:860px;margin:0 auto 40px;background:var(--di-paper);padding:44px;box-shadow:var(--di-shadow);border-top:5px solid var(--di-accent)}h1{font-size:28px;line-height:1.3;margin:5px 0 12px;overflow-wrap:anywhere}h2{font-size:17px;margin:0}p{margin:4px 0;overflow-wrap:anywhere}.di-label{font-size:11px;text-transform:uppercase;color:var(--di-muted);font-weight:700}.di-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;border-bottom:1px solid var(--di-line);padding-bottom:24px}.di-header p{font-size:13px;color:var(--di-muted)}.di-number{text-align:right}.di-number strong{font-size:24px;display:block;overflow-wrap:anywhere;max-width:160px}.di-number time{font-size:13px;color:var(--di-muted);white-space:nowrap}.di-party{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;margin:24px 0}.di-party>div{min-width:0}.di-party p{font-size:13px}.di-status{font-size:12px;font-weight:700;padding:4px 10px;background:var(--di-tint);color:var(--di-accent);white-space:nowrap}.di-items{width:100%;border-collapse:collapse;table-layout:fixed}.di-items th{background:var(--di-tint);font-size:11px;color:var(--di-muted);text-align:right;padding:12px 8px}.di-items th:first-child{width:43%;text-align:left}.di-items td{border-bottom:1px solid var(--di-line);padding:16px 8px;text-align:right;vertical-align:top;overflow-wrap:anywhere}.di-items td:first-child{text-align:left}.di-items small{display:block;color:var(--di-muted)}.di-summary{max-width:340px;margin:24px 0 24px auto}.di-summary>div,.di-tax>div{display:flex;justify-content:space-between;gap:20px;padding:6px 0}.di-summary strong{white-space:nowrap}.di-total{border-top:1px solid var(--di-line);font-size:20px;margin-top:8px}.di-due{color:var(--di-accent);font-weight:700}.di-notes,.di-tax{border-top:1px solid var(--di-line);padding-top:16px;margin-top:20px;font-size:13px}.di-notes h2,.di-tax h2{font-size:13px}footer{margin-top:36px;padding-top:20px;border-top:1px solid var(--di-line);font-size:13px}footer p{color:var(--di-muted);font-size:11px}.di-error{max-width:500px;margin:60px auto;padding:24px}.di-error h1{font-size:24px}@media(max-width:600px){body{font-size:13px}.di-toolbar{margin:10px 0}.di-invoice{padding:22px 16px;margin-bottom:0;box-shadow:none}.di-header{gap:12px}h1{font-size:22px}.di-number strong{font-size:20px;max-width:110px}.di-number time{font-size:11px}.di-items th:first-child{width:38%}.di-items td,.di-items th{padding:10px 4px;font-size:11px}.di-summary{max-width:100%}.di-total{font-size:18px}.di-status{font-size:11px;padding:4px 6px}}@media print{body{background:var(--di-paper)}.di-toolbar{display:none}.di-invoice{margin:0;padding:20px;max-width:none;box-shadow:none}.di-items tr{break-inside:avoid}footer{break-inside:avoid}}';
+  function mount(hash) {
+    document.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">';
+    var style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
+    try {
+      var b = decode(hash.slice(6));
+      document.title = 'Invoice #' + text(b.n) + ' · ' + text(b.s[0]);
+      document.body.innerHTML = '<div class="di-toolbar"><span>Invoice #' + escape(b.n) + '</span><button class="di-print" type="button" title="Print invoice" aria-label="Print invoice"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9V3h12v6M6 18H3V9h18v9h-3M6 14h12v7H6z"/></svg></button></div>' + render(b);
+      document.querySelector('.di-print').addEventListener('click', function () { root.print(); });
+    } catch (err) {
+      document.title = 'Bill link unavailable · Laxmi AI Billing';
+      document.body.innerHTML = '<main class="di-error"><h1>Bill link unavailable</h1><p>This link is incomplete or invalid. Please ask the seller to share the bill again.</p></main>';
+    }
+  }
+  root.DigitalBill = {encode:encode,decode:decode,link:link,phone:phone,whatsapp:whatsapp,render:render,mount:mount};
+})(typeof window === 'undefined' ? globalThis : window);
+</script>
+<script id="digital-bill-recipient">
+if(location.hash.indexOf("#bill=")===0){
+window.__digitalBillRecipient=true;
+var billHash=location.hash;
+document.addEventListener("DOMContentLoaded",function(){DigitalBill.mount(billHash)});
+/* Consume the original document as inert text before any account or app script executes. */
+document.write("<plaintext hidden>");
+}
+</script>
+<link rel="preconnect" href="https://generativelanguage.googleapis.com" crossorigin><script>(function(){var t="classic";try{t=localStorage.getItem("sbTheme")||"classic"}catch(e){}if(!/^(neon|green|classic)$/.test(t))t="classic";document.documentElement.setAttribute("data-theme",t);window.__themeColors={"neon": "#070d1c", "green": "#0c2a1e", "classic": "#071631"}})();</script>
 <style id="theme-css">
 html[data-theme=green]{--k0:#0c2a1e;--k10:#e0a63a;--k11:#0c2a1e;--k13:#0c2a1e;--k15:#174a38;--k16:#e0a63a;--k17:#f3efe3;--k19:#1d2620;--k20:#7a7f73;--k21:#17784f;--k22:#eadfb5;--k23:#e8e3d4;--k27:#d9d2bf;--k28:#17784f;--k29:#17784f;--k30:#e0501c;--k31:#f4ecd3;--k32:#12603f;--k37:#f6f2e7;--k38:#5f665c;--k39:#ece7d8;--k41:#d9d2bf;--k42:#0c2a1e;--k43:#14402f;--k44:#174a38;--k45:#e0501c;--k46:#f6f2e7;--k47:#1b4d32;--k51:#17784f;--k52:#17784f;--k53:#17784f;--k54:#17784f;--k55:#eadfb5;--k56:#17784f;--k58:#7a7f73;--k60:#17784f;--k61:#1d2620;--k63:#e8e3d4;--k64:#17784f;--k65:#0c2a1e;--k67:#7a7f73;--k69:#e8e3d4;--k70:#e8e3d4;--k72:#e8e3d4;--k77:#d9d2bf;--k80:#f6f2e7;--k85:#f4ecd3;--k87:#e0501c;--k89:#e0501c;--k90:#e0501c;--k93:#9a9e90;--k99:#4a5248;--k107:#0f4a31;--k111:#f4ecd3;--k112:#ece7d8;--k113:#3a423b;--k130:#e8e3d4;--k131:#25302a;--k137:#9a9e90;--k139:#f4ecd3;--k144:#e8e3d4;--k145:#f4ecd3;--k146:#c9c3ad;--k151:#f3efe3;--k152:#9a9e90;--k153:#f4ecd3;--k156:#25302a;--k162:#1d2620;--k163:#25302a;--k164:#3a463f;--k166:#6f7468;--k168:#e7e2d3;--k169:#e7e2d3;--k171:#17784f;--k173:#8f9487;--k174:#cfc8b3;--k177:#e7e2d3;--k183:#3a463f;--k184:#8f9487;--k187:#e7e2d3;--k193:#e7e2d3;--k194:#17784f;--k195:#e0501c;--k196:#eef3ea;--k197:#10382a;--k198:#1d4a3a;--k199:#1b4d32;--k205:#f4ecd3;--k206:#f4ecd3;--k207:#5f665c;--k208:#e8e3d4;--k214:#17784f;--k217:#eadfb5;--k219:#f6f2e7;--k223:#25302a;--k224:#f3efe3;--k225:#ece7d8;--k236:#d9d2bf;--k237:#17784f;--k240:#d6cfba;--k243:#e8e3d4;--k273:#e8e3d4;--k284:#e0501c;--k299:#25302a;--k326:#174a38;--k338:#17784f;--k347:#1b4d32;--k348:#1b4d32;--k349:#1b4d32;--ch0:#e6b23c;--ch1:#e0852a;--ch2:#17784f;--chs:#d0a13a}
 html[data-theme=neon]{--k0:#070d1c;--k10:linear-gradient(135deg,#1aa9c2,#3b6fe0);--k11:#070d1c;--k13:#070d1c;--k15:#14264a;--k16:#22d3ee;--k17:#0f1b33;--k19:#e6f1ff;--k20:#8fa3c0;--k21:#22d3ee;--k22:#1b3f5f;--k23:#1c2f4d;--k26:#101e36;--k27:#2b4670;--k28:#22d3ee;--k29:#22d3ee;--k30:#ff5d5d;--k31:#12324a;--k32:#38bdf8;--k33:#0f1b33;--k34:#3a1822;--k35:#e6f1ff;--k36:#3a1822;--k37:#0f1b33;--k38:#9fb2cf;--k39:#1c2f4d;--k40:#0f1b33;--k41:#2b4670;--k42:#070d1c;--k43:#0f2040;--k44:#14264a;--k45:#ff5d5d;--k46:#0f1b33;--k47:#6d4aff;--k51:#22d3ee;--k52:#22d3ee;--k53:#22d3ee;--k54:#22d3ee;--k55:#1b3f5f;--k56:#22d3ee;--k58:#8fa3c0;--k60:linear-gradient(135deg,#1aa9c2,#3b6fe0);--k61:#e6f1ff;--k62:#0f1b33;--k63:#1c2f4d;--k64:#22d3ee;--k65:#e6f1ff;--k67:#8fa3c0;--k69:#1c2f4d;--k70:#1c2f4d;--k72:#1c2f4d;--k73:#0f1b33;--k74:#e6f1ff;--k75:#223a5c;--k76:#0f1b33;--k77:#2b4670;--k78:#e6f1ff;--k80:#0f1b33;--k81:#0f1b33;--k85:#12324a;--k86:#0f1b33;--k87:#ff5d5d;--k88:#3a1822;--k89:#ff5d5d;--k90:#ff5d5d;--k91:#0f1b33;--k92:#3a1822;--k93:#7d91b0;--k94:#3a2a12;--k96:#0f3a33;--k98:#0f1b33;--k99:#b4c4de;--k100:#1b3f5f;--k101:#0f1b33;--k102:#223a5c;--k103:#0f1b33;--k105:#0f1b33;--k106:#0f1b33;--k107:#818cf8;--k108:#e6f1ff;--k109:#0f3a33;--k110:#e6f1ff;--k111:#12324a;--k112:#1c2f4d;--k113:#c5d3ea;--k114:#223a5c;--k115:#223a5c;--k118:#0f1b33;--k121:#0f1b33;--k122:#223a5c;--k123:#0f1b33;--k124:#e6f1ff;--k126:#0f1b33;--k129:#0f1b33;--k130:#1c2f4d;--k131:#e6f1ff;--k134:#0f3a33;--k135:#0f1b33;--k136:#223a5c;--k137:#7d91b0;--k139:#12324a;--k144:#1c2f4d;--k145:#12324a;--k146:#34507a;--k147:#223a5c;--k149:#1b3f5f;--k151:#0f1b33;--k152:#7d91b0;--k153:#12324a;--k156:#223a5c;--k158:#0f1b33;--k160:#38bdf8;--k162:#e6f1ff;--k163:#e6f1ff;--k164:#c5d3ea;--k165:#0f1b33;--k166:#8fa3c0;--k168:#223a5c;--k169:#223a5c;--k171:#22d3ee;--k172:#0f1b33;--k173:#7d91b0;--k174:#34507a;--k175:#1b3f5f;--k177:#223a5c;--k178:#e6f1ff;--k179:#223a5c;--k182:#3a2a12;--k183:#223a5c;--k184:#7d91b0;--k186:#223a5c;--k187:#223a5c;--k188:#0f1b33;--k190:#3a1822;--k193:#223a5c;--k194:#22d3ee;--k195:#ff5d5d;--k196:#e6f1ff;--k197:#0d1830;--k198:#1b3358;--k199:#6d4aff;--k200:#0f1b33;--k201:#0f1b33;--k203:#0f3a33;--k204:#3a1822;--k205:#12324a;--k206:#12324a;--k207:#9fb2cf;--k208:#1c2f4d;--k212:#0f1b33;--k213:#0f1b33;--k214:#22d3ee;--k216:#e6f1ff;--k217:#1b3f5f;--k219:#0f1b33;--k220:#0f1b33;--k221:#1b3f5f;--k222:#1b3f5f;--k223:#0f1b33;--k224:#0f1b33;--k225:#1c2f4d;--k226:#0f1b33;--k227:#e6f1ff;--k232:#e6f1ff;--k235:#e6f1ff;--k236:#2b4670;--k237:#22d3ee;--k238:#0f1b33;--k239:#0f1b33;--k240:#3a5683;--k241:#e6f1ff;--k242:#e6f1ff;--k243:#1c2f4d;--k244:#0f1b33;--k245:#e6f1ff;--k246:#e6f1ff;--k248:#0f1b33;--k249:#0f1b33;--k271:#0f3a33;--k272:#0f1b33;--k273:#1c2f4d;--k274:#0f3a33;--k275:#e6f1ff;--k276:#3a2a12;--k277:#e6f1ff;--k278:#0f3a33;--k279:#e6f1ff;--k280:#e6f1ff;--k281:#223a5c;--k282:#0f1b33;--k283:#e6f1ff;--k284:#ff5d5d;--k285:#223a5c;--k286:#e6f1ff;--k287:#e6f1ff;--k288:#223a5c;--k289:#e6f1ff;--k291:#223a5c;--k292:#e6f1ff;--k293:#223a5c;--k294:#223a5c;--k295:#e6f1ff;--k296:#223a5c;--k298:#3a1822;--k299:#e6f1ff;--k301:#0f1b33;--k302:#223a5c;--k303:#3a1822;--k304:#e6f1ff;--k305:#0f1b33;--k307:#0f1b33;--k308:#223a5c;--k310:#e6f1ff;--k312:#e6f1ff;--k313:#0f1b33;--k314:#e6f1ff;--k318:#0f1b33;--k320:#223a5c;--k321:#223a5c;--k322:#0f1b33;--k323:#e6f1ff;--k324:#223a5c;--k325:#e6f1ff;--k326:#14264a;--k328:#0f1b33;--k329:#e6f1ff;--k330:#e6f1ff;--k331:#e6f1ff;--k332:#0f3a33;--k333:#e6f1ff;--k335:#223a5c;--k338:#22d3ee;--k339:#223a5c;--k340:#e6f1ff;--k342:#0f1b33;--k344:#0f1b33;--k345:#223a5c;--k346:#e6f1ff;--k347:#6d4aff;--k348:#6d4aff;--k349:#6d4aff;--k350:#3a2a12;--k351:#e6f1ff;--k352:#3a1822;--k353:#e6f1ff;--k354:#e6f1ff;--k355:#0f1b33;--k356:#223a5c;--k357:#0f1b33;--k360:#0f1b33;--k361:#1b3f5f;--ch0:#22d3ee;--ch1:#8b5cf6;--ch2:#e879f9;--chs:url(#vs)}
@@ -11191,6 +11294,62 @@ window.gstTab=function(t){tab=t;q='';var e=document.getElementById('gst_q');if(e
 window.gstQ=function(v){q=v;paint()};
 window.gstItem=function(id,k,v){var i=D.items.find(function(x){return x.id===id});if(!i)return;if(k==='gst')i.gst=v===''?null:+v;else i.hsn=String(v).replace(/\D/g,'');save()};
 window.gstParty=function(id,v){var p=P(id);if(!p)return;v=String(v).toUpperCase().replace(/\s+/g,'');p.gstin=v;save();var e=document.getElementById('gps_'+id);if(e)e.innerHTML=pst(v)};
+})();
+</script>
+
+<script id="digital-bill-sharing">
+/* Final overrides: instant bill links bypass the existing cloud Outbox; explicit pictures retain their original behavior. */
+(function () {
+  'use strict';
+  function scoped(b, fn) {
+    var id = window.fmBillF ? window.fmBillF(b) : b.fm;
+    return window.fmPrintWithFirm ? window.fmPrintWithFirm(id, fn) : fn();
+  }
+  function snapshot(b, p) {
+    return scoped(b, function () {
+      var s = PS(), a = typeof bAddr === 'function' ? bAddr(b) : {a:p.addr,s:p.ship};
+      var f = (s.firms || []).find(function (x) { return x.id === (window.fmBillF ? window.fmBillF(b) : b.fm); });
+      var tax = D.gst && D.gst.on && window.gstCalc ? window.gstCalc(b.no) : null;
+      return {v:1,n:b.no,d:b.date,s:[(f && f.name) || s.name || D.shop,(f && f.addr) || s.addr || '',(f && f.phone) || s.phone || '',(D.gst && D.gst.gstin) || (f && f.gst) || ''],
+        p:[p.name,a.a || '',p.gstin || '',a.s || ''],l:b.lines.map(function (l) { return [l.name,l.unit || '',+l.qty || 0,+l.rate || 0,+l.amt || 0,l.sz ? String(l.sz) + ' ' + (l.szu || '') : '']; }),
+        t:+b.total || 0,r:+paidOn(b) || 0,dc:+b.disc || 0,x:!!b.x,note:b.desc || b.ds || '',terms:b.terms || b.tm || s.terms || '',tax:tax ? {rows:tax.rows} : null};
+    });
+  }
+  function message(b, p, bill, url) {
+    var due = Math.max(bill.t-bill.r,0);
+    var t = scoped(b, function () {
+      return typeof fillTpl === 'function' ? fillTpl('sale',{partyName:p.name,businessName:bill.s[0],invoiceNo:b.no,date:dt(b.date),items:typeof linesText === 'function' ? linesText(b.lines) : '',total:String(bill.t),paid:String(bill.r),balance:String(due),amount:String(bill.t)}) : 'Namaste ' + p.name + ',
+Bill #' + b.no + ' from ' + bill.s[0] + '
+Total: ' + money(bill.t);
+    });
+    return (_awUpd ? '*Updated invoice*
+' : '') + t + '
+
+Digital invoice:
+' + url;
+  }
+  function openDirect(p, text) {
+    var url = DigitalBill.whatsapp(p.phone, text), popup = null;
+    try { popup = window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) {}
+    /* noopener may return null even when the tab opened; keep a reliable retry link available. */
+    if (!popup) {
+      closeWA();
+      var m = document.createElement('div'); m.id = 'wam';
+      m.className = 'di-share-fallback';
+      m.innerHTML = '<div class="card"><b>Bill ready for WhatsApp</b><p class="mu">To: +' + DigitalBill.phone(p.phone) + '</p><textarea id="wat" rows="5" readonly></textarea><div class="row"><a class="b" target="_blank" rel="noopener noreferrer">Open WhatsApp</a><button class="s" onclick="cpWA()">Copy message</button><button class="s" onclick="closeWA()">Close</button></div></div>';
+      m.querySelector('a').href = url; m.querySelector('textarea').value = text; document.body.appendChild(m);
+    }
+  }
+  function send(b, p) {
+    if (!b || !p) return;
+    try {
+      DigitalBill.phone(p.phone);
+      var bill = snapshot(b,p), url = DigitalBill.link(bill,location.href);
+      openDirect(p,message(b,p,bill,url));
+    } catch (e) { alert(e.message || 'Could not create the bill link. Your saved bill is unchanged.'); }
+  }
+  window.__sendChat = send;
+  window.wa = wa = function (no) { var b = bl(no); if (b) send(b,P(b.pid)); };
 })();
 </script>
 </body>
