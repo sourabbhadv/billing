@@ -11085,5 +11085,113 @@ html body .sfbar .sh{flex:0 0 46px!important;height:46px;padding:0!important;bor
  window.addEventListener('pagehide',put);
 })();
 </script>
+<script id="gst-addon">
+/* ===== GST INVOICE (optional add-on). Does nothing until switched on in Settings > General ===== */
+(function(){
+var ST={'01':'Jammu & Kashmir','02':'Himachal Pradesh','03':'Punjab','04':'Chandigarh','05':'Uttarakhand','06':'Haryana','07':'Delhi','08':'Rajasthan','09':'Uttar Pradesh','10':'Bihar','11':'Sikkim','12':'Arunachal Pradesh','13':'Nagaland','14':'Manipur','15':'Mizoram','16':'Tripura','17':'Meghalaya','18':'Assam','19':'West Bengal','20':'Jharkhand','21':'Odisha','22':'Chhattisgarh','23':'Madhya Pradesh','24':'Gujarat','26':'Dadra & Nagar Haveli and Daman & Diu','27':'Maharashtra','29':'Karnataka','30':'Goa','31':'Lakshadweep','32':'Kerala','33':'Tamil Nadu','34':'Puducherry','35':'Andaman & Nicobar','36':'Telangana','37':'Andhra Pradesh','38':'Ladakh','97':'Other Territory'};
+var RATES=[0,0.25,3,5,12,18,28],RX=/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+function G(){return D.gst||{}}
+function on(){return !!(D.gst&&D.gst.on)}
+function defR(){var r=D.gst&&D.gst.def;return r==null||isNaN(+r)?18:+r}
+function r2(x){return Math.round((+x||0)*100)/100}
+function n2(x){return r2(x).toFixed(2)}
+function firmGst(){try{var p=PS(),L=p.firms||[],id=window.__fmPrintActive,f=id&&L.find(function(x){return x.id===id});if(!f){var m=(p.owner&&p.emails&&p.emails[p.owner])||(L[0]&&L[0].id);f=L.find(function(x){return x.id===m})}return(f&&f.gst&&f.gstOff!==true)?String(f.gst).toUpperCase():''}catch(e){return ''}}
+function sellerG(){return String(G().gstin||'').toUpperCase().replace(/\s+/g,'')||firmGst()}
+function code(g){g=String(g||'').trim();return /^\d{2}/.test(g)?g.slice(0,2):''}
+function itemOf(l){return (l.iid&&D.items.find(function(i){return i.id===l.iid}))||D.items.find(function(i){return String(i.name).toLowerCase()===String(l.name).toLowerCase()})||null}
+/* snapshot rate + HSN on the bill at first print so later stock changes never alter an old invoice */
+function snap(b){
+ var sig=b.lines.map(function(l){return l.amt}).join(',')+'|'+b.total+'|'+(+b.disc||0);
+ if(b.gs&&b.gs.sig===sig)return b.gs;
+ var gs={sig:sig,l:b.lines.map(function(l){var i=itemOf(l);return {r:(i&&i.gst!=null&&i.gst!=='')?+i.gst:defR(),h:(i&&i.hsn)||''}})};
+ b.gs=gs;try{save()}catch(e){}return gs}
+function calc(b){
+ var gs=snap(b),sum=b.lines.reduce(function(a,l){return a+(+l.amt||0)},0),k=sum>0?(+b.total||0)/sum:1,grp={},ord=[];
+ b.lines.forEach(function(l,n){var s=gs.l[n]||{r:defR(),h:''},key=s.h+'|'+s.r;if(!grp[key]){grp[key]={h:s.h,r:s.r,eff:0};ord.push(key)}grp[key].eff+=(+l.amt||0)*k});
+ var p=P(b.pid),bc=code(p&&p.gstin),sc=code(sellerG()),inter=!!(bc&&sc&&bc!==sc),T={taxable:0,tax:0,cg:0,sg:0,ig:0};
+ var rows=ord.map(function(key){var x=grp[key],gt=r2(x.eff),tv=r2(x.eff/(1+x.r/100)),tx=r2(gt-tv),cg=0,sg=0,ig=0;
+  if(inter)ig=tx;else{cg=r2(tx/2);sg=r2(tx-cg)}
+  T.taxable+=tv;T.tax+=tx;T.cg+=cg;T.sg+=sg;T.ig+=ig;return {h:x.h,r:x.r,tv:tv,tx:tx,cg:cg,sg:sg,ig:ig}});
+ return {rows:rows,T:T,inter:inter,bc:bc,gstin:(p&&p.gstin)||''}}
+var CSS='.gstb{margin:10px 0;font-size:.85em}.gstb table{width:100%;border-collapse:collapse}.gstb th,.gstb td{border:1px solid #cfd3e0;padding:3px 6px;text-align:right}.gstb th{background:#f1f3f9;font-weight:700}.gstb th:first-child,.gstb td:first-child{text-align:left}.gstb tfoot td{font-weight:700;background:#f7f8fc}.gstn{margin-top:4px;color:#555;font-size:.9em}.gsth{font-weight:700;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px;font-size:.9em}';
+function blockReg(r){
+ var hd='<tr><th rowspan="2">HSN/SAC</th><th rowspan="2">Taxable value</th>'+(r.inter?'<th colspan="2">IGST</th>':'<th colspan="2">CGST</th><th colspan="2">SGST</th>')+'<th rowspan="2">Total tax</th></tr><tr>'+(r.inter?'<th>Rate</th><th>Amount</th>':'<th>Rate</th><th>Amount</th><th>Rate</th><th>Amount</th>')+'</tr>';
+ var half=function(x){return +(x/2).toFixed(3)+'%'};
+ var body=r.rows.map(function(x){return '<tr><td>'+(esc(x.h)||'-')+'</td><td>'+n2(x.tv)+'</td>'+(r.inter?'<td>'+x.r+'%</td><td>'+n2(x.ig)+'</td>':'<td>'+half(x.r)+'</td><td>'+n2(x.cg)+'</td><td>'+half(x.r)+'</td><td>'+n2(x.sg)+'</td>')+'<td>'+n2(x.tx)+'</td></tr>'}).join('');
+ var ft='<tr><td>Total</td><td>'+n2(r.T.taxable)+'</td>'+(r.inter?'<td></td><td>'+n2(r.T.ig)+'</td>':'<td></td><td>'+n2(r.T.cg)+'</td><td></td><td>'+n2(r.T.sg)+'</td>')+'<td>'+n2(r.T.tax)+'</td></tr>';
+ var note='Amounts are inclusive of GST'+(r.bc&&ST[r.bc]?' &nbsp;|&nbsp; Place of supply: '+r.bc+'-'+esc(ST[r.bc]):'')+(firmGst()?'':(sellerG()?' &nbsp;|&nbsp; Seller GSTIN: '+esc(sellerG()):''));
+ return '<style>'+CSS+'</style><div class="gstb"><div class="gsth">Tax summary</div><table><thead>'+hd+'</thead><tbody>'+body+'</tbody><tfoot>'+ft+'</tfoot></table><div class="gstn">'+note+'</div></div>'}
+function blockTh(r){
+ var o='<div style="border-top:1px dashed #000;margin:3px 0"></div><div class="b" style="text-align:center">TAX SUMMARY</div>';
+ r.rows.forEach(function(x){o+='<div class="row"><span>'+x.r+'% on '+n2(x.tv)+'</span><span>'+n2(x.tx)+'</span></div>'});
+ o+=r.inter?'<div class="row"><span>IGST</span><span>'+n2(r.T.ig)+'</span></div>':'<div class="row"><span>CGST</span><span>'+n2(r.T.cg)+'</span></div><div class="row"><span>SGST</span><span>'+n2(r.T.sg)+'</span></div>';
+ return o+'<div style="text-align:center;font-size:.85em">Incl. of GST</div>'}
+function inject(body,c,type){
+ if(!on()||!c||!c.hasPay||c.x)return body;
+ var b=D.bills.find(function(x){return +x.no===+c.no});if(!b||b.x||!b.lines||!b.lines.length)return body;
+ var r=calc(b);body=body.replace(/>\s*Sale Invoice\s*</g,'>Tax Invoice<');
+ if(type==='th'){return body.replace(/(<div class="row (?:b tot|bigt)"><span>TOTAL<\/span><span>[^<]*<\/span><\/div>)/,function(m){return m+blockTh(r)})}
+ if(r.gstin)body=body.replace(/(<small>Bill To<\/small><b>[^<]*<\/b>)/g,function(m){return m+'<br>GSTIN: <b>'+esc(r.gstin)+'</b>'});
+ var blk=blockReg(r),pt=body.split('<div class="pgw');
+ if(pt.length>1){for(var i=1;i<pt.length;i++)pt[i]=pt[i].replace('</table>',function(m){return m+blk});return pt.join('<div class="pgw')}
+ return body.replace('</table>',function(m){return m+blk})}
+var old=window.__upiInject;
+window.__upiInject=function(b,c,t){try{b=inject(b,c,t)}catch(e){console.error('GST',e)}try{if(old)b=old(b,c,t)}catch(e){console.error(e)}return b};
+window.gstCalc=function(no){var b=D.bills.find(function(x){return +x.no===+no});return b?calc(b):null};
+
+/* ---------- Settings section (inside the existing General settings grid, same look on phone + desktop) ---------- */
+function card(){
+ var o=on(),inf='title="Prints a Tax Invoice with HSN, CGST / SGST / IGST. Turn off if you do not use GST." onclick="event.preventDefault();alert(this.title)"',
+ h='<div class="sec" id="gstcard"><h3>GST invoice</h3><label class="ck"><input type="checkbox" '+(o?'checked ':'')+'onchange="gstTog(this.checked)"><span>Enable GST invoice</span><i class="inf" '+inf+'>i</i></label>';
+ if(!o)return h+'<div class="hint">Off. Bills print as normal Sale Invoice. Turn on to print a Tax Invoice with GST breakup.</div></div>';
+ var fg=firmGst(),gv=G().gstin||'';
+ h+='<label class="mu" style="display:block;margin-top:8px">Your GSTIN'+(fg&&!gv?' (taken from Company settings)':'')+'</label><input id="gst_g" value="'+esc(gv||fg)+'" autocapitalize="characters" maxlength="15" placeholder="Example: 27ABCDE1234F1Z5" oninput="gstSet(\'gstin\',this.value)"><div id="gst_gh" class="mu" style="margin:2px 2px 6px;font-size:12px"></div>'
+  +'<div class="ck" style="cursor:default"><span style="flex:1">Default GST rate</span><select style="width:92px;margin:0" onchange="gstSet(\'def\',this.value)">'+RATES.map(function(r){return '<option value="'+r+'"'+(r===defR()?' selected':'')+'>'+r+'%</option>'}).join('')+'</select></div>'
+  +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px"><button class="b" onclick="gstOpen(\'items\')">Item GST &amp; HSN</button><button class="s" onclick="gstOpen(\'parties\')">Party GSTIN</button></div>'
+  +'<div class="hint">Item prices are treated as GST-inclusive, so bill totals and party balances do not change. CGST + SGST is used when the party is in your state or has no GSTIN. IGST is used when the party GSTIN is from another state.</div></div>';
+ return h}
+function gchk(){var e=document.getElementById('gst_gh');if(!e)return;var v=String(G().gstin||'').toUpperCase();e.innerHTML=!v?'':RX.test(v)?'<span class="grn">✓ '+(ST[code(v)]||'Valid')+'</span>':'<span class="red">GSTIN should be 15 characters</span>'}
+window.gstTog=function(v){D.gst=D.gst||{};D.gst.on=!!v;if(D.gst.def==null)D.gst.def=18;save();render()};
+window.gstSet=function(k,v){D.gst=D.gst||{};D.gst[k]=k==='gstin'?String(v).toUpperCase().replace(/\s+/g,''):(k==='def'?+v:v);save();if(k==='gstin')gchk()};
+var _vs=window.vSettings;
+window.vSettings=function(){var h=_vs.apply(this,arguments);
+ try{if(typeof sTab!=='undefined'&&sTab==='gen'){var t='</div></div>';h=(h.slice(-t.length)===t)?h.slice(0,h.length-6)+card()+'</div>':h+card();setTimeout(gchk,0)}}catch(e){}
+ return h};
+/* ---------- shortcut button on Items and Parties pages (only when GST is on) ---------- */
+function bars(){try{var cur=document.getElementById('gstbar');if(!on()){if(cur)cur.remove();return}
+ var v=document.getElementById('v');if(!v||typeof pg==='undefined')return;
+ var want=(pg==='items'&&!(typeof iform!=='undefined'&&iform))?'items':(pg==='party'&&!(typeof pform!=='undefined'&&pform))?'parties':'';
+ if(!want){if(cur)cur.remove();return}
+ if(cur&&cur.getAttribute('data-w')===want&&cur.parentNode===v)return;if(cur)cur.remove();
+ var d=document.createElement('div');d.id='gstbar';d.setAttribute('data-w',want);d.style.cssText='display:flex;justify-content:flex-end;padding:6px 0';
+ d.innerHTML='<button class="s" onclick="gstOpen(\''+want+'\')">'+(want==='items'?'GST rate &amp; HSN':'Party GSTIN')+'</button>';
+ var bc=document.getElementById('bclb');if(bc&&bc.parentNode===v)v.insertBefore(d,bc.nextSibling);else v.insertBefore(d,v.firstChild)}catch(e){}}
+var _r0=window.render;if(typeof _r0==='function'){window.render=render=function(){var x=_r0.apply(this,arguments);bars();return x}}
+
+/* ---------- Setup window (phone: bottom sheet, desktop: centered) ---------- */
+var css=document.createElement('style');css.textContent='#gstov{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}#gstov .gm{background:var(--bg);color:var(--tx);width:100%;height:92vh;max-height:92vh;display:flex;flex-direction:column;border-radius:16px 16px 0 0;border:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}#gstov .gh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--bd)}#gstov .gb{padding:10px 14px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1}#gstov input,#gstov select{font-size:16px;margin:0}#gstov .gr{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--bd)}#gstov .gr>.n{grid-column:1/3;font-weight:500;word-break:break-word}#gstov .gt{display:flex;gap:8px;margin-bottom:8px}#gstov .gt button{flex:1}#gstov .gt .on{background:var(--ac);color:#021;font-weight:700}@media(min-width:900px){#gstov{align-items:center}#gstov .gm{width:780px;height:auto;max-height:84vh;border-radius:14px}#gstov .gr{grid-template-columns:1fr 130px 150px}#gstov .gr>.n{grid-column:auto}#gstov .gr.pp{grid-template-columns:1fr 260px}}';document.head.appendChild(css);
+var tab='items',q='';
+function rowsHtml(){
+ var s=q.toLowerCase(),out='',n=0,more=0;
+ if(tab==='items'){D.items.forEach(function(i){if(s&&String(i.name).toLowerCase().indexOf(s)<0)return;if(n>=100){more++;return}n++;
+  out+='<div class="gr"><div class="n">'+esc(i.name)+'</div><input placeholder="HSN / SAC" maxlength="8" inputmode="numeric" value="'+esc(i.hsn||'')+'" oninput="gstItem(\''+i.id+'\',\'hsn\',this.value)"><select onchange="gstItem(\''+i.id+'\',\'gst\',this.value)"><option value="">Default ('+defR()+'%)</option>'+RATES.map(function(r){return '<option value="'+r+'"'+(i.gst!=null&&i.gst!==''&&+i.gst===r?' selected':'')+'>'+r+'%</option>'}).join('')+'</select></div>'});
+  if(!D.items.length)out='<div class="mu" style="padding:10px 0">No items yet. Add items in the Stock tab first.</div>'}
+ else{D.parties.slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name))}).forEach(function(p){if(s&&String(p.name).toLowerCase().indexOf(s)<0)return;if(n>=100){more++;return}n++;var v=String(p.gstin||'');
+  out+='<div class="gr pp"><div class="n">'+esc(p.name)+'<div class="mu gst-ps" id="gps_'+p.id+'" style="font-weight:400;font-size:12px">'+pst(v)+'</div></div><input placeholder="Party GSTIN (optional)" maxlength="15" autocapitalize="characters" value="'+esc(v)+'" oninput="gstParty(\''+p.id+'\',this.value)"></div>'});
+  if(!D.parties.length)out='<div class="mu" style="padding:10px 0">No parties yet.</div>'}
+ if(!n&&(D.items.length||D.parties.length))out='<div class="mu" style="padding:10px 0">Nothing matches.</div>';
+ return out+(more?'<div class="mu" style="padding:8px 0">Showing first 100. Type in the search box to find others.</div>':'')}
+function pst(v){v=String(v||'').toUpperCase();return !v?'No GSTIN: bills use CGST + SGST':RX.test(v)?'<span class="grn">✓ '+(ST[code(v)]||'Valid')+(code(v)&&code(v)!==code(sellerG())&&sellerG()?' · IGST':'')+'</span>':'<span class="red">GSTIN should be 15 characters</span>'}
+function paint(){var l=document.getElementById('gstl');if(l)l.innerHTML=rowsHtml();var a=document.getElementById('gst_ti'),b=document.getElementById('gst_tp');if(a)a.className=tab==='items'?'b':'s';if(b)b.className=tab==='parties'?'b':'s'}
+window.gstOpen=function(t){tab=t||'items';q='';gstClose();var d=document.createElement('div');d.id='gstov';
+ d.innerHTML='<div class="gm"><div class="gh"><b style="font-size:17px">GST setup</b><button class="s" onclick="gstClose()">✕ Close</button></div><div class="gb"><div class="gt"><button id="gst_ti" class="s" onclick="gstTab(\'items\')">Items</button><button id="gst_tp" class="s" onclick="gstTab(\'parties\')">Parties</button></div><input id="gst_q" placeholder="Search" oninput="gstQ(this.value)" style="margin-bottom:6px"><div id="gstl"></div></div></div>';
+ d.addEventListener('click',function(e){if(e.target===d)gstClose()});document.body.appendChild(d);paint()};
+window.gstClose=function(){var d=document.getElementById('gstov');if(d)d.remove();try{render()}catch(e){}};
+window.gstTab=function(t){tab=t;q='';var e=document.getElementById('gst_q');if(e)e.value='';paint()};
+window.gstQ=function(v){q=v;paint()};
+window.gstItem=function(id,k,v){var i=D.items.find(function(x){return x.id===id});if(!i)return;if(k==='gst')i.gst=v===''?null:+v;else i.hsn=String(v).replace(/\D/g,'');save()};
+window.gstParty=function(id,v){var p=P(id);if(!p)return;v=String(v).toUpperCase().replace(/\s+/g,'');p.gstin=v;save();var e=document.getElementById('gps_'+id);if(e)e.innerHTML=pst(v)};
+})();
+</script>
 </body>
 </html>
