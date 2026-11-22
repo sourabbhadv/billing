@@ -3372,6 +3372,30 @@ vMItems=function(){var h=_vMIs.apply(this,arguments);if(!isM())return h;
  i=h.indexOf(k);
  return h.slice(0,i+k.length)+sHdr('Item','togIS(\'n\')',n,ISORT==='az','Quantity','togIS(\'q\')',!n,ISORT==='lo')+h.slice(i+k.length)};
 
+/* ---------- PC: Up / Down arrow keys walk through the Items / Parties / Godowns / Transporters / Salesmen lists ---------- */
+(function(){
+ var SEL=/(?:sel[A-Z]|gsel|tsel)\s*=|slsOpen\(/,last=null;
+ function okRow(e){return e&&e.hasAttribute('data-n')&&SEL.test(e.getAttribute('onclick')||'')}
+ document.addEventListener('click',function(e){var r=e.target.closest&&e.target.closest('[data-n][onclick]');if(okRow(r))last=r.getAttribute('onclick')},true);
+ function rows(){return [].slice.call(document.querySelectorAll('#v [data-n][onclick]')).filter(function(e){return okRow(e)&&e.style.display!=='none'&&e.getClientRects().length})}
+ document.addEventListener('keydown',function(e){
+  if((e.key!=='ArrowDown'&&e.key!=='ArrowUp')||e.ctrlKey||e.altKey||e.metaKey||e.shiftKey||window.innerWidth<900)return;
+  var t=e.target,tg=t&&t.tagName;
+  if(tg==='TEXTAREA'||tg==='SELECT'||(t&&t.isContentEditable))return;
+  if(tg==='INPUT'&&!/flt\(/.test(t.getAttribute('oninput')||''))return;
+  var sg=document.getElementById('sug');if(sg&&sg.style.display==='block')return;
+  var R=rows();if(!R.length)return;
+  var i=-1;if(last)for(var k=0;k<R.length;k++)if(R[k].getAttribute('onclick')===last){i=k;break}
+  if(i<0)for(var k2=0;k2<R.length;k2++)if((R[k2].getAttribute('style')||'').indexOf('--ac2')>=0){i=k2;break}
+  var n=e.key==='ArrowDown'?i+1:i-1;
+  if(i<0)n=e.key==='ArrowDown'?0:R.length-1;
+  if(n<0||n>=R.length){e.preventDefault();return}
+  e.preventDefault();
+  var go=R[n].getAttribute('onclick');last=go;R[n].click();
+  setTimeout(function(){var all=rows();for(var j=0;j<all.length;j++)if(all[j].getAttribute('onclick')===go){all[j].scrollIntoView({block:'nearest'});break}},40);
+ });
+})();
+
 /* ---------- SPEED: batch saves (typing no longer re-saves the whole database on every keystroke) ---------- */
 var _loc0=local,_locT=null,_save0=save,_saveT=null;
 function flushSaves(){if(_locT){clearTimeout(_locT);_locT=null;try{_loc0()}catch(e){}}if(_saveT){clearTimeout(_saveT);_saveT=null;try{_save0()}catch(e){}}}
