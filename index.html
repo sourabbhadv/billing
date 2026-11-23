@@ -637,7 +637,7 @@ function googleAuth(){
  if(!/^https?:$/.test(location.protocol))return say('Google sign-in only works when the app is opened from its website address, not from a saved file.');
  try{var c=document.getElementById('ltr');sbMark(!!(c&&c.checked))}catch(e){}   /* the "own device" tick also counts for Google sign-in */
  say('Opening Google...');
- Promise.resolve(SB.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}})).then(function(r){if(r&&r.error)say('Problem: '+r.error.message)}).catch(function(x){say('Problem: '+((x&&x.message)||x))});
+ Promise.resolve(SB.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname,queryParams:{prompt:'select_account'}}})).then(function(r){if(r&&r.error)say('Problem: '+r.error.message)}).catch(function(x){say('Problem: '+((x&&x.message)||x))});
 }
 function doAuth(up){
  var e=document.getElementById('le').value.trim(),p=document.getElementById('lp').value,m=document.getElementById('lm');
@@ -11224,13 +11224,15 @@ html body .sfbar .sh{flex:0 0 46px!important;height:46px;padding:0!important;bor
   var e=who();
   open().then(function(db){return get(db,K()).then(function(r){
    if(use(r)||!e){db.close();return}
-   /* signed in, nothing saved for this account yet: data from before accounts were kept apart. Ask, never assume. */
+   /* signed in, nothing saved for this account yet: older data from before accounts were kept apart.
+      It goes ONLY to the one account that owned it. Nobody is asked, nobody else can take it. */
    return get(db,'D').then(function(old){db.close();
-    if(!old||!old.s||localStorage.getItem('sbLegacyNo:'+e))return;
-    setTimeout(function(){
-     if(has())return;
-     if(confirm('This device has shop data saved from an earlier version.\n\nIs it the shop data of '+e+'?\n\nPress OK only if it is. Press Cancel if it belongs to another account (it stays safe on this device).')){if(use(old))sched()}
-     else{try{localStorage.setItem('sbLegacyNo:'+e,'1')}catch(x){}}},900)})})}).catch(function(){})}
+    if(!old||!old.s)return;
+    var o=String(localStorage.getItem('sbLegacyOwner')||'').toLowerCase();
+    if(!o){try{o=String((JSON.parse(old.s).ps||{}).owner||'').toLowerCase()}catch(x){}}
+    if(!o){o=String(localStorage.getItem('sbOwner')||'').toLowerCase()}
+    if(o&&!localStorage.getItem('sbLegacyOwner')){try{localStorage.setItem('sbLegacyOwner',o)}catch(x){}}
+    if(o&&o===e&&use(old))sched()})})}).catch(function(){})}
  restore();
  setTimeout(put,6000);
  setInterval(put,30000);
