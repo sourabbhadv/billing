@@ -7938,7 +7938,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   lock:function(feature){
    var o=document.getElementById('plk');if(o)o.remove();
    o=document.createElement('div');o.id='plk';o.style.cssText='position:fixed;inset:0;background:rgba(15,18,50,.55);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px';
-   o.innerHTML='<div class="card" style="width:100%;max-width:380px;margin:0"><b style="font-size:16px">\uD83D\uDD12 '+esc(feature)+' is a Pro feature</b><p class="mu" style="margin:8px 0 12px">Your Free plan keeps your billing, stock, parties, reports and daily Google Drive backup on 1 device. Pro adds Ask AI, live sync on more devices and automatic WhatsApp (wallet). Ultra Pro adds unlimited devices, free automatic WhatsApp and the WhatsApp API wallet.</p><div class="row" style="justify-content:flex-end;gap:8px"><button class="s" onclick="document.getElementById(\'plk\').remove()">Not now</button><button class="b" onclick="document.getElementById(\'plk\').remove();nav(\'plan\')">See Pro plan</button></div></div>';
+   o.innerHTML='<div class="card" style="width:100%;max-width:380px;margin:0"><b style="font-size:16px">\uD83D\uDD12 '+esc(feature)+' is a Pro feature</b><p class="mu" style="margin:8px 0 12px">Your Free plan keeps your billing, stock, parties, reports and daily Google Drive backup on 1 device. Pro adds Ask AI and live sync on more devices.</p><div class="row" style="justify-content:flex-end;gap:8px"><button class="s" onclick="document.getElementById(\'plk\').remove()">Not now</button><button class="b" onclick="document.getElementById(\'plk\').remove();nav(\'plan\')">See Pro plan</button></div></div>';
    document.body.appendChild(o);return false},
   /* full-page lock shown instead of a Pro page */
   lockCard:function(feature,points,heading){
@@ -8007,6 +8007,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function tnm(t){return t==='ultra'?'Ultra Pro':t==='pro'?'Pro':'Free'}
  function rowT(a,f,p,u){function c(v){return v===1?tick(1):v===0?tick(0):'<span style="font-size:11px;line-height:1.2;display:block">'+v+'</span>'}
   return '<div style="display:grid;grid-template-columns:1fr 54px 54px 54px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:14px"><div>'+a+'</div><div style="text-align:center">'+c(f)+'</div><div style="text-align:center">'+c(p)+'</div><div style="text-align:center">'+c(u)+'</div></div>'}
+ function rowP(a,f,p){function c(v){return v===1?tick(1):v===0?tick(0):'<span style="font-size:11px;line-height:1.2;display:block">'+v+'</span>'}
+  return '<div style="display:grid;grid-template-columns:1fr 64px 64px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:14px"><div>'+a+'</div><div style="text-align:center">'+c(f)+'</div><div style="text-align:center">'+c(p)+'</div></div>'}
  function vPlan(){
   var m=isM(),cl=m?'mc':'card',h='',BS='display:block;width:100%;height:auto!important;min-height:70px;padding:12px 8px!important;line-height:1.35!important;border-radius:14px!important;white-space:normal;text-align:center';
   if(!m)h+='<h2 style="font-size:20px;margin:6px 0">Plan &amp; Upgrade</h2>';
@@ -8017,25 +8019,20 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   else if(st.expired){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">Your plan ended on '+fmt(st.info.e)+'</b><div class="mu" style="margin-top:6px">Nothing is deleted. All your data is still on this device. Paid features are locked until you renew.</div></div>'}
   else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Billing, stock, parties and reports are free on this one device. Ask AI and live sync across devices need a paid plan.</div></div>';
   /* comparison */
-  h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 54px 54px 54px;gap:4px;font-weight:600;font-size:12px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free<br><span class="mu" style="font-size:11px">\u20B90</span></div><div style="text-align:center">Pro<br><span class="mu" style="font-size:11px">\u20B9'+CFG.PRO+'/mo</span></div><div style="text-align:center">Ultra<br><span class="mu" style="font-size:11px">\u20B9'+CFG.ULTRA+'/mo</span></div></div>'+
-   rowT('Billing, stock, parties, reports, old-software import',1,1,1)+
-   rowT('Daily backup to your Google Drive',1,1,1)+
-   rowT('WhatsApp button opens WhatsApp, you press Send',1,1,1)+
-   rowT('<b>Live sync</b> (devices on one account)',CFG.DEV.free+(CFG.DEV.free===1?' device':' devices'),CFG.DEV.pro+' devices'+(CFG.DEVX_ON?' + \u20B9'+CFG.DEVX+' each extra':''),'Unlimited')+
-   rowT('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1,1)+
-   rowT('<b>Automatic WhatsApp</b> via official WhatsApp API: you recharge your wallet and pay per message',0,1,1)+
-   rowT('<b>Automatic WhatsApp, FREE</b> from your own number, no per-message charge',0,0,1)+'</div>';
+  h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 64px 64px;gap:4px;font-weight:600;font-size:12px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free<br><span class="mu" style="font-size:11px">\u20B90</span></div><div style="text-align:center">Pro<br><span class="mu" style="font-size:11px">\u20B9'+CFG.PRO+'/mo</span></div></div>'+
+   rowP('Billing, stock, parties, reports, old-software import',1,1)+
+   rowP('Daily backup to your Google Drive',1,1)+
+   rowP('WhatsApp button opens WhatsApp, you press Send',1,1)+
+   rowP('<b>Live sync</b> (devices on one account)',CFG.DEV.free+(CFG.DEV.free===1?' device':' devices'),CFG.DEV.pro+' devices'+(CFG.DEVX_ON?' + \u20B9'+CFG.DEVX+' each extra':''))+
+   rowP('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1)+'</div>';
   h+=signCard(cl);
   /* ---------- Buy with Razorpay (automatic) ---------- */
   var em0=window.__sbSess&&window.__sbSess.user?window.__sbSess.user.email:'';
   h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?'Renew or change plan':'Choose a plan')+'</b>'+
    '<div class="mu" style="margin:6px 0 10px">Pay online by UPI, card or net banking. Your plan switches on by itself within a minute. No key to paste.</div>'+
    (em0?'<div class="mu" style="margin-bottom:10px">Plan will be added to <b>'+esc(em0)+'</b></div>':'<div class="mu" style="margin-bottom:10px">Sign in first, so we can add the plan to your account.</div>')+
-   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
-   '<button class="'+(st.tier==='pro'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'pro\')"><span style="font-size:13px;opacity:.9">Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.PRO+'</b><br><span style="font-size:11px;opacity:.85">WhatsApp API wallet</span></button>'+
-   '<button class="'+(st.tier==='ultra'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'ultra\')"><span style="font-size:13px;opacity:.9">Ultra Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.ULTRA+'</b><br><span style="font-size:11px;opacity:.85">Free WhatsApp + API wallet</span></button></div>'+
+   '<div style="max-width:320px"><button class="'+(st.tier==='pro'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'pro\')"><span style="font-size:13px;opacity:.9">Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.PRO+'</b><br><span style="font-size:11px;opacity:.85">Ask AI + live sync</span></button></div>'+
    (CFG.DEVX_ON&&st.tier==='pro'?'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--k302,#e6e9f2)"><b style="font-size:14px">Need more devices?</b><div class="mu" style="margin:4px 0 8px">Your Pro plan allows '+devLim()+' devices on live sync. Each extra device is \u20B9'+CFG.DEVX+' per month and ends with your Pro plan.</div><button class="s" style="width:100%" onclick="planBuy(\'dev\')">Add a device \u20B9'+CFG.DEVX+'</button></div>':'')+'<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="margin-top:10px;font-size:14px">'+esc(bmsg)+'</div></div>';
-  if(st.tier==='pro'||st.tier==='ultra')h+=walletCard(cl);
   /* manual UPI / WhatsApp / license-key option removed: only direct online payment (Razorpay) */
   if(st.pro)h+='<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">To use your plan on another device, sign in there with the same email.</div></div>';
   return h}
@@ -8100,7 +8097,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.planRemove=function(){if(!confirm('Remove the license from this device? Pro features will lock. Your data stays.'))return;LS('sbLic',null);apply(null);try{render()}catch(e){}};
 
  /* ---------- hook the page, menus and Pro buttons ---------- */
- var _vP=window.vPage;window.vPage=function(){if(window.pg==='plan'){if((st.tier==='pro'||st.tier==='ultra')&&Date.now()-W.at>15000)setTimeout(walletLoad,0);return vPlan()}return _vP.apply(this,arguments)};
+ var _vP=window.vPage;window.vPage=function(){if(window.pg==='plan'){return vPlan()}return _vP.apply(this,arguments)};
  var _bn=window.buildNav;window.buildNav=function(){_bn.apply(this,arguments);var n=document.querySelector('nav');if(!n||n.querySelector('[data-plan]'))return;
   var b=document.createElement('button');b.setAttribute('data-plan','1');b.textContent='Plan';if(window.pg==='plan')b.className='on';b.onclick=function(){nav('plan')};
   var st2=Array.prototype.find.call(n.children,function(x){return x.textContent==='Settings'});n.insertBefore(b,st2||null)};
