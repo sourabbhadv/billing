@@ -7860,7 +7860,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   UPI:'yourname@upi',            /* where the customer pays */
   WA:'91__________',             /* YOUR WhatsApp number with country code, customer sends payment proof here */
   RZP_KEY:'rzp_live_U1cLxcjBcDRGig',   /* Razorpay Key ID (public). LIVE key. */
-  PRO:100, ULTRA:350,            /* rupees per month: Pro = Rs 100, Ultra Pro = Rs 350 */
+  PRO:100, ULTRA:350,
+  WA_RATE:100, WALLET_MIN:50, WALLET_MAX:10000,   /* Pro: price per automatic WhatsApp message in PAISE (100 = Rs 1) and the recharge range in rupees. Batch 4 uses the same rate on the server. */            /* rupees per month: Pro = Rs 100, Ultra Pro = Rs 350 */
   DEV:{free:2,pro:3,ultra:0}     /* live-sync device limit per plan (used in Batch 2). 0 = unlimited */
  };
  function LS(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
@@ -7940,6 +7941,54 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function say(t,bad){msg=t;var e=document.getElementById('plm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
  function tick(y){return y?'<b class="grn">\u2713</b>':'<span class="mu" style="display:inline">\u2715</span>'}
  function row(a,f,p){return '<div style="display:grid;grid-template-columns:1fr 46px 46px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:14px"><div>'+a+'</div><div style="text-align:center">'+tick(f)+'</div><div style="text-align:center">'+tick(p)+'</div></div>'}
+ /* ---------- WhatsApp wallet (Pro plan): recharge with Razorpay, balance is kept on Supabase ---------- */
+ var W={bal:null,tx:[],at:0,err:'',busy:0,msg:'',bad:0};
+ function rs(p){p=+p||0;return '\u20B9'+(p/100).toLocaleString('en-IN',{minimumFractionDigits:(p%100?2:0),maximumFractionDigits:2})}
+ function wsay(t,bad){W.msg=t;W.bad=bad?1:0;var e=document.getElementById('wlm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
+ function walletLoad(){
+  if(!window.SB||!SB.rpc||!window.__sbSess)return Promise.resolve();
+  W.at=Date.now();
+  return Promise.resolve(SB.rpc('my_wallet')).then(function(r){
+   if(r&&r.error)throw r.error;
+   var d=(r&&r.data)||{};
+   if(!d.ok){W.err=d.reason==='signin'?'Sign in to see your wallet.':'Wallet is not available.';return}
+   W.err='';W.bal=+d.balance_paise||0;W.tx=d.txns||[]
+  }).catch(function(e){W.err='Wallet is not set up yet ('+(e&&e.message||e)+').'}).then(function(){if(window.pg==='plan')try{render()}catch(x){}})}
+ function walletWait(before,n){
+  return walletLoad().then(function(){
+   if((W.bal||0)>before){W.busy=0;wsay('Wallet recharged. Balance '+rs(W.bal)+'.');try{render()}catch(e){}return}
+   if(n>=60){W.busy=0;wsay('Payment received. The wallet is taking longer than usual. Open this page again in a few minutes. If the balance does not update, contact us with your payment ID.',1);return}
+   return new Promise(function(r){setTimeout(r,3000)}).then(function(){return walletWait(before,n+1)})})}
+ window.walletTopup=function(a){
+  if(W.busy)return;
+  a=Math.round(+a);
+  if(!(a>=CFG.WALLET_MIN&&a<=CFG.WALLET_MAX))return wsay('Enter an amount from \u20B9'+CFG.WALLET_MIN+' to \u20B9'+CFG.WALLET_MAX+'.',1);
+  Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){return (r&&r.data&&r.data.session)||window.__sbSess||null},function(){return window.__sbSess||null}).then(function(ss){
+   if(!ss||!ss.user){wsay('Sign in first.',1);try{if(!document.getElementById('lgn'))loginBox()}catch(e){}return}
+   window.__sbSess=ss;
+   var email=ss.user.email||'',before=W.bal||0;
+   W.busy=1;wsay('Opening payment...');
+   loadRzp().then(function(){
+    var o={key:CFG.RZP_KEY,amount:a*100,currency:'INR',name:'WhatsApp wallet',description:'Wallet recharge',prefill:{email:email},
+     notes:{kind:'wallet',email:email,amount_rs:String(a),shop:String((window.D&&D.shop)||'')},theme:{color:'#3b4cca'},
+     handler:function(){wsay('Payment received. Adding to your wallet...');walletWait(before,0)},
+     modal:{ondismiss:function(){if(W.msg.indexOf('received')<0){W.busy=0;wsay('')}}}};
+    var rz=new Razorpay(o);
+    rz.on('payment.failed',function(r){W.busy=0;wsay('Payment failed'+(r&&r.error&&r.error.description?': '+r.error.description:'')+'. Please try again.',1)});
+    rz.open()
+   }).catch(function(){W.busy=0;wsay('Could not open the payment window. Check your internet and try again.',1)})})};
+ window.walletOther=function(){var v=prompt('Recharge amount in rupees ('+CFG.WALLET_MIN+' to '+CFG.WALLET_MAX+')');if(v)window.walletTopup(v)};
+ function walletCard(cl){
+  var rate=CFG.WA_RATE,left=(W.bal==null)?'':' \u00B7 about '+Math.floor(W.bal/rate)+' messages';
+  var h='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">WhatsApp wallet</b>'+
+   '<div class="mu" style="margin:6px 0 4px">Automatic WhatsApp on the Pro plan costs '+rs(rate)+' per message, taken from this wallet.</div>'+
+   '<div style="font-size:26px;font-weight:700;margin:6px 0">'+(W.bal==null?(W.err?'\u2014':'...'):rs(W.bal))+'<span class="mu" style="font-size:13px;font-weight:400">'+left+'</span></div>'+
+   (W.err?'<div class="red" style="font-size:13px;margin-bottom:6px">'+esc(W.err)+'</div>':'')+
+   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+[100,250,500,1000].map(function(x){return '<button class="b" onclick="walletTopup('+x+')">+ \u20B9'+x+'</button>'}).join('')+'</div>'+
+   '<button class="s" style="width:100%;margin-top:8px" onclick="walletOther()">Other amount</button>'+
+   '<div id="wlm" class="'+(W.bad?'red':'grn')+'" style="margin-top:8px;font-size:14px">'+esc(W.msg)+'</div>';
+  if(W.tx&&W.tx.length)h+='<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:600;font-size:14px">Recent activity</summary>'+W.tx.map(function(t){var neg=t.amount_paise<0;return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:13px"><span>'+esc(new Date(t.at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}))+' \u00B7 '+esc(t.note||(t.kind==='topup'?'Recharge':t.kind))+'</span><b class="'+(neg?'red':'grn')+'">'+(neg?'-':'+')+rs(Math.abs(t.amount_paise))+'</b></div>'}).join('')+'</details>';
+  return h+'</div>'}
  function tnm(t){return t==='ultra'?'Ultra Pro':t==='pro'?'Pro':'Free'}
  function rowT(a,f,p,u){function c(v){return v===1?tick(1):v===0?tick(0):'<span style="font-size:11px;line-height:1.2;display:block">'+v+'</span>'}
   return '<div style="display:grid;grid-template-columns:1fr 54px 54px 54px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:14px"><div>'+a+'</div><div style="text-align:center">'+c(f)+'</div><div style="text-align:center">'+c(p)+'</div><div style="text-align:center">'+c(u)+'</div></div>'}
@@ -7971,6 +8020,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    '<button class="'+(st.tier==='pro'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'pro\')"><span style="font-size:13px;opacity:.9">Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.PRO+'</b><br><span style="font-size:11px;opacity:.85">WhatsApp API wallet</span></button>'+
    '<button class="'+(st.tier==='ultra'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'ultra\')"><span style="font-size:13px;opacity:.9">Ultra Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.ULTRA+'</b><br><span style="font-size:11px;opacity:.85">Free automatic WhatsApp</span></button></div>'+
    '<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="margin-top:10px;font-size:14px">'+esc(bmsg)+'</div></div>';
+  if(st.tier==='pro')h+=walletCard(cl);
   /* manual UPI / WhatsApp / license-key option removed: only direct online payment (Razorpay) */
   if(st.pro)h+='<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">To use your plan on another device, sign in there with the same email.</div></div>';
   return h}
@@ -8027,7 +8077,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.planRemove=function(){if(!confirm('Remove the license from this device? Pro features will lock. Your data stays.'))return;LS('sbLic',null);apply(null);try{render()}catch(e){}};
 
  /* ---------- hook the page, menus and Pro buttons ---------- */
- var _vP=window.vPage;window.vPage=function(){return window.pg==='plan'?vPlan():_vP.apply(this,arguments)};
+ var _vP=window.vPage;window.vPage=function(){if(window.pg==='plan'){if(st.tier==='pro'&&Date.now()-W.at>15000)setTimeout(walletLoad,0);return vPlan()}return _vP.apply(this,arguments)};
  var _bn=window.buildNav;window.buildNav=function(){_bn.apply(this,arguments);var n=document.querySelector('nav');if(!n||n.querySelector('[data-plan]'))return;
   var b=document.createElement('button');b.setAttribute('data-plan','1');b.textContent='Plan';if(window.pg==='plan')b.className='on';b.onclick=function(){nav('plan')};
   var st2=Array.prototype.find.call(n.children,function(x){return x.textContent==='Settings'});n.insertBefore(b,st2||null)};
