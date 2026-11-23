@@ -7705,7 +7705,9 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  var n404=0;
  function go(why,quiet){
   if(!on||busy)return Promise.resolve();
-  if(!(window.PLAN&&PLAN.pro())){setStatus('Waiting for the Pro plan to be confirmed on this device (check More > Plan & Upgrade)');return Promise.resolve()}
+  var dAge=Date.now()-devSt.at;
+  if(!devSt.ok&&dAge<30000)return Promise.resolve();
+  if(!devSt.ok||dAge>DEV_RECHECK){busy=true;return devCheck().then(function(ok){busy=false;if(!ok){devBlocked(1);return}return go(why,quiet)},function(){busy=false})}
   if(!tokOk()){if(!needTap)getTok(false).then(function(){lastErr='';go(why)},function(e){armTapE(e)});else armTap();return Promise.resolve()}
   busy=true;if(!quiet&&why!=='poll'&&why!=='wake')setStatus('Syncing...');
   return round(why).then(function(res){busy=false;n404=0;
@@ -7742,37 +7744,88 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
     (If the browser blocks Google's window, "Tap once anywhere" connects it. Pressing Stop turns it off on this device until Start is pressed again.) */
  var autoBusy=false;
  function autoOn(){
-  if(on||autoBusy||ls('lvOff')==='1'||!(window.PLAN&&PLAN.pro())||document.hidden)return;
+  if(on||autoBusy||ls('lvOff')==='1'||document.hidden)return;
   autoBusy=true;
   lockMail().then(function(lk){
    if(!lk&&!on){setStatus('No Google Drive account chosen on this device. Open Backup > Choose Drive account.');return}
    if(!lk||on||!client())return;
-   on=true;ls('lvOn','1');ls('lvDirty','1');setStatus('Starting live sync...');poll();go('force');paint()
+   return devCheck(true).then(function(ok){if(!ok){devBlocked(1);return}if(on)return;on=true;ls('lvOn','1');ls('lvDirty','1');setStatus('Starting live sync...');poll();go('force');paint()})
   }).then(function(){autoBusy=false},function(){autoBusy=false})}
  setInterval(autoOn,4000);setTimeout(autoOn,1500);document.addEventListener('visibilitychange',function(){if(!document.hidden)autoOn()});
 
+ /* ---------- DEVICE LIMIT: Free 2 devices, Pro 3, Ultra unlimited. Counted on Supabase (run batch2_devices.sql once). ---------- */
+ var DEV_RECHECK=10*60000,DEV_GRACE=7*864e5;
+ var devSt={ok:ls('lvDevOk')==='1',at:+ls('lvDevAt')||0,srv:+ls('lvDevSrv')||0,info:null,p:null,shown:0};
+ function devName(){var u=navigator.userAgent||'',n=/iPhone/.test(u)?'iPhone':/iPad/.test(u)?'iPad':/Android/.test(u)?'Android phone':/Windows/.test(u)?'Windows PC':/Mac/.test(u)?'Mac':/Linux/.test(u)?'Linux PC':'Device',b=/Edg\//.test(u)?'Edge':/Chrome\//.test(u)?'Chrome':/Firefox\//.test(u)?'Firefox':/Safari\//.test(u)?'Safari':'';return n+(b?' \u00B7 '+b:'')}
+ function devLimNow(){return (window.PLAN&&PLAN.devLimit)?PLAN.devLimit():2}
+ function devLbl(){var n=devLimNow();return n===Infinity?'unlimited devices':'up to '+n+' devices'}
+ function devLic(){return String(ls('sbLic')||'').replace(/\s+/g,'')}
+ /* plan changed (bought, renewed, ended): check again at once; a device blocked by the old limit gets another try */
+ window.lvDevReset=function(){devSt.at=0;devSt.p=null;if(ls('lvLim')==='1'){ls('lvLim',null);ls('lvOff',null);devSt.shown=0}};
+ /* server not reachable: a device that was accepted in the last 7 days keeps working offline */
+ function devOffline(why){if(devSt.srv&&Date.now()-devSt.srv<DEV_GRACE){devSt.ok=true;devSt.at=Date.now();return true}devSt.ok=false;devSt.at=Date.now();setStatus(why||'Connect to the internet once to register this device for live sync.');return false}
+ function devCheck(force){
+  if(!force&&devSt.ok&&Date.now()-devSt.at<DEV_RECHECK)return Promise.resolve(true);
+  if(devSt.p)return devSt.p;
+  devSt.p=lockMail().then(function(acct){
+   if(!window.SB||!SB.rpc)return devOffline();
+   return Promise.resolve(SB.rpc('register_device',{p_acct:acct||'',p_device:dev,p_name:devName(),p_lic:devLic()})).then(function(r){
+    if(r&&r.error){lg('Device check: '+(r.error.message||r.error.code));if(r.error.code==='PGRST202'||/register_device/.test(String(r.error.message||'')))return devOffline('Device limit is not set up in Supabase yet (owner: run batch2_devices.sql).');return devOffline()}
+    var d=(r&&r.data)||{};devSt.info=d;devSt.at=Date.now();
+    if(d.ok){devSt.ok=true;devSt.srv=devSt.at;ls('lvDevOk','1');ls('lvDevAt',String(devSt.at));ls('lvDevSrv',String(devSt.srv));return true}
+    devSt.ok=false;ls('lvDevOk',null);
+    if(d.reason==='noacct')setStatus('Choose your Google Drive account first (Backup > Choose Drive account).');
+    return false},function(){return devOffline()})
+  }).then(function(v){devSt.p=null;return v},function(){devSt.p=null;return devOffline()});
+  return devSt.p}
+ function devBlocked(auto){
+  if(!(devSt.info&&devSt.info.reason==='limit'))return;   /* only a real limit stops sync; offline or setup problems are retried later */
+  on=false;ls('lvOn',null);ls('lvOff','1');ls('lvLim','1');
+  setStatus('Device limit reached ('+devLbl()+'). Remove a device or upgrade.');try{paint()}catch(e){}
+  if(auto&&devSt.shown)return;devSt.shown=1;devBox()}
+ function tn(t){return t==='ultra'?'Ultra Pro':t==='pro'?'Pro':'Free'}
+ function devBox(){
+  var o=$id('lvDevBox');if(o)o.remove();
+  var d=devSt.info||{},list=d.devices||[],tr=(window.PLAN&&PLAN.tier&&PLAN.tier())||'free',lim=(d.limit==null)?devLimNow():d.limit;
+  o=document.createElement('div');o.id='lvDevBox';o.style.cssText='position:fixed;inset:0;background:rgba(15,18,50,.55);z-index:90;display:flex;align-items:center;justify-content:center;padding:16px';
+  var h='<div class="card" style="width:100%;max-width:400px;margin:0;max-height:90vh;overflow:auto"><b style="font-size:16px">'+(d.ok?'My devices':'Device limit reached')+'</b>'+
+   '<p class="mu" style="margin:8px 0">Your '+tn(tr)+' plan allows '+(lim===Infinity?'unlimited':lim)+' device'+(lim===1?'':'s')+' on live sync.'+(d.ok?'':' Remove one below to use live sync on this device, or upgrade.')+'</p>';
+  if(!list.length)h+='<p class="mu">'+(d.ok===undefined?'Could not load the device list. Check your internet and try again.':'No devices yet.')+'</p>';
+  list.forEach(function(x){var me=x.id===dev;h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2)"><div style="flex:1;min-width:0"><b style="font-size:14px">'+esc(x.name||'Device')+(me?' (this device)':'')+'</b><br><span class="mu" style="font-size:12px">Last used '+esc(ago(Date.parse(x.last_seen)))+'</span></div><button class="s" onclick="lvDevRemove(\''+esc(x.id)+'\')">Remove</button></div>'});
+  h+='<div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="s" onclick="lvDevClose()">Close</button>'+(tr==='ultra'?'':'<button class="s" onclick="lvDevClose();nav(\'plan\')">Upgrade</button>')+(d.ok?'':'<button class="b" onclick="lvDevClose();lvStart()">Try again</button>')+'</div></div>';
+  o.innerHTML=h;document.body.appendChild(o)}
+ window.lvDevClose=function(){var o=$id('lvDevBox');if(o)o.remove()};
+ window.lvDevices=function(){devCheck(true).then(function(){devBox()})};
+ window.lvDevRemove=function(id){
+  if(!confirm('Remove this device? It stops live sync until it connects again.'))return;
+  lockMail().then(function(acct){return Promise.resolve(SB.rpc('remove_device',{p_acct:acct||'',p_device:dev,p_target:id,p_lic:devLic()}))}).then(function(r){
+   if(r&&r.error)throw r.error;
+   if(id===dev){on=false;ls('lvOn',null);ls('lvOff','1');devSt.ok=false;ls('lvDevOk',null);setStatus('Live sync is off on this device.')}
+   return devCheck(true)}).then(function(){devBox();try{paint()}catch(e){}},function(e){alert('Could not remove the device: '+(e&&e.message||e))})};
+
  /* ---------- buttons ---------- */
  window.lvStart=function(){
-  if(!(window.PLAN&&PLAN.pro()))return PLAN.lock('Live sync on several devices');
+  
   if(!client()){alert('First paste your Google Client ID (Backup > Google Drive Backup > One-time setup).');return}
   setStatus('Connecting to Google Drive...');
-  getTok(true).then(function(){on=true;ls('lvOn','1');ls('lvOff',null);ls('lvDirty','1');poll();return go('force')},function(e){on=false;setStatus(e&&e.blocked?'The browser blocked the Google window. Press Start again.':String(e.message||e));paint()})};
- window.lvSyncNow=function(){if(!(window.PLAN&&PLAN.pro()))return PLAN.lock('Live sync on several devices');if(!on)return window.lvStart();getTok(false).then(function(){return go('force')},function(e){setStatus(String(e.message||e))})};
+  getTok(true).then(function(){return devCheck(true).then(function(ok){if(!ok){devBlocked();return}on=true;ls('lvOn','1');ls('lvOff',null);ls('lvLim',null);ls('lvDirty','1');poll();return go('force')})},function(e){on=false;setStatus(e&&e.blocked?'The browser blocked the Google window. Press Start again.':String(e.message||e));paint()})};
+ window.lvSyncNow=function(){if(!on)return window.lvStart();getTok(false).then(function(){return go('force')},function(e){setStatus(String(e.message||e))})};
  window.lvDisconnect=function(){on=false;ls('lvOn',null);ls('lvOff','1');ls('lvTok',null);tok=null;exp=0;fileId=null;var h=$id('sy');if(h)h.textContent='';setStatus('Live sync is off on this device.');try{paint()}catch(e){}};
  window.lvStop=function(){if(!confirm('Stop live sync on this device? Your data stays here and in Drive.'))return;on=false;ls('lvOn',null);ls('lvOff','1');ls('lvTok',null);tok=null;exp=0;var h=$id('sy');if(h)h.textContent='';setStatus('Live sync is off on this device.');paint()};
  function ago(t){if(!t)return 'never';var m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':new Date(t).toLocaleString('en-IN')}
  function isP(){return window.innerWidth<900}
- function cardM(){return '<div class="mg"><div class="mgt">Live sync (several phones / computers)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</div>'+
+ function cardM(){return '<div class="mg"><div class="mgt">Live sync (several phones / computers)'+' \u00B7 '+devLbl()+'</div>'+
    '<div class="gdst" style="font-size:13px;color:var(--k99,#4a5068);line-height:1.45;padding:2px 0 10px">Keeps one live file in your Google Drive. On every device connect the <b>same Google Drive account</b> (shown under Google Drive Backup). Different from the daily backups.</div>'+
    '<div class="mr"><span>Status</span><span id="lvSt" style="text-align:right;font-size:13px;color:var(--k99,#4a5068);max-width:60%">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</span></div><div id="lvDg" style="font-size:11.5px;color:var(--k297,#6b7390);padding:0 0 8px">'+esc(diag())+'</div><pre id="lvLg" style="font-size:11px;max-height:150px;overflow:auto;background:var(--k301,#f4f5f9);border-radius:8px;padding:6px;margin:0 0 8px;white-space:pre-wrap">'+esc(LOGS.join('\n'))+'</pre><button class="s" onclick="lvCopy()" style="margin-bottom:8px">Copy log</button> <button class="s" onclick="lvCompare()" style="margin-bottom:8px">Compare with Drive</button>'+
    '<button class="b gdfull" style="width:100%;padding:13px;font-size:15px;margin:6px 0" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+
+   '<button class="s gdfull" style="width:100%;padding:11px;margin:0 0 6px" onclick="lvDevices()">My devices</button>'+
    (on?'<div class="mr" style="color:var(--k227,#d93025);font-weight:600" onclick="lvStop()"><span>Stop live sync on this device</span></div>':'')+'</div>'}
- function cardD(){return '<div class="card" style="max-width:760px"><b style="font-size:16px">Live sync (several devices)'+(window.PLAN&&PLAN.pro()?'':' \uD83D\uDD12 Pro')+'</b>'+
+ function cardD(){return '<div class="card" style="max-width:760px"><b style="font-size:16px">Live sync (several devices)'+' \u00B7 '+devLbl()+'</b>'+
    '<p class="mu" style="margin:5px 0">Keeps one live file in your Google Drive ("'+FILE+'"). On every phone or computer connect the <b>same Google Drive account</b> (shown under Google Drive backup). Each device checks about every 6 seconds while the app is open and merges bills and payments, so devices do not overwrite each other. This is separate from the daily backups below.</p>'+
    '<div id="lvSt" class="mu" style="margin:8px 0">'+esc(lastMsg||(on?'Starting...':'Off on this device'))+'</div><div id="lvDg" class="mu" style="font-size:12px;margin:0 0 8px">'+esc(diag())+'</div><pre id="lvLg" style="font-size:11px;max-height:150px;overflow:auto;background:var(--k301,#f4f5f9);border-radius:8px;padding:6px;margin:0 0 8px;white-space:pre-wrap">'+esc(LOGS.join('\n'))+'</pre><button class="s" onclick="lvCopy()" style="margin-bottom:8px">Copy log</button> <button class="s" onclick="lvCompare()" style="margin-bottom:8px">Compare with Drive</button>'+
-   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+(on?'<button class="s" onclick="lvStop()">Stop on this device</button>':'')+'</div></div>'}
+   '<div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="b" onclick="lvSyncNow()">'+(on?'Sync now':'Start live sync')+'</button>'+(on?'<button class="s" onclick="lvStop()">Stop on this device</button>':'')+'<button class="s" onclick="lvDevices()">My devices</button></div></div>'}
  function diag(){var l=exp?Math.round((exp-Date.now())/60000):null,at=+ls('lvAt')||0;
-  return 'Pro: '+((window.PLAN&&PLAN.pro())?'yes':'NO')+' | Sync: '+(on?'on':'off')+' | Drive: '+(ls('gdWho')||ls('gdAcct')||'none')+' | Google login: '+(!tok?'none':(l>0?l+' min left':'expired'))+' | Last good sync: '+(at?new Date(at).toLocaleTimeString('en-IN'):'never')+' | Live file: '+(fileId?('...'+String(fileId).slice(-5)):'not yet')+' | Client ID: '+(ls('gdCid')?String(ls('gdCid')).slice(0,8)+'...':'built-in')+(navigator.onLine===false?' | OFFLINE':'')}
+  return 'Plan: '+((window.PLAN&&PLAN.tier&&PLAN.tier())||'free')+' | Sync: '+(on?'on':'off')+' | Drive: '+(ls('gdWho')||ls('gdAcct')||'none')+' | Google login: '+(!tok?'none':(l>0?l+' min left':'expired'))+' | Last good sync: '+(at?new Date(at).toLocaleTimeString('en-IN'):'never')+' | Live file: '+(fileId?('...'+String(fileId).slice(-5)):'not yet')+' | Client ID: '+(ls('gdCid')?String(ls('gdCid')).slice(0,8)+'...':'built-in')+(navigator.onLine===false?' | OFFLINE':'')}
  function paint(){var e=$id('lvSt');if(e)e.textContent=lastMsg||(on?'Starting...':'Off on this device');var g=$id('lvDg');if(g)g.textContent=diag()}
  setInterval(function(){try{paint()}catch(e){}},5000);
  var oldVbk=window.vBk;window.vBk=function(){return (isP()?cardM():cardD())+(oldVbk?oldVbk.apply(this,arguments):'')};
@@ -7807,14 +7860,15 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   UPI:'yourname@upi',            /* where the customer pays */
   WA:'91__________',             /* YOUR WhatsApp number with country code, customer sends payment proof here */
   RZP_KEY:'rzp_live_U1cLxcjBcDRGig',   /* Razorpay Key ID (public). LIVE key. */
-  MONTHLY:300, YEARLY:3000       /* rupees */
+  PRO:100, ULTRA:350,            /* rupees per month: Pro = Rs 100, Ultra Pro = Rs 350 */
+  DEV:{free:2,pro:3,ultra:0}     /* live-sync device limit per plan (used in Batch 2). 0 = unlimited */
  };
  function LS(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
  function today(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
  function b64u(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
  /* the clock cannot be turned back to stretch a plan */
  function now(){var n=Date.now(),s=+LS('sbSeen')||0;if(n>s)LS('sbSeen',String(n));return Math.max(n,s)}
- var st={pro:false,info:null,expired:false,bad:false,ready:false};
+ var st={pro:false,tier:'free',info:null,expired:false,bad:false,ready:false};
  try{document.body.classList.add('pfree')}catch(e){}
 
  /* ---------- check a license key ---------- */
@@ -7828,16 +7882,17 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    .then(function(ok){if(!ok)return null;var o=JSON.parse(new TextDecoder().decode(pl));if(!(o&&o.p==='pro'&&+o.e>0))return null;
     /* a key made for one email works only when that email is signed in on this device */
     if(o.m&&String(o.m).toLowerCase()!==String(LS('sbEml')||'').toLowerCase())o.mm=1;
+    o.tier=(o.t==='pro')?'pro':'ultra';   /* keys made before the 3 plans have no t: treated as Ultra till they end */
     return o})
    .catch(function(){return null})}
  function apply(o){
-  var was=st.pro;st.info=o;st.pro=!!(o&&o.e>now()&&!o.mm);st.expired=!!(o&&!o.mm&&!st.pro);st.mism=!!(o&&o.mm);st.ready=true;
+  var was=st.pro,wt=st.tier;st.info=o;st.pro=!!(o&&o.e>now()&&!o.mm);st.tier=st.pro?(o.tier||'ultra'):'free';if(wt!==st.tier&&window.lvDevReset)try{window.lvDevReset()}catch(e){}st.expired=!!(o&&!o.mm&&!st.pro);st.mism=!!(o&&o.mm);st.ready=true;
   try{document.body.classList.toggle('pfree',!st.pro)}catch(e){}
-  var sy=document.getElementById('sy');if(sy&&/^(Free|Pro)\b/.test(sy.textContent))sy.textContent=st.pro?'Pro plan':'Free plan \u00B7 this device';
+  var sy=document.getElementById('sy');if(sy&&/^(Free|Pro|Ultra)\b/.test(sy.textContent))sy.textContent=st.pro?(st.tier==='ultra'?'Ultra Pro plan':'Pro plan'):'Free plan';
   if(st.pro&&!was){/* Pro just switched on: restart live sync if this device had it on */
    try{if(LS('lvOn')==='1'&&window.lvSyncNow)setTimeout(window.lvSyncNow,300)}catch(e){}}
   if(st.pro!==was){try{render()}catch(e){}}
-  if(st.pro){var left=Math.ceil((st.info.e-now())/864e5);if(left<=7&&LS('sbWarn')!==today()){LS('sbWarn',today());try{obToast('Pro plan ends in '+Math.max(left,0)+' day(s). Renew from More > Plan & Upgrade.')}catch(e){}}}
+  if(st.pro){var left=Math.ceil((st.info.e-now())/864e5);if(left<=7&&LS('sbWarn')!==today()){LS('sbWarn',today());try{obToast(''+(st.tier==='ultra'?'Ultra Pro':'Pro')+' plan ends in '+Math.max(left,0)+' day(s). Renew from More > Plan & Upgrade.')}catch(e){}}}
  }
  function check(){return verify(LS('sbLic')).then(function(o){apply(o);return st.pro})}
  function fmt(ms){return new Date(ms).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}
@@ -7853,18 +7908,21 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function signCard(cl){
   if(!window.SB)return '';
   var em=window.__sbSess&&window.__sbSess.user?window.__sbSess.user.email:'';
-  return '<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">Pro account</b>'+(em?'<div class="mu" style="margin:6px 0 10px">Signed in as <b>'+esc(em)+'</b></div><button class="s" onclick="planRefresh()">Check my license</button><button class="s" style="margin-left:8px" onclick="sbOut(0)">Log out</button><span id="plr" class="mu" style="margin-left:8px"></span>':'<div class="mu" style="margin:6px 0 10px">Already bought Pro? Sign in with the email and password we gave you. Pro switches on by itself.</div><button class="b" onclick="loginBox()">Sign in</button>')+'</div>'}
+  return '<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">Pro account</b>'+(em?'<div class="mu" style="margin:6px 0 10px">Signed in as <b>'+esc(em)+'</b></div><button class="s" onclick="planRefresh()">Check my license</button><button class="s" style="margin-left:8px" onclick="sbOut(0)">Log out</button><span id="plr" class="mu" style="margin-left:8px"></span>':'<div class="mu" style="margin:6px 0 10px">Already bought a plan? Sign in with the email you paid with. Your plan switches on by itself.</div><button class="b" onclick="loginBox()">Sign in</button>')+'</div>'}
  window.planRefresh=function(){var e=document.getElementById('plr');if(e)e.textContent='Checking...';fetchLic().then(function(){try{render()}catch(x){}})};
 
  /* ---------- public helpers ---------- */
  var PLAN=window.PLAN={
-  pro:function(){return st.pro},
+  pro:function(){return st.pro},   /* true for Pro AND Ultra (any paid plan) */
+  tier:function(){return st.tier},   /* 'free' | 'pro' | 'ultra' */
+  ultra:function(){return st.tier==='ultra'},
+  devLimit:function(){var n=CFG.DEV[st.tier];return n===undefined?CFG.DEV.free:(n===0?Infinity:n)},   /* Infinity = unlimited */
   info:function(){return st.info},
   /* pop-up shown when a free user presses a Pro button */
   lock:function(feature){
    var o=document.getElementById('plk');if(o)o.remove();
    o=document.createElement('div');o.id='plk';o.style.cssText='position:fixed;inset:0;background:rgba(15,18,50,.55);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px';
-   o.innerHTML='<div class="card" style="width:100%;max-width:380px;margin:0"><b style="font-size:16px">\uD83D\uDD12 '+esc(feature)+' is a Pro feature</b><p class="mu" style="margin:8px 0 12px">Your Free plan keeps your billing, stock, parties, reports and daily Google Drive backup. Pro adds live sync on many devices, Ask AI and automatic WhatsApp.</p><div class="row" style="justify-content:flex-end;gap:8px"><button class="s" onclick="document.getElementById(\'plk\').remove()">Not now</button><button class="b" onclick="document.getElementById(\'plk\').remove();nav(\'plan\')">See Pro plan</button></div></div>';
+   o.innerHTML='<div class="card" style="width:100%;max-width:380px;margin:0"><b style="font-size:16px">\uD83D\uDD12 '+esc(feature)+' is a Pro feature</b><p class="mu" style="margin:8px 0 12px">Your Free plan keeps your billing, stock, parties, reports, daily Google Drive backup and live sync on 2 devices. Pro adds Ask AI, live sync on 3 devices and automatic WhatsApp (wallet). Ultra Pro adds unlimited devices and free automatic WhatsApp.</p><div class="row" style="justify-content:flex-end;gap:8px"><button class="s" onclick="document.getElementById(\'plk\').remove()">Not now</button><button class="b" onclick="document.getElementById(\'plk\').remove();nav(\'plan\')">See Pro plan</button></div></div>';
    document.body.appendChild(o);return false},
   /* full-page lock shown instead of a Pro page */
   lockCard:function(feature,points,heading){
@@ -7882,44 +7940,39 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function say(t,bad){msg=t;var e=document.getElementById('plm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
  function tick(y){return y?'<b class="grn">\u2713</b>':'<span class="mu" style="display:inline">\u2715</span>'}
  function row(a,f,p){return '<div style="display:grid;grid-template-columns:1fr 46px 46px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:14px"><div>'+a+'</div><div style="text-align:center">'+tick(f)+'</div><div style="text-align:center">'+tick(p)+'</div></div>'}
+ function tnm(t){return t==='ultra'?'Ultra Pro':t==='pro'?'Pro':'Free'}
+ function rowT(a,f,p,u){function c(v){return v===1?tick(1):v===0?tick(0):'<span style="font-size:11px;line-height:1.2;display:block">'+v+'</span>'}
+  return '<div style="display:grid;grid-template-columns:1fr 54px 54px 54px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:14px"><div>'+a+'</div><div style="text-align:center">'+c(f)+'</div><div style="text-align:center">'+c(p)+'</div><div style="text-align:center">'+c(u)+'</div></div>'}
  function vPlan(){
-  var m=isM(),cl=m?'mc':'card',h='';
+  var m=isM(),cl=m?'mc':'card',h='',BS='display:block;width:100%;height:auto!important;min-height:70px;padding:12px 8px!important;line-height:1.35!important;border-radius:14px!important;white-space:normal;text-align:center';
   if(!m)h+='<h2 style="font-size:20px;margin:6px 0">Plan &amp; Upgrade</h2>';
   /* status */
   if(st.pro){var left=Math.ceil((st.info.e-now())/864e5);
-   h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">\u2B50 Pro plan is ON</b><div class="mu" style="margin-top:6px">Licensed to <b>'+esc(st.info.n||'')+'</b><br>Valid till <b>'+fmt(st.info.e)+'</b> ('+left+' days left)</div></div>'}
-  else if(st.mism){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">This license is for '+esc(st.info.n||'another account')+'</b><div class="mu" style="margin-top:6px">Sign in with the email it was made for ('+esc(st.info.m||'')+') to use Pro on this device.</div></div>'}
-  else if(st.expired){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">Pro plan ended on '+fmt(st.info.e)+'</b><div class="mu" style="margin-top:6px">Nothing is deleted. All your data is still on this device. Pro features are locked until you renew.</div></div>'}
-  else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Your data is stored on this one device and backed up to your Google Drive every day.</div></div>';
+   h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">\u2B50 '+tnm(st.tier)+' plan is ON</b><div class="mu" style="margin-top:6px">Licensed to <b>'+esc(st.info.n||'')+'</b><br>Valid till <b>'+fmt(st.info.e)+'</b> ('+left+' days left)</div></div>'}
+  else if(st.mism){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">This license is for '+esc(st.info.n||'another account')+'</b><div class="mu" style="margin-top:6px">Sign in with the email it was made for ('+esc(st.info.m||'')+') to use your plan on this device.</div></div>'}
+  else if(st.expired){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">Your plan ended on '+fmt(st.info.e)+'</b><div class="mu" style="margin-top:6px">Nothing is deleted. All your data is still on this device. Paid features are locked until you renew.</div></div>'}
+  else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Billing, stock, parties and reports are free. Live sync works on up to '+CFG.DEV.free+' devices.</div></div>';
   /* comparison */
-  h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 46px 46px;gap:4px;font-weight:600;font-size:13px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free</div><div style="text-align:center">Pro</div></div>'+
-   row('Billing, stock, parties, reports, old-software import',1,1)+
-   row('Data stored on one device',1,1)+
-   row('Daily backup to your Google Drive',1,1)+
-   row('WhatsApp button opens WhatsApp on your phone, you press Send',1,1)+
-   row('<b>Live sync on many phones and computers</b>',0,1)+
-   row('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1)+
-   row('<b>Automatic WhatsApp</b>: bills, receipts, reminders, campaigns',0,1)+'</div>';
+  h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 54px 54px 54px;gap:4px;font-weight:600;font-size:12px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free<br><span class="mu" style="font-size:11px">\u20B90</span></div><div style="text-align:center">Pro<br><span class="mu" style="font-size:11px">\u20B9'+CFG.PRO+'/mo</span></div><div style="text-align:center">Ultra<br><span class="mu" style="font-size:11px">\u20B9'+CFG.ULTRA+'/mo</span></div></div>'+
+   rowT('Billing, stock, parties, reports, old-software import',1,1,1)+
+   rowT('Daily backup to your Google Drive',1,1,1)+
+   rowT('WhatsApp button opens WhatsApp, you press Send',1,1,1)+
+   rowT('<b>Live sync</b> (devices on one account)',CFG.DEV.free+' devices',CFG.DEV.pro+' devices','Unlimited')+
+   rowT('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1,1)+
+   rowT('<b>Automatic WhatsApp</b> via official WhatsApp API: you recharge your wallet and pay per message',0,1,0)+
+   rowT('<b>Automatic WhatsApp, FREE</b> from your own number, no per-message charge',0,0,1)+'</div>';
   h+=signCard(cl);
-  /* ---------- Buy Pro with Razorpay (automatic) ---------- */
+  /* ---------- Buy with Razorpay (automatic) ---------- */
   var em0=window.__sbSess&&window.__sbSess.user?window.__sbSess.user.email:'';
-  h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?'Renew Pro':'Buy Pro')+'</b>'+
-   '<div class="mu" style="margin:6px 0 10px">Pay online by UPI, card or net banking. Pro switches on by itself within a minute. No key to paste.</div>'+
-   (em0?'<div class="mu" style="margin-bottom:10px">Pro will be added to <b>'+esc(em0)+'</b></div>':'<div class="mu" style="margin-bottom:10px">Sign in first, so we can add Pro to your account.</div>')+
+  h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?'Renew or change plan':'Choose a plan')+'</b>'+
+   '<div class="mu" style="margin:6px 0 10px">Pay online by UPI, card or net banking. Your plan switches on by itself within a minute. No key to paste.</div>'+
+   (em0?'<div class="mu" style="margin-bottom:10px">Plan will be added to <b>'+esc(em0)+'</b></div>':'<div class="mu" style="margin-bottom:10px">Sign in first, so we can add the plan to your account.</div>')+
    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
-   '<button class="b" style="display:block;width:100%;height:auto!important;min-height:64px;padding:12px 8px!important;line-height:1.35!important;border-radius:14px!important;white-space:normal;text-align:center" onclick="planBuy(\'monthly\')"><span style="font-size:13px;opacity:.9">Monthly</span><br><b style="font-size:20px">\u20B9'+CFG.MONTHLY+'</b></button>'+
-   '<button class="b" style="display:block;width:100%;height:auto!important;min-height:64px;padding:12px 8px!important;line-height:1.35!important;border-radius:14px!important;white-space:normal;text-align:center" onclick="planBuy(\'yearly\')"><span style="font-size:13px;opacity:.9">Yearly \u00B7 best value</span><br><b style="font-size:20px">\u20B9'+CFG.YEARLY+'</b></button></div>'+
+   '<button class="'+(st.tier==='pro'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'pro\')"><span style="font-size:13px;opacity:.9">Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.PRO+'</b><br><span style="font-size:11px;opacity:.85">WhatsApp API wallet</span></button>'+
+   '<button class="'+(st.tier==='ultra'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'ultra\')"><span style="font-size:13px;opacity:.9">Ultra Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.ULTRA+'</b><br><span style="font-size:11px;opacity:.85">Free automatic WhatsApp</span></button></div>'+
    '<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="margin-top:10px;font-size:14px">'+esc(bmsg)+'</div></div>';
-  /* how to get / renew */
-  if(!st.pro){
-   var wa='https://wa.me/'+String(CFG.WA).replace(/\D/g,'')+'?text='+encodeURIComponent('Hello, I paid for the Pro plan.\nShop name: '+(D.shop||'')+'\nPlease send my license key.');
-   h+='<details class="'+cl+'" style="max-width:600px"><summary style="cursor:pointer;font-weight:600">Pay manually by UPI instead / I already have a license key</summary><div style="margin-top:10px"></div>'+
-    '<ol style="margin:10px 0;padding-left:20px;line-height:1.6;font-size:14px"><li>Pay by UPI to <b>'+esc(CFG.UPI)+'</b></li><li>Send the payment screenshot and your shop name to us on WhatsApp</li><li>We send you a license key. Paste it below and press Activate</li></ol>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><a href="'+wa+'" target="_blank" rel="noopener" class="b" style="text-decoration:none;display:inline-block">Send payment proof on WhatsApp</a></div>'+
-    '<textarea id="plk_in" rows="3" placeholder="Paste your license key here (starts with LAB1.)" style="width:100%;box-sizing:border-box"></textarea>'+
-    '<div class="row" style="margin-top:8px;justify-content:flex-start;gap:10px"><button class="b" onclick="planActivate()">Activate</button><span id="plm" class="'+(msg?'grn':'')+'">'+esc(msg)+'</span></div>'+
-    (CFG.PUB?'':'<div class="red" style="margin-top:8px;font-size:12px">Owner note: Pro is not set up yet. Open license-maker.html, create your keys, and paste the public key into CFG.PUB in the plan-gate script.</div>')+'</details>'}
-  else h+='<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">Use the same key on your other devices. Press Activate there.</div></div>';
+  /* manual UPI / WhatsApp / license-key option removed: only direct online payment (Razorpay) */
+  if(st.pro)h+='<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">To use your plan on another device, sign in there with the same email.</div></div>';
   return h}
  /* ---------- Razorpay checkout ---------- */
  var rzpBusy=0;
@@ -7928,7 +7981,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function waitLic(n){
   n=n||0;
   return fetchLic().then(function(){
-   if(st.pro){rzpBusy=0;bsay('Payment received. Pro plan is ON.');try{render()}catch(e){}return}
+   if(st.pro){rzpBusy=0;bsay('Payment received. '+tnm(st.tier)+' plan is ON.');try{render()}catch(e){}return}
    if(n>=200){rzpBusy=0;bsay('Payment received. Pro is taking longer than usual. Press "Check my license" above in a few minutes. If it does not switch on, contact us with your payment ID.',1);return}
    bsay('Payment received. Activating your Pro plan... this can take up to 15 minutes. You can keep using the app.');
    return new Promise(function(r){setTimeout(r,n<30?3000:5000)}).then(function(){return waitLic(n+1)})})}
@@ -7937,16 +7990,17 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){return (r&&r.data&&r.data.session)||window.__sbSess||null},function(){return window.__sbSess||null}).then(function(ss){
   if(!ss||!ss.user){try{sessionStorage.setItem('plBuy',kind+'|'+Date.now())}catch(e){}bsay('Sign in once. Your payment opens right after you sign in.',1);try{if(!document.getElementById('lgn'))loginBox()}catch(e){}return}
   window.__sbSess=ss;
-  var email=ss.user.email||'',yearly=kind==='yearly',amt=(yearly?CFG.YEARLY:CFG.MONTHLY)*100;
+  if(kind!=='pro'&&kind!=='ultra')kind='pro';
+  var email=ss.user.email||'',amt=(kind==='ultra'?CFG.ULTRA:CFG.PRO)*100;
   rzpBusy=1;bsay('Opening payment...');
   loadRzp().then(function(){
    var o={
     key:CFG.RZP_KEY,amount:amt,currency:'INR',
-    name:'Pro plan',description:(yearly?'Yearly':'Monthly')+' Pro plan',
+    name:(kind==='ultra'?'Ultra Pro':'Pro')+' plan',description:(kind==='ultra'?'Ultra Pro':'Pro')+' plan - 1 month',
     prefill:{email:email},
-    notes:{email:email,plan:yearly?'yearly':'monthly',shop:String((window.D&&D.shop)||'')},
+    notes:{email:email,plan:kind,months:'1',amount_rs:String(amt/100),shop:String((window.D&&D.shop)||'')},
     theme:{color:'#3b4cca'},
-    handler:function(r){bsay('Payment received. Activating your Pro plan...');waitLic(0)},
+    handler:function(r){bsay('Payment received. Activating your plan...');waitLic(0)},
     modal:{ondismiss:function(){if(!st.pro&&bmsg.indexOf('received')<0){rzpBusy=0;bsay('')}}}
    };
    var rz=new Razorpay(o);
@@ -7978,7 +8032,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var b=document.createElement('button');b.setAttribute('data-plan','1');b.textContent='Plan';if(window.pg==='plan')b.className='on';b.onclick=function(){nav('plan')};
   var st2=Array.prototype.find.call(n.children,function(x){return x.textContent==='Settings'});n.insertBefore(b,st2||null)};
  var _vP2=window.vPage;window.vPage=function(){var h=_vP2.apply(this,arguments);
-  return window.pg==='more'&&typeof h==='string'?h.replace(/(<div class="mr" onclick="nav\('rep'\)">)/,'<div class="mr" onclick="nav(\'plan\')"><span>Plan &amp; Upgrade <span class="mu" style="display:inline;margin-left:6px">'+(st.pro?'Pro':'Free')+'</span></span><span class="mrc">\u203A</span></div>$1'):h};
+  return window.pg==='more'&&typeof h==='string'?h.replace(/(<div class="mr" onclick="nav\('rep'\)">)/,'<div class="mr" onclick="nav(\'plan\')"><span>Plan &amp; Upgrade <span class="mu" style="display:inline;margin-left:6px">'+(st.pro?tnm(st.tier):'Free')+'</span></span><span class="mrc">\u203A</span></div>$1'):h};
  /* mobile: easy Log out at the very top of the More page */
  var _vP3=window.vPage;window.vPage=function(){var h=_vP3.apply(this,arguments);
   try{var u=window.__sbSess&&window.__sbSess.user;
