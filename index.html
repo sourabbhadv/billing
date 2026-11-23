@@ -4918,8 +4918,14 @@ function wav(f,sr){var n=f.length,b=new ArrayBuffer(44+n*2),v=new DataView(b),i,
  for(i=0;i<n;i++,o+=2){var x=Math.max(-1,Math.min(1,f[i]));v.setInt16(o,x<0?x*32768:x*32767,true)}
  var u=new Uint8Array(b),bin='',ch=8192;for(i=0;i<u.length;i+=ch)bin+=String.fromCharCode.apply(null,u.subarray(i,i+ch));return btoa(bin)}
 function toWav(blob){return new Promise(function(ok,no){var fr=new FileReader();fr.onerror=function(){no(new Error('Could not read the recording'))};fr.onload=function(){var AC=window.AudioContext||window.webkitAudioContext,ac=new AC();ac.decodeAudioData(fr.result,function(buf){try{ac.close()}catch(e){}
-  var sr=16000,OC=window.OfflineAudioContext||window.webkitOfflineAudioContext,off=new OC(1,Math.max(1,Math.round(buf.duration*sr)),sr),s=off.createBufferSource();s.buffer=buf;s.connect(off.destination);s.start();
-  var pr=off.startRendering();if(pr&&pr.then)pr.then(function(r){ok(wav(r.getChannelData(0),sr))},no);else off.oncomplete=function(e){ok(wav(e.renderedBuffer.getChannelData(0),sr))}},function(){no(new Error('Could not read the recording'))})};fr.readAsArrayBuffer(blob)})}
+  try{ok(wav(mono16(buf),16000))}catch(e){no(e)}},function(){no(new Error('Could not read the recording'))})};fr.readAsArrayBuffer(blob)})}
+/* recording -> mono 16 kHz by plain maths (Safari's OfflineAudioContext can refuse 16000 Hz, so it is not used) */
+function mono16(buf){var n=buf.length,nc=buf.numberOfChannels,sr=buf.sampleRate,m=new Float32Array(n),c,i;
+ for(c=0;c<nc;c++){var d=buf.getChannelData(c);for(i=0;i<n;i++)m[i]+=d[i]/nc}
+ if(sr===16000)return m;
+ var ratio=sr/16000,len=Math.max(1,Math.round(n/ratio)),o=new Float32Array(len);
+ for(i=0;i<len;i++){var a=Math.floor(i*ratio),b=Math.min(n,Math.max(a+1,Math.floor((i+1)*ratio))),t=0,k;for(k=a;k<b;k++)t+=m[k];o[i]=t/(b-a)}
+ return o}
 function verr(e){return {'not-allowed':'The microphone is blocked. Allow the microphone for this site in your browser settings, then try again.','service-not-allowed':'The microphone is blocked. Allow the microphone for this site in your browser settings, then try again.','no-speech':'I did not hear anything. Tap the mic and speak.','audio-capture':'No microphone was found.','network':'The voice service could not be reached. Check your internet. Typing still works offline.','language-not-supported':(navigator.onLine===false?'Offline voice needs the speech language installed in your browser. Typing works offline.':'This language is not supported for voice here. Pick another language.')}[e]||('Voice problem ('+e+'). Please try again.')}
 function vFin(txt,err){var o=V.o;V.st='idle';V.rec=null;V.mr=null;V.tgt='';clearTimeout(V.tm);clearTimeout(V.fz);if(V.cancel){V.cancel=0;o&&o.onState('idle');return}if(!o)return;if(err)o.onErr(err);else if(!txt)o.onErr('I did not hear anything. Tap the mic and speak.');else{o.onState('idle');o.onEnd(txt)}}
 function mrStart(why){var o=V.o;if(!(cfg().p==='gemini'&&ready())){V.st='idle';return o.onErr(why||'Voice typing is not supported in this browser. Use Chrome or Safari, or choose Google Gemini in Setup so it can listen to a recording.')}
