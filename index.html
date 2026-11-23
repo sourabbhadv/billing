@@ -7329,6 +7329,14 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  window.gdList=function(){
   say('gdSt','Reading your Google Drive...');
   getTok(true).then(function(t){return folderId(t).then(function(f){return listFiles(t,f)})}).then(function(l){files=l;paint()},function(e){LS('gdErr',String(e&&e.message||e));paint()})};
+ function findFolder(t){var f=LS('gdFolder');if(f)return Promise.resolve(f);
+  var q=encodeURIComponent("name='"+FOLDER+"' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+  return api('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)&spaces=drive',{},t).then(function(r){return r.json()}).then(function(j){if(j.files&&j.files.length){LS('gdFolder',j.files[0].id);return j.files[0].id}return ''})}
+ /* first sign-in: look for this account's backups without asking anything and without creating anything */
+ window.gdAutoFind=function(){return getTok(false).then(function(t){return findFolder(t).then(function(fid){return fid?listFiles(t,fid):[]})}).then(function(l){files=l;return l})};
+ window.gdRestoreLatest=function(){var f=(files||[])[0];if(!f)return Promise.resolve(false);
+  return getTok(false).then(function(t){return api('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{},t)}).then(function(r){return r.text()}).then(function(tx){
+   var x=JSON.parse(tx);if(!x||!Array.isArray(x.parties)||!Array.isArray(x.items)||!Array.isArray(x.bills)||!Array.isArray(x.pays))throw new Error('not a backup');impGo(x);return true})};
  window.gdDown=function(id,name){getTok(true).then(function(t){return api('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{},t)}).then(function(r){return r.blob()}).then(function(b){saveFile(name,b)},function(e){alert(String(e&&e.message||e))})};
  window.gdRestore=function(id,name){
   if(!confirm('Restore from '+name+'?\nYou will be asked next whether to REPLACE the current data or ADD to it.'))return;
@@ -8904,7 +8912,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   +'<div class="fg"><div class="w"><label>Firm name *</label><input id="fnn" placeholder="Firm name" autocomplete="off"></div>'
   +'<div><label>Phone number</label><input id="fnp" type="tel" inputmode="tel" placeholder="Phone"></div><div><label>GST number (optional)</label><input id="fng" placeholder="GSTIN"></div>'
   +'<div class="w"><label>Address</label><textarea id="fna" placeholder="Shop address, city"></textarea></div></div>'
-  +(login?'<div class="fa col" style="margin-top:10px"><button class="s" onclick="fnDrive()">I already use this app: load my data from Google Drive</button></div>':'')+'<div class="er" id="fne"></div><div class="fa">'+(login?'<button class="s" onclick="fnOut()">Log out</button>':'<button class="s" onclick="fnClose()">Cancel</button>')+'<button class="b" onclick="fnSave()">Save</button></div>')};
+  +((login&&!(window.__fnNone&&window.__fnNone[em]))?'<div class="fa col" style="margin-top:10px"><button class="b" onclick="fnDrive()">Check my Google Drive for my data</button></div>':'')+'<div class="er" id="fne"></div><div class="fa">'+(login?'<button class="s" onclick="fnOut()">Log out</button>':'<button class="s" onclick="fnClose()">Cancel</button>')+'<button class="b" onclick="fnSave()">Save</button></div>')};
  window.fnClose=close;
  window.fnDrive=function(){window.__fnSkip=Date.now()+10*60*1000;close();try{if(window.gdList)gdList()}catch(e){}try{sub=null;form=false;pg='bk';render()}catch(e){}};
  window.fnOut=function(){close();try{if(window.sbOut)sbOut(0)}catch(e){}};
@@ -8940,6 +8948,15 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   try{if(localStorage.getItem('lvOn')==='1'||localStorage.getItem('gdOn')==='1'){
    var t0=window.__fnT0||(window.__fnT0=Date.now()),lv=+localStorage.getItem('lvAt')||0;
    if(lv<t0&&Date.now()-t0<25000)return}}catch(e){}
+  /* nothing on this device: look in this account's Google Drive by itself first */
+  var A=window.__fnAuto=window.__fnAuto||{};
+  if(A[em]==='pending'||A[em]==='found')return;
+  if(!A[em]&&window.gdAutoFind){A[em]='pending';
+   var to=setTimeout(function(){if(A[em]==='pending')A[em]='done'},20000);
+   window.gdAutoFind().then(function(l){clearTimeout(to);
+    if(l&&l.length){A[em]='found';return window.gdRestoreLatest().then(function(ok){if(!ok)A[em]='done'},function(){A[em]='done'})}
+    window.__fnNone=window.__fnNone||{};window.__fnNone[em]=1;A[em]='done'},function(){clearTimeout(to);A[em]='done'});
+   return}
   fnNewFirm(em)}
  setInterval(check,2000);setTimeout(check,1500);
  var _v=vSettings;
