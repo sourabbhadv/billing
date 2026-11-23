@@ -9048,6 +9048,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function rawNames(){return (PS().firms||[]).filter(function(f){return String(f.name||'').trim()})}
  function restricted(){
   var s=window.__sbSess,em=String((s&&s.user&&s.user.email)||'').toLowerCase(),p=PS();
+  return null; /* every signed-in email is its own owner: no firm lock-out, Backup and sync always open */
   if(!em||!p.owner||em===p.owner)return null;
   var id=p.emails&&p.emails[em];
   return (id&&rawNames().some(function(f){return f.id===id}))?id:'none'}
