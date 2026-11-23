@@ -11206,7 +11206,7 @@ html body .sfbar .sh{flex:0 0 46px!important;height:46px;padding:0!important;bor
   if(!has())return;
   var s;try{s=JSON.stringify(D)}catch(e){return}
   busy=1;
-  open().then(function(db){return new Promise(function(res,rej){var tx=db.transaction('kv','readwrite');tx.objectStore('kv').put({t:Date.now(),n:(D.bills||[]).length,s:s},KEY);tx.oncomplete=function(){db.close();res()};tx.onerror=tx.onabort=function(){try{db.close()}catch(e){}rej(tx.error)}})})
+  open().then(function(db){return new Promise(function(res,rej){var tx=db.transaction('kv','readwrite');tx.objectStore('kv').put({t:Date.now(),n:(D.bills||[]).length,s:s},K());tx.oncomplete=function(){db.close();res()};tx.onerror=tx.onabort=function(){try{db.close()}catch(e){}rej(tx.error)}})})
   .catch(function(){}).then(function(){busy=0;if(again){again=0;sched()}})}
  function sched(){clearTimeout(tmr);tmr=setTimeout(put,1500)}
  try{
@@ -11214,16 +11214,23 @@ html body .sfbar .sh{flex:0 0 46px!important;height:46px;padding:0!important;bor
    if(!big){try{localStorage.setItem('sb',JSON.stringify(D))}catch(e){big=1;try{localStorage.removeItem('sb')}catch(e2){}}}
    sched()}
  }catch(e){}
- /* bring the data back from this device when the app opens with nothing in the small storage */
+  /* each signed-in account keeps its OWN copy (key D:email). Signed out = the old key D. Nothing is ever deleted. */
+ function who(){try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(/^sb-.*-auth-token$/.test(k)){var v=JSON.parse(localStorage.getItem(k)||'null'),u=v&&(v.user||(v.currentSession&&v.currentSession.user));if(u&&u.email)return String(u.email).toLowerCase()}}}catch(e){}return ''}
+ function K(){var e=who();return e?'D:'+e:'D'}
+ function get(db,k){return new Promise(function(res){var q=db.transaction('kv','readonly').objectStore('kv').get(k);q.onsuccess=function(){res(q.result)};q.onerror=function(){res(null)}})}
+ function use(r){if(!r||!r.s||has())return false;var x;try{x=JSON.parse(r.s)}catch(e){return false}if(!x||!Array.isArray(x.items)||!Array.isArray(x.parties))return false;Object.keys(x).forEach(function(k){D[k]=x[k]});try{render()}catch(e){}return true}
  function restore(){
   if(has())return;
-  open().then(function(db){return new Promise(function(res){var q=db.transaction('kv','readonly').objectStore('kv').get(KEY);q.onsuccess=function(){db.close();res(q.result)};q.onerror=function(){try{db.close()}catch(e){}res(null)}})})
-  .then(function(r){
-   if(!r||!r.s||has())return;
-   var x=JSON.parse(r.s);if(!x||!Array.isArray(x.items)||!Array.isArray(x.parties))return;
-   Object.keys(x).forEach(function(k){D[k]=x[k]});
-   try{render()}catch(e){}})
-  .catch(function(){})}
+  var e=who();
+  open().then(function(db){return get(db,K()).then(function(r){
+   if(use(r)||!e){db.close();return}
+   /* signed in, nothing saved for this account yet: data from before accounts were kept apart. Ask, never assume. */
+   return get(db,'D').then(function(old){db.close();
+    if(!old||!old.s||localStorage.getItem('sbLegacyNo:'+e))return;
+    setTimeout(function(){
+     if(has())return;
+     if(confirm('This device has shop data saved from an earlier version.\n\nIs it the shop data of '+e+'?\n\nPress OK only if it is. Press Cancel if it belongs to another account (it stays safe on this device).')){if(use(old))sched()}
+     else{try{localStorage.setItem('sbLegacyNo:'+e,'1')}catch(x){}}},900)})})}).catch(function(){})}
  restore();
  setTimeout(put,6000);
  setInterval(put,30000);
