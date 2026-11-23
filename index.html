@@ -1587,33 +1587,86 @@ billHtml=function(b){var h=_bh3(b),x=((b.tn||b.vn)?'<p class="m">Transport: '+es
 /* ---------- STEP 2: bill picture in old software layout ---------- */
 var SHOP_ADDR='Near Bhawani Mandir, Wadhu Chowk, Sindhi Colony, Gondia 441601',SHOP_PH='Ph: 7020645390',SHOP_TERMS='बिका हुआ माल वापस नहीं होगा';
 billImg=function(b,p){
- var L=b.lines,W=900,rh=46,AL=imgAddrLines(b,p),ofs=AL.length?AL.length*22+12:0,H=560+ofs+L.length*rh+L.reduce(function(a,l){return a+(window.szLines?szLines(l).length*20:0)},0),c=document.createElement('canvas');c.width=W;c.height=H;var x=c.getContext('2d');
+ var P=PS(),L=b.lines,W=1000,S=2,AL=imgAddrLines(b,p);
+ var A=/^#[0-9a-f]{6}$/i.test(P.pr_col||'')?P.pr_col:'#1d3a8a';
+ var th=P.img_theme&&P.img_theme!=='print'?P.img_theme:({classic:'band',modern:'band',card:'band',g1:'band',g2:'band',stripe:'stripe',min:'min',elegant:'elegant'})[P.pr_theme||'classic']||'band';
+ var SF=th==='elegant'?'Georgia,"Times New Roman",serif':'"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+ function tint(h,a){var n=parseInt(h.slice(1),16),r=n>>16,g=n>>8&255,bb=n&255;return 'rgb('+Math.round(r+(255-r)*a)+','+Math.round(g+(255-g)*a)+','+Math.round(bb+(255-bb)*a)+')'}
+ var LT=tint(A,.92),LT2=tint(A,.96);
+ var szH=L.reduce(function(a,l){return a+(window.szLines?szLines(l).length*20:0)},0);
+ var H=1100+AL.length*24+L.length*52+szH,c=document.createElement('canvas');c.width=W*S;c.height=H*S;var x=c.getContext('2d');x.scale(S,S);
  var pd=paidOn(b),sub=0;L.forEach(function(l){sub+=l.amt});var due=Math.max(b.total-pd,0);
- function T(t,X,Y,f,col,al){x.font=f;x.fillStyle=col||'#111';x.textAlign=al||'left';x.fillText(t,X,Y)}
- function LN(X1,Y1,X2,Y2){x.strokeStyle='#999';x.lineWidth=1;x.beginPath();x.moveTo(X1,Y1);x.lineTo(X2,Y2);x.stroke()}
- x.fillStyle='#fff';x.fillRect(0,0,W,H);x.strokeStyle='#333';x.lineWidth=2;x.strokeRect(20,20,W-40,H-40);
- T((PS().name||D.shop).toUpperCase(),W/2,68,'bold 36px sans-serif','#111','center');
- if(op('hadr')){T(PS().addr||SHOP_ADDR,W/2,98,'18px sans-serif','#444','center');T(PS().phone?'Ph: '+PS().phone:SHOP_PH,W/2,122,'18px sans-serif','#444','center')}
- LN(20,140,W-20,140);
- T('Bill To',40,170,'16px sans-serif','#666');T(p.name,40,198,'bold 24px sans-serif');T(p.phone||'',40,226,'18px sans-serif','#444');AL.forEach(function(a,i){T(a,40,252+i*22,'15px sans-serif','#444')});
- T('Invoice No: '+b.no,W-40,170,'bold 20px sans-serif','#111','right');T('Date: '+dt(b.date)+(PS().htm?', '+new Date(b.date).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):''),W-40,198,'18px sans-serif','#444','right');
- if((b.tn||b.vn)&&op('htr'))T('Transport: '+(b.tn||'-')+'   Vehicle: '+(b.vn||'-'),W-40,226,'16px sans-serif','#444','right');
- LN(20,244+ofs,W-20,244+ofs);
- var y=278+ofs;x.fillStyle='#eef1f7';x.fillRect(21,250+ofs,W-42,40);
- T('#',36,y,'bold 18px sans-serif');T('Item name',72,y,'bold 18px sans-serif');T('Qty',560,y,'bold 18px sans-serif','#111','right');T('Price/unit',700,y,'bold 18px sans-serif','#111','right');T('Amount',W-36,y,'bold 18px sans-serif','#111','right');
- y=296+ofs;L.forEach(function(l,k){y+=rh;var n=l.name.length>34?l.name.slice(0,33)+'…':l.name;T(String(k+1),36,y-14,'18px sans-serif');T(n,72,y-14,'18px sans-serif');T(l.qty+' '+l.unit,560,y-14,'18px sans-serif','#111','right');T(String(l.rate),700,y-14,'18px sans-serif','#111','right');T(money(l.amt),W-36,y-14,'18px sans-serif','#111','right');var SX=window.szLines?szLines(l):[];SX.forEach(function(t,i){T(t,72,y+6+i*20,'15px sans-serif','#666')});y+=SX.length*20;LN(21,y,W-21,y)});
- y+=40;var R=W-40;
- function row(a,v,f,col){T(a,R-200,y,f||'20px sans-serif',col||'#111','right');T(v,R,y,f||'20px sans-serif',col||'#111','right');y+=34}
- row('Sub Total',money(sub));
- if(b.disc>0)row('Discount','-'+money(b.disc));
- row('Total',money(b.total),'bold 26px sans-serif');
- row('Received',money(pd),'20px sans-serif','#17a56b');
- row('Balance',money(due),'bold 22px sans-serif',due>0?'#e5333f':'#17a56b');
- if(op('hcur'))row('Current balance of party',money(Math.max(bal(p),0)),'18px sans-serif','#444');
- if(b.disc>0&&op('hsv'))row('You Saved',money(b.disc),'18px sans-serif','#17a56b');
- LN(20,y,W-20,y);if(op('hter')){T('Terms and conditions:',40,y+34,'bold 16px sans-serif','#444');T(PS().terms||SHOP_TERMS,40,y+62,'18px sans-serif','#111')}
- T('Thank you for your business!',W/2,H-36,'16px sans-serif','#666','center');
- return new Promise(function(res){c.toBlob(res,'image/png')});
+ function f(w,s){return (w?w+' ':'')+s+'px '+SF}
+ function T(t,X,Y,fn,col,al){x.font=fn;x.fillStyle=col||'#1f2937';x.textAlign=al||'left';x.fillText(String(t==null?'':t),X,Y)}
+ function fit(t,max,fn){x.font=fn;t=String(t||'');if(x.measureText(t).width<=max)return t;while(t.length>1&&x.measureText(t+'…').width>max)t=t.slice(0,-1);return t+'…'}
+ function RR(X,Y,w,h,r,fill,stroke){x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath();if(fill){x.fillStyle=fill;x.fill()}if(stroke){x.strokeStyle=stroke;x.lineWidth=1;x.stroke()}}
+ function LN(X1,Y1,X2,Y2,col,w){x.strokeStyle=col||'#e5e7eb';x.lineWidth=w||1;x.beginPath();x.moveTo(X1,Y1);x.lineTo(X2,Y2);x.stroke()}
+ var M=40,name=(P.name||D.shop||''),addr=op('hadr')?(P.addr||SHOP_ADDR):'',ph=op('hadr')?(P.phone?'Ph: '+P.phone:SHOP_PH):'';
+ x.fillStyle='#fff';x.fillRect(0,0,W,H);
+ var y,dark=th==='band',hc=dark?'#fff':'#111827',sc=dark?'rgba(255,255,255,.85)':'#6b7280';
+ if(th==='band'){x.fillStyle=A;x.fillRect(0,0,W,150);}
+ if(th==='stripe'){x.fillStyle=A;x.fillRect(0,0,12,H);x.fillRect(0,0,W,8)}
+ if(th==='elegant'){
+  T(fit(name.toUpperCase(),W-2*M,f('bold',38)),W/2,72,f('bold',38),A,'center');
+  if(addr)T(fit(addr,W-2*M,f('',17)),W/2,102,f('',17),'#4b5563','center');if(ph)T(ph,W/2,126,f('',17),'#4b5563','center');
+  LN(M,146,W-M,146,A,2);LN(M,152,W-M,152,A,1);
+  T('INVOICE',W/2,186,f('',20),A,'center');y=210;
+ }else{
+  var nx=th==='stripe'?M+12:M;
+  T(fit(name,600,f('bold',36)),nx,70,f('bold',36),hc);
+  if(addr)T(fit(addr,600,f('',16)),nx,100,f('',16),sc);if(ph)T(ph,nx,124,f('',16),sc);
+  T('INVOICE',W-M,70,f('bold',32),dark?'#fff':A,'right');
+  T('# '+b.no,W-M,104,f('600',19),hc,'right');
+  if(th==='min')LN(M,150,W-M,150,A,3);
+  y=th==='band'?180:172;
+ }
+ /* info boxes */
+ var bh=118+AL.length*22,bw=(W-2*M-20)/2;
+ RR(M,y,bw,bh,12,LT2,tint(A,.8));RR(M+bw+20,y,bw,bh,12,LT2,tint(A,.8));
+ T('BILL TO',M+18,y+30,f('bold',13),A);T(fit(p.name,bw-36,f('bold',22)),M+18,y+60,f('bold',22),'#111827');
+ T(p.phone||'',M+18,y+86,f('',16),'#4b5563');AL.forEach(function(a,i){T(fit(a,bw-36,f('',15)),M+18,y+108+i*22,f('',15),'#4b5563')});
+ var rx=M+bw+38,rr=W-M-18;
+ T('INVOICE DETAILS',rx,y+30,f('bold',13),A);
+ function kv(k,v,yy){T(k,rx,yy,f('',16),'#6b7280');T(v,rr,yy,f('600',16),'#111827','right')}
+ kv('Invoice No',String(b.no),y+60);
+ kv('Date',dt(b.date)+(P.htm?', '+new Date(b.date).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):''),y+86);
+ if((b.tn||b.vn)&&op('htr'))kv('Transport',fit((b.tn||'-')+' · '+(b.vn||'-'),220,f('600',16)),y+112);
+ y+=bh+28;
+ /* items table */
+ var cQ=600,cR=760,cA=W-M-16;
+ RR(M,y,W-2*M,46,10,th==='min'?LT:A);
+ var hcol=th==='min'?A:'#fff';
+ T('#',M+16,y+29,f('bold',15),hcol);T('ITEM',M+56,y+29,f('bold',15),hcol);T('QTY',cQ,y+29,f('bold',15),hcol,'right');T('RATE',cR,y+29,f('bold',15),hcol,'right');T('AMOUNT',cA,y+29,f('bold',15),hcol,'right');
+ y+=46;
+ L.forEach(function(l,k){var SX=window.szLines?szLines(l):[],rh=52+SX.length*20;
+  if(k%2===1){x.fillStyle=LT2;x.fillRect(M,y,W-2*M,rh)}
+  T(String(k+1),M+16,y+32,f('',17),'#6b7280');T(fit(l.name,cQ-M-140,f('600',17)),M+56,y+32,f('600',17),'#111827');
+  T(l.qty+' '+(l.unit||''),cQ,y+32,f('',17),'#374151','right');T(String(l.rate),cR,y+32,f('',17),'#374151','right');T(money(l.amt),cA,y+32,f('600',17),'#111827','right');
+  SX.forEach(function(t,i){T(t,M+56,y+54+i*20,f('',14),'#6b7280')});
+  y+=rh;LN(M,y,W-M,y)});
+ y+=24;
+ /* totals card */
+ var tw=380,tx=W-M-tw,ty=y,rows=[['Sub Total',money(sub)]];
+ if(b.disc>0)rows.push(['Discount','-'+money(b.disc)]);
+ var th2=rows.length*34+20;RR(tx,ty,tw,th2+64+ (2*34)+16,12,LT2,tint(A,.8));
+ var yy=ty+34;rows.forEach(function(r){T(r[0],tx+20,yy,f('',17),'#4b5563');T(r[1],tx+tw-20,yy,f('600',17),'#111827','right');yy+=34});
+ RR(tx+10,yy-12,tw-20,54,10,A);T('TOTAL',tx+28,yy+23,f('bold',18),'#fff');T(money(b.total),tx+tw-28,yy+24,f('bold',24),'#fff','right');yy+=78;
+ T('Received',tx+20,yy,f('',17),'#4b5563');T(money(pd),tx+tw-20,yy,f('600',17),'#15803d','right');yy+=34;
+ T('Balance Due',tx+20,yy,f('bold',17),'#111827');T(money(due),tx+tw-20,yy,f('bold',19),due>0?'#dc2626':'#15803d','right');
+ var cardEnd=ty+th2+64+2*34+16;
+ /* left side: status + extras */
+ var ly=ty+10,st=due<=0?'PAID':(pd>0?'PARTIALLY PAID':'PAYMENT DUE'),sc2=due<=0?'#15803d':'#dc2626';
+ x.font=f('bold',16);var sw=x.measureText(st).width+36;RR(M,ly,sw,38,19,tint(sc2,.88));T(st,M+18,ly+25,f('bold',16),sc2);ly+=70;
+ if(op('hcur')){T('Party current balance',M,ly,f('',15),'#6b7280');T(money(Math.max(bal(p),0)),M,ly+26,f('bold',19),'#111827');ly+=60}
+ if(b.disc>0&&op('hsv')){T('You saved '+money(b.disc)+' 🎉',M,ly,f('bold',17),'#15803d');ly+=40}
+ y=Math.max(cardEnd,ly)+30;
+ if(op('hter')){LN(M,y,W-M,y);T('TERMS & CONDITIONS',M,y+32,f('bold',13),A);T(fit(P.terms||SHOP_TERMS,W-2*M-260,f('',16)),M,y+58,f('',16),'#374151')}
+ LN(W-M-220,y+92,W-M,y+92,'#9ca3af');T('Authorised Signatory',W-M-110,y+114,f('',14),'#6b7280','center');T(fit('For '+name,220,f('600',14)),W-M-110,y+76,f('600',14),'#374151','center');
+ y+=150;
+ if(th==='band'||th==='min'){x.fillStyle=th==='band'?A:LT;x.fillRect(0,y,W,56)}else LN(M,y,W-M,y,A,2);
+ T('Thank you for your business!',W/2,y+35,f('600',17),th==='band'?'#fff':A,'center');y+=56+(th==='band'||th==='min'?0:10);
+ var o=document.createElement('canvas');o.width=W*S;o.height=Math.ceil(y*S);var ox=o.getContext('2d');ox.drawImage(c,0,0);
+ return new Promise(function(res){o.toBlob(res,'image/png')});
 };
 
 /* ---------- STEP 3: full Settings (every option below really works) ---------- */
@@ -1637,7 +1690,7 @@ vSettings=function(){
  else if(sTab==='trn')h+='<b>Transaction</b>'+tg('round','Round off total','Bill total is rounded to a whole rupee when you save.',1)+'<div class="mu">Transporter, Vehicle number and Discount are always on the Sale bill.</div>';
  else if(sTab==='prt')return _vS0();
  else if(sTab==='gd')return h+'<b>Godowns and blocks</b><div class="mu" style="margin-top:4px">Save your godown / block names here, or just type them on a purchase bill (they are saved automatically). Click a name to see what is stored in it and its history.</div></div>'+vGodowns();
- else h+='<b>Bill picture (WhatsApp)</b>'+tg('hadr','Show address and phone')+tg('htr','Show transport and vehicle')+tg('hcur','Show current balance of party')+tg('hsv','Show "You Saved" (discount)')+tg('htm','Show time with date',0,1)+tg('hter','Show terms and conditions')+'<div class="mu">Address, phone and terms text are taken from the Print tab.</div>';
+ else h+='<b>Bill picture (WhatsApp)</b>'+tg('hadr','Show address and phone')+tg('htr','Show transport and vehicle')+tg('hcur','Show current balance of party')+tg('hsv','Show "You Saved" (discount)')+tg('htm','Show time with date',0,1)+tg('hter','Show terms and conditions')+'<label class="mu" style="display:block;margin-top:10px">Picture design</label><select onchange="setP(\'img_theme\',this.value)">'+[['print','Same as Print theme'],['band','Professional (colour header)'],['stripe','Stripe'],['min','Minimal'],['elegant','Elegant (serif)']].map(function(o){return '<option value="'+o[0]+'"'+((p.img_theme||'print')===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select><div class="mu">Colour follows the theme colour chosen in the Print tab.</div>'+'<div class="mu">Address, phone and terms text are taken from the Print tab.</div>';
  return h+'</div>';
 };
 
