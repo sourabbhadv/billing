@@ -7870,7 +7870,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   RZP_KEY:'rzp_live_U1cLxcjBcDRGig',   /* Razorpay Key ID (public). LIVE key. */
   PRO:50, ULTRA:350,
   OWNER:'chandwanisourabh@gmail.com',   /* only this signed-in email sees and uses automatic WhatsApp (Outbox, campaigns, sender) */
-  DEVX:50, DEVX_ON:false,   /* extra device on Pro: Rs per month, ends with the Pro plan. DEVX_ON stays false until the webhook handles kind 'device' */
+  DEVX:50, DEVX_ON:true,   /* extra device on Pro: Rs per month, ends with the Pro plan. Needs the webhook that handles kind 'device' */
   WA_RATE:100, WALLET_MIN:50, WALLET_MAX:10000,   /* Pro: price per automatic WhatsApp message in PAISE (100 = Rs 1) and the recharge range in rupees. Batch 4 uses the same rate on the server. */            /* rupees per month: Pro = Rs 100, Ultra Pro = Rs 350 */
   DEV:{free:1,pro:2,ultra:0}     /* live-sync device limit per plan (used in Batch 2). 0 = unlimited */
  };
