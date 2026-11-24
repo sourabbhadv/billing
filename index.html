@@ -8944,7 +8944,7 @@ window.bcNext=function(){var u={},mx=99;
  var _vf=vDocForm;
  vDocForm=function(){
   var h=_vf.apply(this,arguments),F=window.firmList?firmList():[];
-  if(!isPur()||!F.length)return h;
+  if(!isPur()||!F.length||(typeof isM==='function'&&!isM()))return h;
   var sel='<select id="dfm" style="width:100%;margin-bottom:4px"><option value="">Firm (choose)</option>'+F.map(function(f){return '<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>'}).join('')+'</select>';
   h=h.replace('<input id="dit"',sel+'<input id="dit"');
   var L=ddraft.lines||[];
