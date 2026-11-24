@@ -3273,7 +3273,7 @@ paidOn=function(b){if(!BC)BC=balMap();
  return (+b.paid||0)+(PDC[b.no]||0)};
 
 /* ---------- AUTO-SEND ON SAVE (uses the Automatic WhatsApp sending settings) ---------- */
-var APPV='App version 22-Nov-C (data kept on device in big storage)';
+var APPV='App version 24-Nov-E (Hindi button on phone)';
 function awGo(k,p){if(!PS().autoWA||!awOn(k))return false;
  if(!obOk()){obToast('Auto message not sent: Outbox is not ready. Open the app again.');return false}
  if(!p||phone(p).length<10){obToast('Auto message not sent: this party has no phone number.');return false}
@@ -8354,7 +8354,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var n=Date.now();
   if(e.key==='Enter'){
    var s=kb.s;kb.s='';
-   if(s.length>=4&&n-kb.t<80){
+   if(s.length>=3&&n-kb.t<80){
     var open=!!document.getElementById('bco');
     if(!open&&!saleOpen())return;
     e.preventDefault();e.stopPropagation();
@@ -8448,6 +8448,14 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
 })();
 </script>
 <script id="bc-gen">
+/* SHORT BARCODE NUMBER: 3 to 4 digits (100 to 9999). Every item gets its own number, never the same twice. */
+window.bcNext=function(){var u={},mx=99;
+ function add(c){c=String(c==null?'':c).trim();if(/^\d{3,4}$/.test(c)){u[c]=1;if(+c>mx)mx=+c}else if(c)u[c]=1}
+ (D.items||[]).forEach(function(i){add(i.bc)});
+ try{((window.ddraft&&window.ddraft.lines)||[]).forEach(function(l){add(l.bc)})}catch(e){}
+ var n=mx+1;if(n<=9999)return String(n);
+ for(n=100;n<=9999;n++){if(!u[String(n)])return String(n)}
+ var b='2';for(var i=0;i<11;i++)b+=Math.floor(Math.random()*10);return b};
 /* BARCODE MAKER: "Make" in the item form gives a new EAN-13 code; "Print barcode labels" (Items page) prints a sheet of labels. */
 (function(){
  var L=['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'],
@@ -8457,11 +8465,16 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  function chk(d12){var s=0;for(var i=0;i<12;i++)s+=(+d12[i])*(i%2?3:1);return String((10-s%10)%10)}
  function valid(c){c=String(c||'').trim();return /^\d{13}$/.test(c)&&chk(c.slice(0,12))===c[12]}
  function used(c){return (D.items||[]).some(function(i){return String(i.bc==null?'':i.bc).trim()===c})}
- function make(){var c,t=0;do{var b='2';for(var i=0;i<11;i++)b+=Math.floor(Math.random()*10);c=b+chk(b);t++}while(used(c)&&t<50);return c}
+ function make(){return window.bcNext()}
  function svg(c){var b='101',p=P[+c[0]];
   for(var i=0;i<6;i++)b+=(p[i]==='L'?L:G)[+c[i+1]];b+='01010';for(var j=7;j<13;j++)b+=R[+c[j]];b+='101';
   var x=9,r='',w=0;for(var k=0;k<b.length;k++){if(b[k]==='1')w++;if(w&&(b[k]==='0'||k===b.length-1)){r+='<rect x="'+(x+k-w+(b[k]==='1'?1:0))+'" y="2" width="'+w+'" height="46"/>';w=0}}
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 113 60" preserveAspectRatio="xMidYMid meet"><g fill="var(--k311,#000)">'+r+'</g><g font-family="Arial,sans-serif" font-size="10" text-anchor="middle"><text x="4" y="58">'+c[0]+'</text><text x="33" y="58" textLength="40">'+c.slice(1,7)+'</text><text x="80" y="58" textLength="40">'+c.slice(7)+'</text></g></svg>'}
+
+ var C39={'0':'nnnwwnwnn','1':'wnnwnnnnw','2':'nnwwnnnnw','3':'wnwwnnnnn','4':'nnnwwnnnw','5':'wnnwwnnnn','6':'nnwwwnnnn','7':'nnnwnnwnw','8':'wnnwnnwnn','9':'nnwwnnwnn','*':'nwnnwnwnn'};
+ function svg39(c){var t='*'+c+'*',x=4,r='';
+  for(var k=0;k<t.length;k++){var p=C39[t[k]];for(var j=0;j<9;j++){var w=p[j]==='w'?3:1;if(j%2===0)r+='<rect x="'+x+'" y="2" width="'+w+'" height="46"/>';x+=w}x+=1}
+  var W=x+3;return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' 62" preserveAspectRatio="xMidYMid meet"><g fill="#000">'+r+'</g><text x="'+(W/2)+'" y="59" font-family="Arial,sans-serif" font-size="11" font-weight="700" text-anchor="middle">'+c+'</text></svg>'}
  window.bcMake=function(){var e=document.getElementById('sbc');if(!e)return;if(e.value&&!confirm('Replace the current barcode with a new one?'))return;e.value=make()};
  var _v=window.vItemForm;
  if(typeof _v==='function'){vItemForm=window.vItemForm=function(){var h=_v.apply(this,arguments);return h.replace('>Scan</button></div>','>Scan</button><button type="button" class="s bcsc" onclick="bcMake()">Make</button></div>')}}
@@ -8483,9 +8496,9 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   var made=0,skip=[],cells=[],done=[];
   (D.items||[]).forEach(function(i){if(!sel[i.id])return;var c=String(i.bc||'').trim();
    if(!c){c=make();i.bc=c;made++}
-   if(!valid(c)){skip.push(i.name);return}
+   if(!valid(c)&&!/^\d{1,13}$/.test(c)){skip.push(i.name);return}
    var n=Math.max(1,Math.min(500,+(document.getElementById('bcq_'+i.id)||{}).value||1));done.push([i,n]);
-   for(var k=0;k<n;k++)cells.push('<div class="lb"><div class="nm">'+esc(i.name)+'</div>'+svg(c)+'</div>')});
+   for(var k=0;k<n;k++)cells.push('<div class="lb"><div class="nm">'+esc(i.name)+'</div>'+(valid(c)?svg(c):svg39(c))+'</div>')});
   if(made)save();
   if(!cells.length)return alert('These items have a different kind of barcode that cannot be printed here. Open the item, clear the Barcode box, press Make, and Save.');
   if(skip.length)alert('Not printed (different barcode kind): '+skip.slice(0,8).join(', ')+(skip.length>8?' and more':'')+'.');
@@ -8582,13 +8595,13 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* barcode for new items of a purchase bill */
  var Lc=['0001101','0011001'];function chk(d){var s=0;for(var i=0;i<12;i++)s+=(+d[i])*(i%2?3:1);return String((10-s%10)%10)}
  function used(c){return (D.items||[]).some(function(i){return String(i.bc==null?'':i.bc).trim()===c})}
- function make(){var c,t=0;do{var b='2';for(var i=0;i<11;i++)b+=Math.floor(Math.random()*10);c=b+chk(b);t++}while(used(c)&&t<50);return c}
+ function make(){return window.bcNext()}
  var _sd=window.saveDoc;
  window.saveDoc=saveDoc=function(){
   var d=window.ddraft,pur=d&&d.t==='pur',names=pur?(d.lines||[]).map(function(l){return [l.name,l.bc,l.mrp,l.qty]}):[],n0=(D.docs||[]).length;
   var r=_sd.apply(this,arguments);
   try{if(pur&&on('f_bc')&&(D.docs||[]).length>n0||(pur&&on('f_bc')&&d.edit)){
-   var c=0,c2=0,tot=0,nw=(D.docs||[]).length>n0;names.forEach(function(nm){var i=findI(nm[0]);if(!i)return;if(nw&&+nm[3]>0){i.bn=(+i.bn||0)+(+nm[3]);tot+=(+nm[3])}if(!String(i.bc||'').trim()){i.bc=nm[1]||make();c++}if(on('f_mrp')&&+nm[2]>0&&(+i.rate!==+nm[2]||+i.mrp!==+nm[2])){i.rate=+nm[2];i.mrp=+nm[2];c2++}});if((c2||tot)&&!c)save();
+   var c=0,c2=0,tot=0,nw=(D.docs||[]).length>n0;names.forEach(function(nm){var i=findI(nm[0]);if(!i)return;if(nw&&+nm[3]>0){i.bn=(+i.bn||0)+(+nm[3]);tot+=(+nm[3])}if(!String(i.bc||'').trim()){var cc=nm[1];if(!cc||used(String(cc).trim()))cc=make();i.bc=cc;c++}if(on('f_mrp')&&+nm[2]>0&&(+i.rate!==+nm[2]||+i.mrp!==+nm[2])){i.rate=+nm[2];i.mrp=+nm[2];c2++}});if((c2||tot)&&!c)save();
    if(c||tot){save();setTimeout(function(){if(confirm((tot?tot+' label'+(tot>1?'s':'')+' to print for this purchase.':c+' new barcode'+(c>1?'s':'')+'.')+' Open the label printing screen now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
   return r};
 })();
@@ -11477,6 +11490,85 @@ window.setUiLang=function(l){L=l;try{localStorage.setItem(KEY,l)}catch(e){}if(l=
 var b=document.getElementById('langBtn');if(b)b.onclick=function(){setUiLang(L==='hi'?'en':'hi')};
 if(L==='hi')font();ui();apply();
 new MutationObserver(function(){if(!busy&&L==='hi')sched()}).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['placeholder','title']});
+})();
+</script>
+<script id="enter-flow">
+/* ENTER KEY FLOW (PC only): party -> item -> every next box of the same row -> new row.
+   Empty boxes can be skipped with Enter. After the last box, Enter adds the row and the cursor goes to the next item. */
+(function(){
+ var FLOWS=[
+  {add:'addLine2',ids:['bn','bi','bds2','bq','bu','br','bs']},
+  {add:'addDocLine',ids:['dn','dit','dds','dqt','dut','drt','dlc','dmr','dpd2']},
+  {add:'addRet',ids:['rn','rit','rds','rqt','rut','rrt']},
+  {add:'savePin',ids:['pn2','pa','pnote']}
+ ];
+ /* Party form and Item form: Enter goes to the next box (no save on the last box) */
+ var DOMSET=['pn','pp','po','sn','su','sr','sb','sq','sl','sg','sbc'];
+ function nextInDom(t){var c=t.closest('.card')||t.closest('#v')||document,l=[].slice.call(c.querySelectorAll('input,select')).filter(function(x){return ok(x)&&['radio','button','file','submit','range','color'].indexOf(x.type)<0}),i=l.indexOf(t);return i>=0?l[i+1]||null:null}
+ function ok(e){return e&&!e.disabled&&e.type!=='checkbox'&&e.type!=='hidden'&&e.offsetParent!==null}
+ document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'||e.shiftKey||e.ctrlKey||e.altKey||e.metaKey||e.defaultPrevented)return;
+  try{if(typeof isM==='function'&&isM())return}catch(x){}
+  var t=e.target,id=t&&t.id;if(!id||t.tagName!=='INPUT')return;
+  var f=null,ix=-1;
+  for(var a=0;a<FLOWS.length&&!f;a++){var j=FLOWS[a].ids.indexOf(id);if(j>=0){f=FLOWS[a];ix=j}}
+  if(!f){
+   if(DOMSET.indexOf(id)<0)return;
+   var d=nextInDom(t);if(!d)return;
+   e.preventDefault();e.stopPropagation();
+   setTimeout(function(){try{d.focus();if(d.select&&d.tagName==='INPUT')d.select()}catch(x){}},0);
+   return}
+  e.stopPropagation();
+  var nx=null;
+  for(var k=ix+1;k<f.ids.length;k++){var el=document.getElementById(f.ids[k]);if(ok(el)){nx=el;break}}
+  if(nx){
+   e.preventDefault();
+   setTimeout(function(){try{nx.focus();if(nx.select)nx.select()}catch(x){}},0);
+  }else if(ix>0){
+   e.preventDefault();
+   var fn=window[f.add];if(typeof fn==='function')fn();
+  }
+ },true);
+})();
+</script>
+<style id="big-items-block">
+/* BIGGER ITEMS BLOCK (PC bill screens): taller rows, bigger writing, wide item box, entry row stands out */
+@media (min-width:700px){
+html body .dkg{min-height:46vh}
+html body .dkg table{font-size:16px}
+html body .dkg th{font-size:13px;padding:15px 10px}
+html body .dkg td{height:54px}
+html body .dkg td input{height:50px!important;font-size:16px!important;padding:0 8px!important}
+html body .dkg th:nth-child(2),html body .dkg td:nth-child(2){min-width:300px}
+html body .dkg tbody tr:last-child td{background:var(--k226,#f3f8ff)}
+html body .dkg tbody tr:last-child td input{font-weight:600}
+html body .dkg tfoot td{height:50px;font-size:16px}
+}
+</style>
+<script id="hindi-phone">
+/* HINDI / ENGLISH BUTTON ON PHONE: small button on the top bar of the main pages, and a "Language" row in More. */
+(function(){
+ var css=document.createElement('style');
+ css.textContent='#langBtnM{display:none}@media(max-width:899px){body #mtop #langBtnM{display:block;flex:none;width:auto!important;min-width:44px;height:34px!important;border-radius:17px!important;padding:0 12px!important;font-size:14px!important;font-weight:700;background:var(--k86,#e3eefc)!important;color:var(--k53,#1a73e8)!important;border:0;white-space:nowrap}}';
+ document.head.appendChild(css);
+ function isHi(){return document.documentElement.classList.contains('hi')}
+ function lab(){return isHi()?'English':'\u0939\u093f\u0928\u094d\u0926\u0940'}
+ window.langToggleM=function(){if(typeof setUiLang==='function')setUiLang(isHi()?'en':'hi');lbl();try{if(typeof render==='function')render()}catch(e){}};
+ function lbl(){var b=document.getElementById('langBtnM');if(b)b.textContent=lab()}
+ function busy(){try{return !!((typeof form!=='undefined'&&form)||(typeof ddraft!=='undefined'&&ddraft)||(typeof rdraft!=='undefined'&&rdraft)||(typeof pdraft!=='undefined'&&pdraft)||(typeof pform!=='undefined'&&pform)||(typeof iform!=='undefined'&&iform)||(typeof viewB!=='undefined'&&viewB)||(typeof viewD!=='undefined'&&viewD))}catch(e){return false}}
+ function addBtn(){try{
+  var t=document.getElementById('mtop'),b=document.getElementById('langBtnM');
+  if(!t||typeof isM!=='function'||!isM()||busy()){if(b)b.remove();return}
+  if(!b){b=document.createElement('button');b.id='langBtnM';b.type='button';b.setAttribute('aria-label','Language');b.onclick=window.langToggleM;t.appendChild(b)}
+  lbl()}catch(e){}}
+ var _r=window.render;
+ if(typeof _r==='function'){window.render=render=function(){var r=_r.apply(this,arguments);addBtn();return r}}
+ var _vm=window.vMore;
+ if(typeof _vm==='function'){window.vMore=vMore=function(){var h=_vm.apply(this,arguments);
+  var row='<div class="mg"><div class="mgt">Language / \u092d\u093e\u0937\u093e</div><div class="mr" onclick="langToggleM()"><span>'+(isHi()?'Change to English':'\u0939\u093f\u0928\u094d\u0926\u0940 \u092e\u0947\u0902 \u092c\u0926\u0932\u0947\u0902 (Hindi)')+'</span><span class="mrc">&#8250;</span></div></div>';
+  var k='<div class="mg"><div class="mgt">App Version</div>';
+  return h.indexOf(k)>=0?h.replace(k,row+k):h+row}}
+ addBtn();
 })();
 </script>
 </body>
