@@ -11677,6 +11677,34 @@ html[data-theme=glass] body #bctoast{background:rgba(24,40,100,.62)!important;co
 @media (prefers-reduced-transparency:reduce){html[data-theme=glass] body :is(#mtxn .sh,#lne .lnb,.aibox,.bwpb,.szbox,.acb,#bcnf .bcnfb,#fnw .fb,#gstov .gm,#sug,.cmbox){background:rgba(255,255,255,.96)!important;-webkit-backdrop-filter:none;backdrop-filter:none}}
 </style>
 
+<style id="glass-look-5">
+/* ===== LIQUID GLASS batch 5: leftover flat white parts on phone and computer. Visual only, no logic.
+   Every rule starts with html[data-theme=glass]. To remove: delete this whole style block. ===== */
+/* phone: search rows on Items / Stock and Parties become one glass pill, no box inside a box */
+html[data-theme=glass] body .msrw,html[data-theme=glass] body .psb{background:var(--lx-c1)!important;border:1px solid var(--lx-line)!important;border-radius:18px!important;box-shadow:var(--lx-sh)!important;-webkit-backdrop-filter:blur(22px) saturate(1.8);backdrop-filter:blur(22px) saturate(1.8)}
+html[data-theme=glass] body :is(.msrw input.msr,.psb input):not(.z1):not(.z2):not(.z3):not(.z4):not(.z5):not(.z6){background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-theme=glass] body .msrw button.mflt:not(.z1):not(.z2){background:transparent!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-theme=glass] body .pso,html[data-theme=glass] body .mflt:is(button){background:var(--lx-c1)!important;border:1px solid var(--lx-line)!important;box-shadow:var(--lx-sh)!important;-webkit-backdrop-filter:blur(22px) saturate(1.8);backdrop-filter:blur(22px) saturate(1.8)}
+/* phone: party list card and the Items header row */
+html[data-theme=glass] body .prl{background:linear-gradient(160deg,var(--lx-c1),var(--lx-c2))!important;border:1px solid var(--lx-line)!important;border-radius:18px!important;box-shadow:var(--lx-sh)!important;padding-left:12px;padding-right:12px;-webkit-backdrop-filter:blur(22px) saturate(1.8);backdrop-filter:blur(22px) saturate(1.8)}
+html[data-theme=glass] body .row{background:rgba(255,255,255,.45)!important;border:1px solid rgba(255,255,255,.75)!important;border-radius:14px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+/* phone: Total / Balance cards on Sale, Purchase and the other bill lists */
+html[data-theme=glass] body .mtot>div{background:linear-gradient(160deg,var(--lx-c1),var(--lx-c2))!important;border:1px solid var(--lx-line)!important;border-radius:18px!important;box-shadow:var(--lx-sh)!important;-webkit-backdrop-filter:blur(22px) saturate(1.8);backdrop-filter:blur(22px) saturate(1.8)}
+/* computer: the filter band above the bill lists */
+html[data-theme=glass] body .vfl{background:var(--lx-c1)!important;border:1px solid var(--lx-line)!important;border-radius:18px!important;box-shadow:var(--lx-sh)!important;-webkit-backdrop-filter:blur(22px) saturate(1.8);backdrop-filter:blur(22px) saturate(1.8)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){html[data-theme=glass] body :is(.msrw,.psb,.prl,.mtot>div,.vfl){background:rgba(255,255,255,.94)!important}}
+@media (prefers-reduced-transparency:reduce){html[data-theme=glass] body :is(.msrw,.psb,.prl,.mtot>div,.vfl){background:rgba(255,255,255,.94)!important;-webkit-backdrop-filter:none;backdrop-filter:none}}
+</style>
+
+<style id="firm-box-fix">
+/* PHONE: the "All firms" box in the top card used to go off the right edge when there are 2 or more firms.
+   Now it sits on its own full-width row under the name. Layout only, no logic. To remove: delete this block. */
+@media(max-width:899px){
+ body #mtop:has(#fmswM){flex-wrap:wrap!important}
+ body #mtop #fmswM{flex:1 1 100%!important;max-width:100%!important;width:100%!important;margin:2px 0 0!important;box-sizing:border-box}
+}
+</style>
+
 <script id="purchase-barcode-phone">
 /* PURCHASE BILL on phone: "Scan barcode" button. Known code = fills item name, unit, price. New code = kept and saved with the item you type. */
 (function(){
