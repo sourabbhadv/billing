@@ -11648,6 +11648,35 @@ html[data-theme=glass] body table.mtb tr:first-child{background:transparent!impo
 }
 </style>
 
+<style id="glass-look-4">
+/* ===== LIQUID GLASS batch 4: pop-ups, bottom sheets, dropdown lists, toasts. Visual only, no logic.
+   Every rule starts with html[data-theme=glass], so other looks are untouched.
+   To remove: delete this whole style block. ===== */
+/* dim layer behind pop-ups: soft blur instead of flat black */
+html[data-theme=glass] body :is(#mtxn,#lne,#aiq,#aisc,#aivc:not(.full),#bwpov,#szov,#actov,#bcnf,#fnw,#gstov){background:rgba(30,45,100,.28)!important;-webkit-backdrop-filter:blur(8px) saturate(1.4);backdrop-filter:blur(8px) saturate(1.4)}
+/* the pop-up panels themselves: frosted glass, bright edge, light on top */
+html[data-theme=glass] body :is(#mtxn .sh,#lne .lnb,.aibox:not(#aivc.full .aibox),.bwpb,.szbox,.acb,#bcnf .bcnfb,#fnw .fb,#gstov .gm){background:linear-gradient(160deg,rgba(255,255,255,.80),rgba(255,255,255,.62))!important;color:var(--lx-txt)!important;border:1px solid var(--lx-line)!important;box-shadow:0 24px 60px -18px rgba(30,45,110,.5),inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.35)!important;-webkit-backdrop-filter:blur(30px) saturate(1.9);backdrop-filter:blur(30px) saturate(1.9)}
+html[data-theme=glass] body :is(#lne label,#fnw label,#fnw .mu){color:var(--lx-mu)!important}
+html[data-theme=glass] body #fnw textarea{background:var(--lx-inp)!important;border:1px solid var(--lx-inpl)!important;color:var(--lx-txt)!important}
+html[data-theme=glass] body #gstov .gh{border-bottom-color:rgba(255,255,255,.6)}
+/* dropdown suggestion lists */
+html[data-theme=glass] body #sug{background:rgba(255,255,255,.80)!important;border:1px solid var(--lx-line)!important;border-radius:16px!important;box-shadow:0 18px 40px -14px rgba(30,45,110,.45),inset 0 1px 0 rgba(255,255,255,.95)!important;-webkit-backdrop-filter:blur(26px) saturate(1.8);backdrop-filter:blur(26px) saturate(1.8);overflow-x:hidden}
+html[data-theme=glass] body #sug :is(.sugh,.dkh){background:rgba(255,255,255,.55)!important;color:var(--lx-mu)!important;border-bottom:1px solid rgba(255,255,255,.7)!important}
+html[data-theme=glass] body #sug .sugft{background:rgba(255,255,255,.62)!important;border-top:1px solid rgba(255,255,255,.7)!important;color:var(--lx-mu)!important}
+html[data-theme=glass] body #sug :is(.dkr,div){color:var(--lx-txt)}
+html[data-theme=glass] body #sug .dkr{border-bottom:1px solid rgba(255,255,255,.55)!important}
+html[data-theme=glass] body #sug .dkr:hover{background:rgba(10,124,255,.12)!important}
+html[data-theme=glass] body #sug::-webkit-scrollbar-track{background:transparent}
+html[data-theme=glass] body #sug::-webkit-scrollbar-thumb{background:rgba(82,97,127,.45);border-color:transparent}
+/* right-click / long-press menu */
+html[data-theme=glass] body .cmbox{background:rgba(255,255,255,.80)!important;color:var(--lx-txt)!important;border:1px solid var(--lx-line)!important;border-radius:16px!important;box-shadow:0 18px 40px -14px rgba(30,45,110,.45),inset 0 1px 0 rgba(255,255,255,.95)!important;-webkit-backdrop-filter:blur(26px) saturate(1.8);backdrop-filter:blur(26px) saturate(1.8)}
+/* toasts: glass capsule */
+html[data-theme=glass] body #bctoast{background:rgba(24,40,100,.62)!important;color:#fff!important;border:1px solid rgba(255,255,255,.4);box-shadow:0 12px 28px -12px rgba(20,30,90,.55),inset 0 1px 0 rgba(255,255,255,.45);-webkit-backdrop-filter:blur(18px) saturate(1.8);backdrop-filter:blur(18px) saturate(1.8)}
+/* no blur support or reduced transparency: calmer, nearly solid panels */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){html[data-theme=glass] body :is(#mtxn .sh,#lne .lnb,.aibox,.bwpb,.szbox,.acb,#bcnf .bcnfb,#fnw .fb,#gstov .gm,#sug,.cmbox){background:rgba(255,255,255,.96)!important}}
+@media (prefers-reduced-transparency:reduce){html[data-theme=glass] body :is(#mtxn .sh,#lne .lnb,.aibox,.bwpb,.szbox,.acb,#bcnf .bcnfb,#fnw .fb,#gstov .gm,#sug,.cmbox){background:rgba(255,255,255,.96)!important;-webkit-backdrop-filter:none;backdrop-filter:none}}
+</style>
+
 <script id="purchase-barcode-phone">
 /* PURCHASE BILL on phone: "Scan barcode" button. Known code = fills item name, unit, price. New code = kept and saved with the item you type. */
 (function(){
