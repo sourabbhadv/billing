@@ -11630,6 +11630,22 @@ html[data-theme=glass] body nav button.sb:not(.on):hover{background:rgba(255,255
 /* sidebar: brighter glass edge */
 html[data-theme=glass] body header,html[data-theme=glass] body nav{border:1px solid rgba(255,255,255,.55)!important;box-shadow:0 18px 40px -16px rgba(30,45,110,.45),inset 0 1px 0 rgba(255,255,255,.7)!important}
 }
+
+/* ---------- BATCH 3: phone look ---------- */
+html[data-theme=glass] body .sec{background:linear-gradient(160deg,var(--lx-c1),var(--lx-c2))!important;border:1px solid var(--lx-line)!important;border-radius:22px!important;box-shadow:var(--lx-sh)!important;-webkit-backdrop-filter:blur(22px) saturate(1.8);backdrop-filter:blur(22px) saturate(1.8)}
+@media(max-width:899px){
+/* top card: glass edge and light on top */
+html[data-theme=glass] body #mtop{border:1px solid rgba(255,255,255,.65)!important;box-shadow:0 16px 34px -16px rgba(10,100,255,.6),inset 0 1px 0 rgba(255,255,255,.6)!important}
+/* four shortcut tiles: coloured glass */
+html[data-theme=glass] body .mqg button{border:1px solid rgba(255,255,255,.72)!important;box-shadow:0 12px 24px -14px rgba(40,60,130,.5),inset 0 1px 0 rgba(255,255,255,.75)!important;-webkit-backdrop-filter:blur(14px) saturate(1.7);backdrop-filter:blur(14px) saturate(1.7)}
+html[data-theme=glass] body .mqg button:nth-child(1){background:linear-gradient(145deg,rgba(255,176,71,.84),rgba(255,122,89,.72))!important}
+html[data-theme=glass] body .mqg button:nth-child(2){background:linear-gradient(145deg,rgba(52,217,176,.82),rgba(14,159,141,.72))!important}
+html[data-theme=glass] body .mqg button:nth-child(3){background:linear-gradient(145deg,rgba(255,122,154,.84),rgba(224,67,111,.72))!important}
+html[data-theme=glass] body .mqg button:nth-child(4){background:linear-gradient(145deg,rgba(155,140,255,.84),rgba(91,61,245,.74))!important}
+/* item rows on the phone bill form: glass, not white */
+html[data-theme=glass] body table.mtb tr{background:rgba(255,255,255,.52)!important;border:1px solid rgba(255,255,255,.82);border-radius:16px!important;box-shadow:0 8px 20px -14px rgba(40,60,130,.4),inset 0 1px 0 rgba(255,255,255,.9)}
+html[data-theme=glass] body table.mtb tr:first-child{background:transparent!important;border:0;box-shadow:none}
+}
 </style>
 
 <script id="purchase-barcode-phone">
