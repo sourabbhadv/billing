@@ -8485,7 +8485,7 @@ window.bcNext=function(){var u={},mx=99;
  function left(i){return Math.max(0,Math.round((+i.bn||0)-(+i.bp||0)))}
  window.bcPO=function(v){po=!!v;bcFilter(q)};
  function rows(){var a=(D.items||[]).filter(function(i){return (!q||String(i.name||'').toLowerCase().indexOf(q)>=0)&&(!po||left(i)>0)}).slice(0,150);
-  return a.map(function(i){var c=String(i.bc||'').trim();return '<label style="display:flex;gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--bd)"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(sel[i.id]?'checked ':'')+'onchange="bcSel(\''+i.id+'\',this.checked)"><span style="flex:1;min-width:0">'+esc(i.name)+'<br><span style="font-size:12px;color:var(--mu)">'+(c?esc(c):'no barcode yet')+' · printed '+(+i.bp||0)+' · left '+left(i)+'</span></span><input id="bcq_'+i.id+'" type="number" min="1" max="500" value="'+(left(i)||1)+'" title="Labels to print" style="width:64px;margin:0"></label>'}).join('')||'<div style="padding:10px;color:var(--mu)">No items found.</div>'}
+  return a.map(function(i){var c=String(i.bc||'').trim();return '<label style="display:flex;gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--bd)"><input type="checkbox" style="width:20px;height:20px;margin:0" '+(sel[i.id]?'checked ':'')+'onchange="bcSel(\''+i.id+'\',this.checked)"><span style="flex:1;min-width:0">'+esc(i.name)+'<br><span style="font-size:12px;color:var(--mu)">'+(c?esc(c):'no barcode yet')+' · printed '+(+i.bp||0)+' · left '+left(i)+'</span></span><input id="bcq_'+i.id+'" type="number" min="1" max="500" value="'+(left(i)||1)+'" title="Labels to print" style="width:64px;margin:0"><input id="bcs_'+i.id+'" type="number" min="1" placeholder="Start no." title="Optional: first piece number to print (to reprint a lost label)" style="width:78px;margin:0 0 0 4px"></label>'}).join('')||'<div style="padding:10px;color:var(--mu)">No items found.</div>'}
  window.bcSel=function(id,on){if(on)sel[id]=1;else delete sel[id];cnt()};
  function cnt(){var e=document.getElementById('bclc');if(e)e.textContent=Object.keys(sel).length+' selected'}
  window.bcFilter=function(v){q=String(v||'').toLowerCase();var e=document.getElementById('bcll');if(e)e.innerHTML=rows()};
@@ -8502,13 +8502,13 @@ window.bcNext=function(){var u={},mx=99;
    if(!valid(c)&&!/^\d{1,13}$/.test(c)){skip.push(i.name);return}
    var n=Math.max(1,Math.min(500,+(document.getElementById('bcq_'+i.id)||{}).value||1));done.push([i,n]);
    var uni=(D.ps||{}).f_unit!==0,pc=window.bcPartyCode?bcPartyCode(i):'',mr=((D.ps||{}).f_mrp!==0&&+i.mrp>0)?'MRP Rs.'+i.mrp:'';
-   for(var k=0;k<n;k++){var uc=uni?c+'-'+((+i.bp||0)+k+1):c;cells.push('<div class="lb"><div class="nm">'+esc(i.name)+'</div>'+(mr?'<div class="mr">'+esc(mr)+'</div>':'')+((uni||!valid(c))?svg39(uc):svg(c))+(pc?'<div class="pc">'+esc(pc)+'</div>':'')+'</div>')}});
+   for(var k=0;k<n;k++){var uc=uni?c+'-'+(bcOff(i)+k+1):c;var pc1=window.bcPartyCode?bcPartyCode(i,uni?bcOff(i)+k+1:0):pc;cells.push('<div class="lb"><div class="nm">'+esc(i.name)+'</div>'+(mr?'<div class="mr">'+esc(mr)+'</div>':'')+((uni||!valid(c))?svg39(uc):svg(c))+(pc1?'<div class="pc">'+esc(pc1)+'</div>':'')+'</div>')}});
   if(made)save();
   if(!cells.length)return alert('These items have a different kind of barcode that cannot be printed here. Open the item, clear the Barcode box, press Make, and Save.');
   if(skip.length)alert('Not printed (different barcode kind): '+skip.slice(0,8).join(', ')+(skip.length>8?' and more':'')+'.');
   var w=window.open('','_blank');if(!w)return alert('Allow pop-ups for this site, then press Print again.');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Barcode labels</title><style>@page{size:A4;margin:8mm}body{margin:0;font-family:Arial,sans-serif}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}.lb{border:1px dashed #bbb;height:34mm;padding:1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden;break-inside:avoid}.nm{font-size:8pt;font-weight:700;line-height:1.1;max-height:2.2em;overflow:hidden;text-align:center}.mr{font-size:8pt;font-weight:700}.pc{font-size:6.5pt;line-height:1;color:#000}.lb svg{width:100%;height:15mm}</style></head><body><div class="g">'+cells.join('')+'</div></body></html>');
-  w.document.close();done.forEach(function(x){x[0].bp=(+x[0].bp||0)+x[1]});save();setTimeout(function(){try{w.focus();w.print()}catch(e){}},500);bcClose()};
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Barcode labels</title><style>'+(window.bcLabelCss?bcLabelCss():'@page{size:A4;margin:8mm}body{margin:0;font-family:Arial,sans-serif}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}.lb{border:1px dashed #bbb;height:34mm;padding:1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden;break-inside:avoid}.nm{font-size:8pt;font-weight:700;line-height:1.1;max-height:2.2em;overflow:hidden;text-align:center}.mr{font-size:8pt;font-weight:700}.pc{font-size:6.5pt;line-height:1;color:#000}.lb svg{width:100%;height:15mm}')+'</style></head><body><div class="g">'+cells.join('')+'</div></body></html>');
+  w.document.close();done.forEach(function(x){x[0].bp=Math.max(+x[0].bp||0,bcOff(x[0])+x[1])});save();setTimeout(function(){try{w.focus();w.print()}catch(e){}},500);bcClose()};
  function btn(){try{if(typeof pg==='undefined'||pg!=='items'||(typeof iform!=='undefined'&&iform))return;var v=document.getElementById('v');if(!v||document.getElementById('bclb'))return;
   var d=document.createElement('div');d.id='bclb';d.style.cssText='display:flex;justify-content:flex-end;padding:6px 0';d.innerHTML='<button class="s" onclick="bcLabels()">Print barcode labels</button>';v.insertBefore(d,v.firstChild)}catch(e){}}
  var r0=window.render;if(typeof r0==='function'){window.render=render=function(){var x=r0.apply(this,arguments);btn();return x}}
@@ -11916,7 +11916,7 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
  function inject(){
   if(!onRet()||(D.ps||{}).f_unit===0||(D.ps||{}).f_bc===0)return;
   if(document.getElementById('ruc'))return;
-  var tb=document.getElementById('rit').closest('.card');if(!tb)return;
+  var ri=document.getElementById('rit'),tb=ri.closest('.card')||ri.closest('.dkg')||ri.closest('table');if(!tb)return;
   var w=document.createElement('div');w.className='card';w.style.cssText='max-width:480px';
   var ph=(window.isM&&isM());
   w.innerHTML='<b>Returned piece code</b><div class="mu" style="margin:2px 0 6px">Scan or type the code on the tag (example 3257-4). Fills item, price and salesman of that exact piece.</div>'+
@@ -12063,6 +12063,91 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
  var _us=window.bcUnitStatus;
  if(typeof _us==='function')window.bcUnitStatus=function(code){var r=_us.apply(this,arguments);
   try{if(r&&r.sold&&r.sale&&typeof draft!=='undefined'&&draft&&draft.edit!=null&&String(r.sale.b.no)===String(draft.edit))return {sold:false}}catch(e){}return r};
+})();
+</script>
+
+
+<script id="batch6-piece-return-link">
+/* ===== BATCH 6: a returned piece is linked to the exact bill it came from (line.rb = bill no) =====
+   Fixes: piece returned and sold again in the same minute, or on a back-dated bill, was treated as "still returned".
+   Old return lines without rb keep the old date rule. Additive: wraps bcUnitStatus, retUnit, addRet. */
+(function(){
+ function nz(x){return String(x==null?'':x).trim()}
+ var rb=null;
+ function sales(code){var a=[];(D.bills||[]).forEach(function(b,ix){if(b.x)return;(b.lines||[]).forEach(function(l){if(l.uc&&l.uc.indexOf(code)>=0)a.push({b:b,l:l,ix:ix})})});
+  a.sort(function(p,q){return ((p.b.date||0)-(q.b.date||0))||(p.ix-q.ix)});return a.length?a[a.length-1]:null}
+ function returned(code,b){var f=false;(D.pays||[]).forEach(function(x){if(!x.ret||x.x)return;(x.lines||[]).forEach(function(l){
+   if(!l.uc||l.uc.indexOf(code)<0)return;
+   if(l.rb!=null){if(String(l.rb)===String(b.no))f=true}else if((x.date||0)>=(b.date||0))f=true})});return f}
+ var _us=window.bcUnitStatus;
+ if(typeof _us==='function')window.bcUnitStatus=function(code){var r=_us.apply(this,arguments);
+  try{if(!r||!r.sale)return r;var s=sales(nz(code));if(!s)return r;return {sold:!returned(nz(code),s.b),sale:{b:s.b,l:s.l}}}catch(e){}return r};
+ var _ru=window.retUnit;
+ if(typeof _ru==='function')window.retUnit=function(code){rb=null;var r=_ru.apply(this,arguments);
+  try{var st=bcUnitStatus(nz(code));if(st&&st.sale&&st.sold)rb={code:nz(code),no:st.sale.b.no}}catch(e){}return r};
+ var _ar=window.addRet;
+ if(typeof _ar==='function')window.addRet=addRet=function(){var n0=(typeof rdraft!=='undefined'&&rdraft&&rdraft.lines)?rdraft.lines.length:0,r=_ar.apply(this,arguments);
+  try{var l=rdraft.lines[rdraft.lines.length-1];if(rb&&rdraft.lines.length>n0&&l&&l.uc&&l.uc[0]===rb.code){l.rb=rb.no;rb=null}}catch(e){}return r};
+})();
+</script>
+
+
+<script id="batch7-piece-supplier">
+/* ===== BATCH 7: party code per piece (item bought from 2 suppliers) =====
+   On every NEW purchase the lines remember which piece numbers they cover (line.u0..line.u1 = bought-piece numbers of that item).
+   Label for piece N uses the party of the purchase line whose u0<=N<=u1. Old purchases / cancelled ones / pieces beyond: old rule (batch3).
+   Item form "Party code on label" (item.pcode) still wins. Additive: wraps saveDoc and bcPartyCode(item, pieceNo). */
+(function(){
+ function nz(x){return String(x==null?'':x).trim()}
+ var _sd=window.saveDoc;
+ if(typeof _sd==='function')window.saveDoc=saveDoc=function(){
+  var d=window.ddraft,pur=d&&d.t==='pur'&&!d.edit&&((D.ps||{}).f_bc!==0),pre=[],n0=(D.docs||[]).length,run={};
+  if(pur)(d.lines||[]).forEach(function(l){var i=findI(l.name),k=i?i.id:nz(l.name);if(run[k]==null)run[k]=i?(+i.bn||0):0;
+   var q=+l.qty||0;pre.push(q>0?[run[k]+1,run[k]+q]:null);run[k]+=q});
+  var r=_sd.apply(this,arguments);
+  try{if(pur&&(D.docs||[]).length>n0){var doc=D.docs[D.docs.length-1];if(doc&&doc.t==='pur'&&doc.lines&&doc.lines.length===pre.length){
+    doc.lines.forEach(function(l,k){if(pre[k]){l.u0=pre[k][0];l.u1=pre[k][1]}});save()}}}catch(e){}
+  return r};
+ var _pc=window.bcPartyCode;
+ window.bcPartyCode=function(i,n){
+  try{if(i&&n>0&&!nz(i.pcode)){var f=null;(D.docs||[]).forEach(function(d){if(d.t!=='pur'||d.x)return;(d.lines||[]).forEach(function(l){
+     if(nz(l.name)===nz(i.name)&&l.u0!=null&&n>=l.u0&&n<=l.u1)f=d});});
+    if(f){var p=P(f.pid);if(p&&nz(p.code))return String(p.code)}}}catch(e){}
+  return _pc?_pc.apply(this,arguments):''};
+})();
+</script>
+
+
+<script id="batch8-label-start">
+/* ===== BATCH 8: reprint labels from a chosen piece number =====
+   Label dialog: "Start no." box next to the label count. Empty = continue after the last printed (old behaviour).
+   Filled (example 4, count 1) = prints only piece BASE-4 again. The printed counter (item.bp) never goes down. */
+(function(){
+ window.bcOff=function(i){var e=document.getElementById('bcs_'+(i&&i.id)),v=e?Math.floor(+e.value):0;return v>=1?v-1:(+(i&&i.bp)||0)};
+})();
+</script>
+
+
+<script id="batch9-label-size">
+/* ===== BATCH 9: label size (Settings > General > Barcode labels > Label size, D.ps.lbsz) =====
+   a4x4 = A4 sheet 4 per row (old layout, default) | a4x3 = A4 sheet 3 per row (bigger) |
+   r50x25 / r38x25 / r75x50 = sticker roll printer, one label per page. Additive: wraps vSettings; bcPrint calls bcLabelCss(). */
+(function(){
+ var SZ={a4x4:'A4 sheet, 4 per row (default)',a4x3:'A4 sheet, 3 per row (bigger)',r50x25:'Roll 50 x 25 mm',r38x25:'Roll 38 x 25 mm',r75x50:'Roll 75 x 50 mm'};
+ var base='body{margin:0;font-family:Arial,sans-serif}.lb{border:1px dashed #bbb;padding:1.5mm;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden;break-inside:avoid}.nm{font-weight:700;line-height:1.1;max-height:2.2em;overflow:hidden;text-align:center}.mr{font-weight:700}.pc{line-height:1;color:#000}.lb svg{width:100%}';
+ function roll(w,h,nm,sv,pc){return '@page{size:'+w+'mm '+h+'mm;margin:0}'+base+'.g{display:block}.lb{border:0;width:'+w+'mm;height:'+h+'mm;padding:1mm;box-sizing:border-box;break-after:page;page-break-after:always}.nm{font-size:'+nm+'pt}.mr{font-size:'+nm+'pt}.pc{font-size:'+pc+'pt}.lb svg{height:'+sv+'mm}'}
+ window.bcLabelCss=function(){var z=(D.ps||{}).lbsz||'a4x4';
+  if(z==='a4x3')return '@page{size:A4;margin:8mm}'+base+'.g{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm}.lb{height:42mm}.nm{font-size:10pt}.mr{font-size:10pt}.pc{font-size:8pt}.lb svg{height:20mm}';
+  if(z==='r50x25')return roll(50,25,7,10,6);
+  if(z==='r38x25')return roll(38,25,6.5,10,6);
+  if(z==='r75x50')return roll(75,50,10,24,8);
+  return '@page{size:A4;margin:8mm}'+base+'.g{display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}.lb{height:34mm}.nm{font-size:8pt}.mr{font-size:8pt}.pc{font-size:6.5pt}.lb svg{height:15mm}'};
+ var _vs=window.vSettings||vSettings;
+ vSettings=window.vSettings=function(){var h=_vs.apply(this,arguments);
+  try{if(typeof h!=='string'||h.indexOf('<h3>Barcode labels</h3>')<0)return h;
+   var cur=(D.ps||{}).lbsz||'a4x4';
+   var sel='<div style="margin:8px 0"><div class="hint">Label size</div><select onchange="D.ps=D.ps||{};D.ps.lbsz=this.value;save()" style="margin:4px 0 0;max-width:100%">'+Object.keys(SZ).map(function(k){return '<option value="'+k+'"'+(k===cur?' selected':'')+'>'+SZ[k]+'</option>'}).join('')+'</select><div class="mu" style="margin-top:4px">Roll sizes print one label per page. In the print window choose your sticker printer, paper size as above, margins none, scale 100%.</div></div>';
+   return h.replace('<h3>Barcode labels</h3>','<h3>Barcode labels</h3>'+sel)}catch(e){return h}};
 })();
 </script>
 
