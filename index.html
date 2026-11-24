@@ -2598,7 +2598,9 @@ mBar=function(){_mbT();
  var fab=document.getElementById('mfab');
  if(fab&&op('trn')&&!tsel&&!tform){fab.textContent='＋ Add New Transporter';fab.onclick=function(){tform={};tsel=null;render()};fab.classList.add('show')}};
 var _rDx=render;
-render=function(){_rDx();try{var mb=document.getElementById('mbar');if(mb&&mb.offsetHeight)document.documentElement.style.setProperty('--mbh',mb.offsetHeight+'px');if(openB&&!form&&!sub)dxSum()}catch(e){}};
+function dxMbh(){try{var mb=document.getElementById('mbar');if(mb&&mb.offsetHeight){var r=mb.getBoundingClientRect(),h=Math.max(mb.offsetHeight,Math.round(window.innerHeight-r.top))+6;document.documentElement.style.setProperty('--mbh',h+'px')}}catch(e){}}
+window.addEventListener('resize',dxMbh);window.addEventListener('orientationchange',function(){setTimeout(dxMbh,300)});
+render=function(){_rDx();try{dxMbh();if(openB&&!form&&!sub)dxSum()}catch(e){}};
 
 /* ---- Settings > General: on / off switch ---- */
 var _vStT=vSettings;
@@ -11197,7 +11199,7 @@ html body .sfmode button.on::before,html body #mtop .sfmode button.on::before{co
 html[data-theme] body header{left:12px!important;top:12px!important;width:226px!important;border-radius:22px!important;background:linear-gradient(160deg,var(--lx-s2),var(--lx-s1))!important;border:1px solid var(--lx-sl)!important;box-shadow:var(--lx-sh)!important;padding:14px 16px!important}
 html[data-theme] body header h1{background:linear-gradient(90deg,var(--lx-sa1),var(--lx-sa2));-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;text-shadow:none!important;font-size:17px;font-weight:800}
 html[data-theme] body header .mu{color:rgba(255,255,255,.55)!important;font-size:12px}
-html[data-theme] body nav{left:12px!important;top:96px!important;bottom:12px!important;width:226px!important;border-radius:24px!important;background:linear-gradient(170deg,var(--lx-s2),var(--lx-s1))!important;border:1px solid var(--lx-sl)!important;box-shadow:var(--lx-sh)!important;padding:10px 0 60px!important;gap:1px;scrollbar-width:thin}
+html[data-theme] body nav{left:12px!important;top:var(--hdrb,96px)!important;bottom:12px!important;width:226px!important;border-radius:24px!important;background:linear-gradient(170deg,var(--lx-s2),var(--lx-s1))!important;border:1px solid var(--lx-sl)!important;box-shadow:var(--lx-sh)!important;padding:10px 0 60px!important;gap:1px;scrollbar-width:thin}
 html[data-theme] body nav button:not(.sb){margin:1px 10px!important;border-radius:14px!important;border-left:0 solid transparent!important;padding:11px 14px!important;font-size:14px!important;font-weight:600;color:rgba(255,255,255,.78)!important;background:transparent!important;box-shadow:none!important;position:relative}
 html[data-theme] body nav button.sb{margin:1px 10px!important;border-radius:12px!important;font-size:13.5px!important;font-weight:500;color:rgba(255,255,255,.66)!important;padding-left:34px!important;padding-right:14px!important;border-left:0 solid transparent!important}
 html[data-theme] body nav button{width:calc(100% - 20px)!important;box-sizing:border-box!important}
@@ -11583,5 +11585,57 @@ html body .mg .mr.sub{margin:3px 0 3px 28px!important;padding:10px 12px!importan
 html body .mg .mr.sub>span:first-child::before{width:10px!important;height:2px!important;border-radius:2px!important;margin-right:10px!important;background:var(--lx-a,#5b3fe8)!important}
 html body .mg .mr.sub .mrc{background:transparent!important;width:auto!important;height:auto!important}
 </style>
+<script id="purchase-barcode-phone">
+/* PURCHASE BILL on phone: "Scan barcode" button. Known code = fills item name, unit, price. New code = kept and saved with the item you type. */
+(function(){
+ var pend='',tt=null;
+ function pur(){return typeof ddraft!=='undefined'&&ddraft&&ddraft.t==='pur'&&document.getElementById('dit')&&document.getElementById('dqt')}
+ function tst(t,bad){var x=document.getElementById('bctoast');if(!x){x=document.createElement('div');x.id='bctoast';document.body.appendChild(x)}x.textContent=t;x.className='show'+(bad?' bad':'');clearTimeout(tt);tt=setTimeout(function(){x.className=''},3200)}
+ function ev(e){try{e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))}catch(x){}}
+ function setv(id,v){var e=document.getElementById(id);if(e&&v!==undefined&&v!==null&&v!==''){e.value=v;ev(e)}}
+ window.bcPurScan=function(){
+  if(!window.bcScan)return alert('Scanner is not available.');
+  bcScan({once:true,title:'Scan the item barcode',onCode:function(c){
+   c=String(c).trim();var it=(window.__bc&&__bc.byCode)?__bc.byCode(c):null;
+   if(it){pend='';var d=document.getElementById('dit');if(d){d.value=it.name;ev(d)}
+    try{if(typeof docFill==='function')docFill(it.name)}catch(x){}
+    var r=document.getElementById('drt');if(r&&!r.value)setv('drt',it.buy||it.rate||'');
+    var u=document.getElementById('dut');if(u&&!u.value)setv('dut',it.unit||'pcs');
+    var g=document.getElementById('dlc');if(g&&!g.value&&it.loc)setv('dlc',it.loc);
+    tst('Found: '+it.name+'. Type the quantity.');
+    var q=document.getElementById('dqt');if(q){try{q.focus()}catch(x){}}}
+   else{pend=c;tst('New barcode '+c+'. Type the item name. It will be saved with the item.');
+    var d2=document.getElementById('dit');if(d2){try{d2.focus()}catch(x){}}}
+  }})};
+ var _al=window.addDocLine;
+ if(typeof _al==='function')window.addDocLine=addDocLine=function(){
+  var n0=(window.ddraft&&ddraft.lines||[]).length,code=pend,r=_al.apply(this,arguments);
+  try{if(code&&ddraft&&ddraft.lines.length>n0){var nl=ddraft.lines[ddraft.lines.length-1],it=findI(nl.name);
+    if(!nl.bc&&!(it&&String(it.bc||'').trim())){var used=(D.items||[]).some(function(i){return String(i.bc||'').trim()===code});if(!used)nl.bc=code}
+    pend='';render()}}catch(x){}
+  return r};
+ function inject(){
+  try{if(!pur())return;if(window.isM&&!isM())return;
+   if((D.ps||{}).f_bc===0)return;
+   if(document.getElementById('bcpur'))return;
+   var d=document.getElementById('dit');var tr=d.closest('tr');var anchor=tr?tr.firstElementChild:d;
+   var b=document.createElement('button');b.type='button';b.id='bcpur';b.className='bcm';b.innerHTML='<span>📷</span> Scan barcode';b.onclick=function(){bcPurScan()};
+   b.style.cssText='display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:0 0 8px';
+   anchor.parentNode.insertBefore(b,anchor)}catch(e){}}
+ var mt=null;try{new MutationObserver(function(){clearTimeout(mt);mt=setTimeout(inject,120)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+ setInterval(inject,800);
+})();
+</script>
+<script id="nav-under-header">
+(function(){
+ function fix(){try{var h=document.querySelector('header'),n=document.querySelector('nav');if(!h||!n)return;
+  if(window.innerWidth<900){document.documentElement.style.removeProperty('--hdrb');return}
+  var b=h.getBoundingClientRect().bottom;if(b>0)document.documentElement.style.setProperty('--hdrb',Math.round(b+8)+'px')}catch(e){}}
+ window.addEventListener('resize',fix);window.addEventListener('load',fix);
+ try{var h=document.querySelector('header');if(h&&window.ResizeObserver)new ResizeObserver(fix).observe(h)}catch(e){}
+ try{new MutationObserver(function(){fix()}).observe(document.querySelector('header')||document.body,{childList:true,subtree:true,characterData:true})}catch(e){}
+ setInterval(fix,1500);fix();
+})();
+</script>
 </body>
 </html>
