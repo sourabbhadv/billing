@@ -8612,7 +8612,7 @@ window.bcNext=function(){var u={},mx=99;
   var r=_sd.apply(this,arguments);
   try{if(pur&&on('f_bc')&&(D.docs||[]).length>n0||(pur&&on('f_bc')&&d.edit)){
    var c=0,c2=0,tot=0,nw=(D.docs||[]).length>n0;names.forEach(function(nm){var i=findI(nm[0]);if(!i)return;if(nw&&+nm[3]>0){i.bn=(+i.bn||0)+(+nm[3]);tot+=(+nm[3])}if(!String(i.bc||'').trim()){var cc=nm[1];if(!cc||used(String(cc).trim()))cc=make();i.bc=cc;c++}if(on('f_mrp')&&+nm[2]>0&&(+i.rate!==+nm[2]||+i.mrp!==+nm[2])){i.rate=+nm[2];i.mrp=+nm[2];c2++}});if((c2||tot)&&!c)save();
-   if(c||tot){save();setTimeout(function(){if(confirm((tot?tot+' label'+(tot>1?'s':'')+' to print for this purchase.':c+' new barcode'+(c>1?'s':'')+'.')+' Open the label printing screen now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
+   if(c||tot){save();setTimeout(function(){if(d.pbc)return;if(confirm((tot?tot+' label'+(tot>1?'s':'')+' to print for this purchase.':c+' new barcode'+(c>1?'s':'')+'.')+' Open the label printing screen now?')&&window.bcLabels)bcLabels()},300)}}}catch(e){}
   return r};
 })();
 </script>
@@ -12157,5 +12157,53 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
 })();
 </script>
 
+<script id="purchase-print-barcode">
+/* ===== PURCHASE: "Print barcode" switch (shown only when Settings > Barcode is ON) =====
+   Phone: under the Scan barcode button. PC: beside ADD ROW. If it is ON when the purchase is saved, the label printing
+   screen opens right after saving with only this purchase's items ticked (labels = quantity bought). */
+(function(){
+ function bcOnP(){return (D.ps||{}).f_bc!==0}
+ function isPur(){try{return typeof ddraft!=='undefined'&&ddraft&&ddraft.t==='pur'}catch(e){return false}}
+ function paint(b){var on=!!(ddraft&&ddraft.pbc);b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');b.innerHTML='<span class="pbi">'+(on?'&#10003;':'&#127991;')+'</span> Print barcode'}
+ window.pbcToggle=function(){if(!ddraft)return;ddraft.pbc=!ddraft.pbc;document.querySelectorAll('.pbcb').forEach(paint)};
+ function mk(extra){var b=document.createElement('button');b.type='button';b.className='pbcb '+(extra||'');b.title='Print barcode labels for this purchase after saving';b.onclick=function(e){e.stopPropagation();pbcToggle()};paint(b);return b}
+ function inject(){
+  if(!isPur()||!bcOnP()){document.querySelectorAll('.pbcb').forEach(function(e){e.remove()});return}
+  if(typeof isM==='function'&&isM()){
+   var sc=document.getElementById('bcpur'),ex=document.querySelector('.pbcb');
+   if(sc&&sc.parentNode){if(ex&&ex.previousSibling===sc)return;if(ex)ex.remove();sc.parentNode.insertBefore(mk('pbcm'),sc.nextSibling)}
+   else if(!ex){var di=document.getElementById('dit');if(di&&di.parentNode)di.parentNode.insertBefore(mk('pbcm'),di.nextSibling)}
+  }else{
+   if(document.querySelector('.pbcb'))return;
+   var f=document.querySelector('tfoot .ab'),td=f&&f.parentNode;
+   if(td){td.style.whiteSpace='nowrap';td.appendChild(mk('pbcd'))}
+  }}
+ var r0=window.render;
+ if(typeof r0==='function')window.render=render=function(){var x=r0.apply(this,arguments);try{inject()}catch(e){}[80,400,1200].forEach(function(ms){setTimeout(function(){try{inject()}catch(e){}},ms)});return x};
+ var st=document.createElement('style');
+ st.textContent='.pbcb{border:1.5px solid var(--k146,#b9bdd6);background:var(--k26,#fff);color:var(--k131,#2d3350);border-radius:10px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}.pbcb.on{background:var(--k60,#1a73e8);border-color:var(--k60,#1a73e8);color:var(--k1,#fff)}.pbcb.pbcm{width:100%;justify-content:center;padding:12px;font-size:15px;margin:8px 0 0}.pbcb.pbcd{padding:7px 12px;font-size:12.5px;margin-left:8px;vertical-align:middle}';
+ document.head.appendChild(st);
+ /* after saving: open the label screen for this purchase */
+ var _sv=window.saveDoc;
+ if(typeof _sv==='function')window.saveDoc=saveDoc=function(){
+  var d=window.ddraft,want=!!(d&&d.t==='pur'&&d.pbc&&bcOnP()),lines=want?JSON.parse(JSON.stringify(d.lines||[])):[],n0=(D.docs||[]).length;
+  var r=_sv.apply(this,arguments);
+  try{if(want&&window.ddraft!==d&&((D.docs||[]).length>n0||d.edit))setTimeout(function(){pbcOpen(lines)},350)}catch(e){}
+  return r};
+ window.pbcOpen=function(lines){
+  if(typeof bcLabels!=='function')return alert('Barcode label printing is not available.');
+  var want={},ok=true;
+  lines.forEach(function(l){var i=(l.iid&&(D.items||[]).find(function(x){return x.id===l.iid}))||findI(l.name);if(!i)return;
+   var n=(l.sz&&l.sz.length)?l.sz.length:Math.ceil(+l.qty||0);want[i.id]=(want[i.id]||0)+Math.max(1,n);
+   if(!(((+i.bn||0)-(+i.bp||0))>0))ok=false});
+  if(!Object.keys(want).length)return;
+  bcLabels();
+  try{if(!ok&&typeof bcPO==='function')bcPO(false);bcAll(0);
+   Object.keys(want).forEach(function(id){bcSel(id,1)});bcFilter('');
+   Object.keys(want).forEach(function(id){var e=document.getElementById('bcq_'+id);if(e)e.value=Math.min(500,want[id])});
+   var h=document.querySelector('#bclm .mu');if(h)h.textContent='Labels for the purchase you just saved are ticked (one label per piece bought). Change the numbers if needed, then press Print.'}catch(e){}
+ };
+})();
+</script>
 </body>
 </html>
