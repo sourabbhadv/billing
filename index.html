@@ -12159,7 +12159,7 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
 
 <script id="purchase-print-barcode">
 /* ===== PURCHASE: "Print barcode" switch (shown only when Settings > Barcode is ON) =====
-   Phone: under the Scan barcode button. PC: beside ADD ROW. If it is ON when the purchase is saved, the label printing
+   ONE button for the whole purchase: phone = above Save, PC = beside Save. If it is ON when the purchase is saved, the label printing
    screen opens right after saving with only this purchase's items ticked (labels = quantity bought). */
 (function(){
  function bcOnP(){return (D.ps||{}).f_bc!==0}
@@ -12168,20 +12168,17 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
  window.pbcToggle=function(){if(!ddraft)return;ddraft.pbc=!ddraft.pbc;document.querySelectorAll('.pbcb').forEach(paint)};
  function mk(extra){var b=document.createElement('button');b.type='button';b.className='pbcb '+(extra||'');b.title='Print barcode labels for this purchase after saving';b.onclick=function(e){e.stopPropagation();pbcToggle()};paint(b);return b}
  function inject(){
-  if(!isPur()||!bcOnP()){document.querySelectorAll('.pbcb').forEach(function(e){e.remove()});return}
-  if(typeof isM==='function'&&isM()){
-   var sc=document.getElementById('bcpur'),ex=document.querySelector('.pbcb');
-   if(sc&&sc.parentNode){if(ex&&ex.previousSibling===sc)return;if(ex)ex.remove();sc.parentNode.insertBefore(mk('pbcm'),sc.nextSibling)}
-   else if(!ex){var di=document.getElementById('dit');if(di&&di.parentNode)di.parentNode.insertBefore(mk('pbcm'),di.nextSibling)}
-  }else{
-   if(document.querySelector('.pbcb'))return;
-   var f=document.querySelector('tfoot .ab'),td=f&&f.parentNode;
-   if(td){td.style.whiteSpace='nowrap';td.appendChild(mk('pbcd'))}
-  }}
+  var ex=document.querySelectorAll('.pbcb');
+  if(!isPur()||!bcOnP()){ex.forEach(function(e){e.remove()});return}
+  var m=(typeof isM==='function'&&isM()),sv=m?document.querySelector('button.b[onclick="saveDoc()"]'):document.querySelector('.dkf .sv');
+  if(!sv||!sv.parentNode)return;
+  if(ex.length===1&&ex[0].nextSibling===sv)return;
+  ex.forEach(function(e){e.remove()});
+  sv.parentNode.insertBefore(mk(m?'pbcm':'pbcd'),sv)}
  var r0=window.render;
  if(typeof r0==='function')window.render=render=function(){var x=r0.apply(this,arguments);try{inject()}catch(e){}[80,400,1200].forEach(function(ms){setTimeout(function(){try{inject()}catch(e){}},ms)});return x};
  var st=document.createElement('style');
- st.textContent='.pbcb{border:1.5px solid var(--k146,#b9bdd6);background:var(--k26,#fff);color:var(--k131,#2d3350);border-radius:10px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}.pbcb.on{background:var(--k60,#1a73e8);border-color:var(--k60,#1a73e8);color:var(--k1,#fff)}.pbcb.pbcm{width:100%;justify-content:center;padding:12px;font-size:15px;margin:8px 0 0}.pbcb.pbcd{padding:7px 12px;font-size:12.5px;margin-left:8px;vertical-align:middle}';
+ st.textContent='.pbcb{border:1.5px solid var(--k146,#b9bdd6);background:var(--k26,#fff);color:var(--k131,#2d3350);border-radius:10px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}.pbcb.on{background:var(--k60,#1a73e8);border-color:var(--k60,#1a73e8);color:var(--k1,#fff)}.pbcb.pbcm{width:100%;justify-content:center;padding:12px;font-size:15px;margin:0 0 8px}.pbcb.pbcd{padding:0 14px;height:36px;font-size:13px;margin:0 8px}';
  document.head.appendChild(st);
  /* after saving: open the label screen for this purchase */
  var _sv=window.saveDoc;
