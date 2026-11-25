@@ -365,7 +365,7 @@ function fillI(v){var i=findI(v);if(i){$('#br').value=i.rate;$('#bu').value=i.un
 function addLine2(){
  var n=$('#bi').value.trim(),q=+$('#bq').value,r=+$('#br').value;
  if(!n||!(q>0)||$('#br').value==='')return alert('Enter item name, qty and rate');
- draft.lines.push({name:n,unit:$('#bu').value.trim()||'pcs',qty:q,rate:r,amt:q*r,nowq:Math.min(+(($('#bs')||{}).value)||0,q)});window.__sugOff=Date.now()+900;render();setTimeout(function(){var e=$('#bi');if(e)e.focus()},0);
+ draft.lines.push({name:n,unit:$('#bu').value.trim()||'pcs',qty:q,rate:r,amt:q*r,nowq:Math.min(+(($('#bs')||{}).value)||0,q)});window.__lnBlock=Date.now()+800;window.__sugOff=Date.now()+900;render();setTimeout(function(){var e=$('#bi');if(e)e.focus()},0);
 }
 function saveBill2(){
  var nm=(draft.name||'').trim();if(!nm)return alert('Enter party name');
@@ -1973,8 +1973,13 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
    var ph=(m.l&&m.l.indexOf(m.v+' · ')===0)?m.l.slice(m.v.length+3):'',b=parseFloat(m.b)||0;
    return '<div class="dkr" data-v="'+esc(m.v)+'"><span class="n">'+esc(m.v)+(ph?'<small class="ph">'+esc(ph)+'</small>':'')+'</span><span class="c2">'+(b?fN(b):'0')+(b>0?'<i class="dki g">&#8601;</i>':b<0?'<i class="dki r">&#8599;</i>':'')+'</span></div>'}).join('');
   box.innerHTML=hd+rows+'<div class="sugft"><span>'+M.length+' · scroll</span><b data-d="-1">▲</b><b data-d="1">▼</b></div>'}
- function pos(){if(!cur)return;var r=cur.getBoundingClientRect(),vh=(window.visualViewport?visualViewport.height:innerHeight);box.style.left=Math.max(4,r.left)+'px';var ww=Math.max(r.width,240);if(box.className==='dk')ww=Math.max(ww,box.dataset.k==='i'?640:460);box.style.width=Math.min(ww,innerWidth-8)+'px';
-  var h=box.offsetHeight;if(r.bottom+h+6>vh&&r.top>h+6)box.style.top=(r.top-h-4)+'px';else box.style.top=(r.bottom+3)+'px'}
+ function pos(){if(!cur)return;var r=cur.getBoundingClientRect(),vv=window.visualViewport,vt=vv?vv.offsetTop:0,vl=vv?vv.offsetLeft:0,vh=vv?vv.height:innerHeight,vw=vv?vv.width:innerWidth;
+  var ww=Math.max(r.width,240);if(box.className==='dk')ww=Math.max(ww,box.dataset.k==='i'?640:460);ww=Math.min(ww,vw-8);box.style.width=ww+'px';
+  box.style.left=Math.min(Math.max(4+vl,r.left),vl+vw-ww-4)+'px';
+  var cap=Math.round(vh*.46);box.style.maxHeight=cap+'px';
+  var h=box.offsetHeight,below=vt+vh-r.bottom-8,above=r.top-vt-8,up=h>below&&above>below,room=Math.max(80,up?above:below);
+  if(h>room){box.style.maxHeight=room+'px';h=box.offsetHeight}
+  var top=up?r.top-h-4:r.bottom+3;box.style.top=Math.max(vt+4,Math.min(top,vt+vh-h-4))+'px'}
  function show(inp){
   if(inp.id==='bn'&&window.innerWidth<900&&document.body.classList.contains('sfm')){hide();return}
   if(/flt\(/.test(inp.getAttribute('oninput')||'')){hide();return}
@@ -1990,7 +1995,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
   cur=inp;
   box.innerHTML='<div class="sugh">'+(q?M.length+' found · '+M.length+' मिले':'All '+M.length+' · type to search · टाइप करके खोजें')+'</div>'+M.map(function(m){var tx=(m.l&&m.l!==m.v&&m.l.indexOf(m.v)===0)?m.l:m.v;return '<div data-v="'+esc(m.v)+'" style="padding:12px 14px;border-bottom:1px solid var(--k39,#eef0f5);font-size:16px;cursor:pointer">'+esc(tx)+stkSub(m.s)+'</div>'}).join('')+'<div class="sugft"><span>'+M.length+' item'+(M.length>1?'s':'')+' · scroll</span><b data-d="-1">▲</b><b data-d="1">▼</b></div>';
   dkBox(M);var ft=box.lastChild;
-  box.style.display='block';sIdx=-1;if(box.scrollHeight<=box.clientHeight+2)ft.style.display='none';pos()}
+  box.style.display='block';sIdx=-1;if(box.scrollHeight<=box.clientHeight+2)ft.style.display='none';pos();[60,250,600].forEach(function(ms){setTimeout(pos,ms)})}
  var spx=0,spy=0;
  box.addEventListener('pointerdown',function(e){var t=e.target,bt=t.closest&&t.closest('b[data-d]');if(bt){e.preventDefault();box.scrollTop+=(+bt.dataset.d)*Math.max(120,box.clientHeight*.7);return}if(t.closest&&t.closest('div[data-v]')){e.preventDefault();spx=e.clientX;spy=e.clientY}});
  box.addEventListener('pointerup',function(e){var d=e.target.closest&&e.target.closest('div[data-v]');if(!d||!cur)return;if(Math.abs(e.clientX-spx)>8||Math.abs(e.clientY-spy)>8)return;var inp=cur;inp.value=d.dataset.v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));hide();
@@ -1998,7 +2003,7 @@ var _sr8=softRender,_srT=0;softRender=function(){clearTimeout(_srT);_srT=setTime
  document.addEventListener('input',function(e){var t=e.target;if(t&&t.dataset&&t.dataset.dl)show(t)});
  document.addEventListener('focusin',function(e){var t=e.target;if(window.__sugOff&&Date.now()<window.__sugOff)return;if(t&&t.dataset&&t.dataset.dl)show(t)});
  document.addEventListener('focusout',function(e){setTimeout(function(){if(cur&&document.activeElement!==cur)hide()},120)});
- window.addEventListener('scroll',pos,true);window.addEventListener('resize',pos);
+ window.addEventListener('scroll',pos,true);window.addEventListener('resize',pos);if(window.visualViewport){visualViewport.addEventListener('resize',pos);visualViewport.addEventListener('scroll',pos)}
  document.addEventListener('keydown',function(e){if(e.key==='Escape')hide()});
  function sHl(i){var k=box.querySelectorAll('div[data-v]');if(!k.length)return;sIdx=(i+k.length)%k.length;for(var j=0;j<k.length;j++)k[j].style.background=j===sIdx?'#d6e9f9':'';k[sIdx].scrollIntoView({block:'nearest'})}
  document.addEventListener('keydown',function(e){var t=e.target;if(!t||!t.dataset||!t.dataset.dl)return;var open=box.style.display==='block'&&cur===t;
@@ -4380,7 +4385,8 @@ var st=document.createElement('style');st.textContent='#prov{position:fixed;inse
 (function(){
 function arr(c){return c==='b'?draft.lines:c==='r'?rdraft.lines:ddraft.lines}
 window.closeLne=function(){var o=document.getElementById('lne');if(o)o.remove()};
-window.lnEdit=function(c,k){var l=arr(c)[k];if(!l)return;closeLne();
+['pointerdown','touchstart','mousedown'].forEach(function(ev){document.addEventListener(ev,function(e){try{if(e.target.closest&&e.target.closest('.sfab'))window.__lnBlock=Date.now()+800}catch(x){}},true)});
+window.lnEdit=function(c,k){if(Date.now()<(window.__lnBlock||0))return;var l=arr(c)[k];if(!l)return;closeLne();
  var o=document.createElement('div');o.id='lne';o.dataset.c=c;o.dataset.k=k;o.dataset.n=l.name;
  o.onclick=function(e){if(e.target===o)closeLne()};
  o.innerHTML='<div class="lnb"><div class="lnh"><b>Edit item #'+(k+1)+'</b><span onclick="closeLne()">&times;</span></div>'
