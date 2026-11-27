@@ -4112,7 +4112,7 @@ render();
 })();
 </script>
 <script>
-/* ===== COST ENGINE: purchase-wise (FIFO) cost + assumed profit for items with no purchase price ===== */
+/* ===== COST ENGINE: latest-purchase-price cost + assumed profit for items with no purchase price ===== */
 (function(){
 var CE={c:null,t:0,EST:{}};window.CE=CE;
 CE.pct=function(){var v=PS().estp;v=(v==null||v==='')?10:+v;return isNaN(v)?10:Math.max(0,Math.min(90,v))};
@@ -4132,16 +4132,14 @@ CE.build=function(){
   if(i.pass){E.forEach(function(e){if(e.t==='s'||e.t==='r')M.set(e.l,{q:e.q,c:e.v,e:0})});return}
   if(i.est){E.forEach(function(e){if(e.t==='s'||e.t==='r'){var ec=on?e.v*(1-p):0;M.set(e.l,{q:e.q,c:ec,e:ec,f:1})}});return}
   E.sort(function(a,b){return a.d-b.d||ord(a)-ord(b)});
-  var lots=[],base=0,j;for(j=0;j<E.length;j++)if(E[j].t==='p'&&E[j].c>0){if(!base)base=E[j].c;CE.lots[id]=E[j].c}
+  /* COST = the LATEST purchase price of the item (same as Vyapar). E is sorted by date, so the last purchase bill with a rate wins. If the item was never purchased, its saved purchase price is used. */
+  var base=0,j;for(j=0;j<E.length;j++)if(E[j].t==='p'&&E[j].c>0){base=E[j].c;CE.lots[id]=E[j].c}
   if(!base)base=+i.buy>0?+i.buy:0;
-  var last=base;
   E.forEach(function(e){
-   if(e.t==='p'){if(e.q>0)lots.push({q:e.q,c:e.c});return}
-   if(e.t==='r'){var c=last>0?last:0,q=e.q;if(c>0){lots.unshift({q:q,c:c});M.set(e.l,{q:q,c:c*q,e:0})}else{var ec=on?e.v*(1-p):0;M.set(e.l,{q:q,c:ec,e:ec,f:1})}return}
-   var need=e.q,cost=0,est=0,fl=0;
-   while(need>1e-9&&lots.length){var L=lots[0],tk=Math.min(need,L.q);cost+=tk*L.c;L.q-=tk;need-=tk;if(L.q<=1e-9)lots.shift()}
-   if(need>1e-9){if(base>0)cost+=need*base;else if(e.t==='s'){var ec2=on?e.v*(e.q>0?need/e.q:0)*(1-p):0;cost+=ec2;est+=ec2;fl=1}}
-   if(e.t==='s'){M.set(e.l,{q:e.q,c:cost,e:est,f:fl});if(!est&&e.q>0&&cost>0)last=cost/e.q}
+   if(e.t==='r'){if(base>0)M.set(e.l,{q:e.q,c:base*e.q,e:0});else{var ec=on?e.v*(1-p):0;M.set(e.l,{q:e.q,c:ec,e:ec,f:1})}return}
+   if(e.t!=='s')return;
+   if(base>0){M.set(e.l,{q:e.q,c:base*e.q,e:0,f:0});return}
+   var ec2=on?e.v*(1-p):0;M.set(e.l,{q:e.q,c:ec2,e:ec2,f:1})
   })});
  }catch(err){console.error('cost engine',err)}
  CE.c=M;CE.t=Date.now();return M};
@@ -4323,7 +4321,7 @@ function prod(A,R){var m=AN.m,M=[['r','Sales'],['q','Quantity'],['p','Profit']],
 window.anApply=function(id,p){var i=I(id);if(!i||!confirm('Set default rate of '+i.name+' to ₹'+p+'? (now ₹'+i.rate+')'))return;i.rate=p;save();render()};
 function price(R){var L=R.map(function(r){return [r,sug(r)]}).filter(function(x){return x[1]}),o={loss:0,clear:1,raise:2,cut:3,leak:4,star:5},TX={loss:'Selling at a loss',clear:'Clear stock',raise:'Raise price',cut:'Offer discount',leak:'Fix list price',star:'Star: keep'};
  L.sort(function(a,b){return o[a[1].t]-o[b[1].t]||b[0].r-a[0].r});
- return '<div class="card mu">Suggestions come from your sales speed, margin and stock. Check them before applying: <b>Apply</b> only changes the default rate on the item.<br>Cost is matched purchase by purchase (oldest stock sold first), so a later price change never turns an earlier profitable sale into a loss.</div>'+(L.map(function(x){var r=x[0],s=x[1];return '<div class="card"><div class="row"><b>'+esc(r.name)+'</b><span class="'+s.c+'" style="font-weight:600">'+TX[s.t]+'</span></div><div class="mu" style="margin:3px 0">'+s.w+'</div><div class="row" style="flex-wrap:wrap"><span class="mu">'+(r.rq>0?'Cost of units sold ₹'+Math.round(r.cs)+(r.cl!=null&&Math.round(r.cl)!==Math.round(r.ch)?' (₹'+Math.round(r.cl)+' to ₹'+Math.round(r.ch)+')':'')+' · ':'')+'Latest buy ₹'+Math.round(r.buy)+(r.be?' (assumed)':'')+' · List ₹'+Math.round(r.list)+' · Sold avg ₹'+Math.round(r.avg)+(r.mg!=null?' · Margin '+pc(r.mg):'')+'</span>'+(s.p&&!/^n:/.test(r.id)?'<button class="b" onclick="anApply(\''+r.id+'\','+s.p+')">Suggested ₹'+s.p+' · Apply</button>':'')+'</div></div>'}).join('')||'<div class="card mu">No price suggestions yet. Add purchase prices on items and make more sales.</div>')}
+ return '<div class="card mu">Suggestions come from your sales speed, margin and stock. Check them before applying: <b>Apply</b> only changes the default rate on the item.<br>Cost uses the latest purchase price of each item (same as Vyapar), so profit follows your newest purchase bill.</div>'+(L.map(function(x){var r=x[0],s=x[1];return '<div class="card"><div class="row"><b>'+esc(r.name)+'</b><span class="'+s.c+'" style="font-weight:600">'+TX[s.t]+'</span></div><div class="mu" style="margin:3px 0">'+s.w+'</div><div class="row" style="flex-wrap:wrap"><span class="mu">'+(r.rq>0?'Cost of units sold ₹'+Math.round(r.cs)+(r.cl!=null&&Math.round(r.cl)!==Math.round(r.ch)?' (₹'+Math.round(r.cl)+' to ₹'+Math.round(r.ch)+')':'')+' · ':'')+'Latest buy ₹'+Math.round(r.buy)+(r.be?' (assumed)':'')+' · List ₹'+Math.round(r.list)+' · Sold avg ₹'+Math.round(r.avg)+(r.mg!=null?' · Margin '+pc(r.mg):'')+'</span>'+(s.p&&!/^n:/.test(r.id)?'<button class="b" onclick="anApply(\''+r.id+'\','+s.p+')">Suggested ₹'+s.p+' · Apply</button>':'')+'</div></div>'}).join('')||'<div class="card mu">No price suggestions yet. Add purchase prices on items and make more sales.</div>')}
 window.anCopy=function(){var t=window.__anOrd||'';try{navigator.clipboard.writeText(t);alert('Order list copied')}catch(e){prompt('Copy this',t)}};
 function mcards(h,rows){return rows.map(function(r){return '<div class="card mcard"><div class="row"><b>'+r[0]+'</b><span>'+r[4]+'</span></div><div class="row"><span class="mu">Stock '+r[1]+' · '+r[2]+'/day</span><span class="mu">'+(r[3]?'Lasts '+r[3]:'')+'</span></div>'+(r[5]?'<div class="ok" style="margin:6px 0 0">Order <b>'+r[5]+'</b></div>':'')+'</div>'}).join('')}
 function stock(R){var L=R.map(function(r){return [r,plan(r)]}).filter(function(x){return x[1]}),o={now:0,soon:1,ok:3,over:4,dead:5};
@@ -7265,6 +7263,10 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')bwpClose()})
  var today=function(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
  var KEEP=30,FOLDER='Ashirwad Billing Backup',SCOPE='https://www.googleapis.com/auth/drive.file',NAME=/^(?:billing_backup|vyapar_data)-\d{4}-\d\d-\d\d\.json$/;
  var tok=null,tokExp=0,busy=false,files=null,lastTry=0;
+ /* Safari reloads/wakes the page often: remember the Google token (valid 1 hour) so no new Google window is needed. Live sync already saves its own copy (lvTok); use whichever lasts longer. */
+ (function(){try{var best=null;['gdTok','lvTok'].forEach(function(k){var o=null;try{o=JSON.parse(localStorage.getItem(k)||'null')}catch(e){}if(o&&o.t&&+o.e>Date.now()+60000&&(!best||+o.e>+best.e))best=o});
+  if(best){var acc=String(localStorage.getItem('gdAcct')||'').toLowerCase(),who=String(best.w||best.m||'').toLowerCase();
+   if(!acc||!who||normM(acc)===normM(who)){tok=best.t;tokExp=+best.e}}}catch(e){}})();
  var DEFAULT_GOOGLE_CLIENT_ID='864007478846-i5r4ddpu95t9i80u57571h5cf7osr7ft.apps.googleusercontent.com';
  var cid=function(){return (LS('gdCid')||DEFAULT_GOOGLE_CLIENT_ID).trim()},em=function(){return (LS('gdEmail')||'').trim()};
  function hasData(){return !!D&&((D.bills||[]).length+(D.parties||[]).length+(D.items||[]).length)>0}
@@ -7290,7 +7292,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    .then(function(j){var w=String((j&&j.user&&j.user.emailAddress)||'').toLowerCase();if(!w)throw new Error('Google did not return the selected account email. Please try again.');return w})
  }
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
- function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
+ function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok','gdTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
  function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
  function getTokInternal(ask,chooseAccount,requestedEmail,minLeft){
   var requestGeneration=__gdAuthGeneration;
@@ -7298,15 +7300,18 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   if(tok&&Date.now()<tokExp-(minLeft||60000)&&!chooseAccount)return Promise.resolve(tok);
   if(chooseAccount){
    try{if(tok&&window.google&&google.accounts&&google.accounts.oauth2)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
-   tok=null;tokExp=0;window.__gdTok=null;
+   tok=null;tokExp=0;window.__gdTok=null;LS('gdTok',null);
   }
   if(!cid())return Promise.reject(new Error('First paste your Google Client ID (open One-time setup).'));
+  /* Safari/iPhone always blocks Google's window when it is opened without a tap. Do not even try: ask for one tap instead (the next tap anywhere reconnects). */
+  if(!ask&&!chooseAccount){try{var _u=navigator.userAgent||'',_wk=/iP(hone|ad|od)/.test(_u)||(/Safari\//.test(_u)&&!/Chrome\/|Chromium\/|Edg\/|Android/.test(_u));
+   if(_wk&&navigator.userActivation&&!navigator.userActivation.isActive){var _e=new Error('Tap once anywhere: the browser blocks the Google window unless you tap.');_e.blocked=true;return Promise.reject(_e)}}catch(e){}}
   var _run=function(lock){return new Promise(function(res,rej){
    /* During a manual account change, let the user-selected Google account be authoritative.
       Do not send login_hint: Google may use it to select an existing session. */
    /* When the customer typed a Drive email, pass it to Google's OAuth account selector as login_hint. */
    var hint=chooseAccount?(String(requestedEmail||'').trim().toLowerCase()||undefined):(lock||em()||undefined);
-   function accept(t,r,w){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');
+   function accept(t,r,w){try{localStorage.removeItem('gdWrongAcct')}catch(e){}tok=t;tokExp=Date.now()+(+r.expires_in||3600)*1000;LS('gdLinked','1');try{LS('gdTok',JSON.stringify({t:t,e:tokExp,w:w||String(LS('gdWho')||LS('gdAcct')||'')}))}catch(e){}
     if(w){LS('gdWho',w);LS('gdEmail',w);window.__lmC=String(w).toLowerCase();window.__gdTok={t:t,e:tokExp,w:w}}else{whoIs(t).then(function(x){if(x){LS('gdWho',x);try{paint()}catch(e){}}})}
     res(tok)}
    var cfg={client_id:cid(),scope:SCOPE,
@@ -7425,7 +7430,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   window.__gdAccountSwitching=true;
   try{if(tok&&window.google&&google.accounts&&google.accounts.oauth2)google.accounts.oauth2.revoke(tok,function(){})}catch(e){}
   tok=null;tokExp=0;files=null;
-  ['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho','gdAcct','gdWrongAcct','gdEmail','lvFile','lvTok','lvBase','lvStamp','lvOn'].forEach(function(k){LS(k,null)});
+  ['gdLinked','gdOn','gdFolder','gdDay','gdAt','gdErr','gdWho','gdAcct','gdWrongAcct','gdEmail','lvFile','lvTok','gdTok','lvBase','lvStamp','lvOn'].forEach(function(k){LS(k,null)});
   LS('lvOff','1');LS('gdSkip',null);window.__gdTok=null;window.__lmC='';
   try{if(window.lvDisconnect)lvDisconnect()}catch(e){}
   hidePend();paint()
@@ -7587,7 +7592,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    .then(function(j){var w=String((j&&j.user&&j.user.emailAddress)||'').toLowerCase();if(!w)throw new Error('Google did not return the selected account email. Please try again.');return w})
  }
  function normM(m){m=String(m||'').toLowerCase().trim();var p=m.split('@');if(p.length==2&&(p[1]==='gmail.com'||p[1]==='googlemail.com'))return p[0].split('+')[0].replace(/\./g,'')+'@gmail.com';return m}
- function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
+ function acctSw(w){try{var n=normM(w),o=localStorage.getItem('gdAcct');localStorage.setItem('gdAcct',n);if(o===n)return false;['lvFile','gdFolder','lvBase','lvStamp','lvTok','gdTok'].forEach(function(k){localStorage.removeItem(k)});return true}catch(e){return false}}
  function wrongAcct(t,lock,got){try{localStorage.setItem('gdWrongAcct','1')}catch(e){}try{if(window.google)google.accounts.oauth2.revoke(t,function(){})}catch(e){}return new Error('This app\'s Google Drive is set to '+lock+', but Google picked '+(got||'another account')+'. Press the button again and choose '+lock+'. To use a different Drive account, open Backup and press Change Drive account.')}
  function getTok(first,minLeft){
   /* Live sync uses the same OAuth request/token as daily backup.
@@ -10770,7 +10775,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   /* iPhone/iPad app opened from the Home Screen: window.print() does nothing there. Open the share sheet with the bill picture instead (it has Print, Save Image, WhatsApp). */
   try{var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),
    sa=navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
-   if(ios&&sa&&t!=='th'&&typeof window.shareBill==='function'&&typeof bl==='function'&&c.no&&bl(+c.no)&&typeof P==='function'&&P(bl(+c.no).pid)){return window.shareBill(+c.no)}}catch(e){}
+   if(ios&&sa&&t!=='th'&&typeof bl==='function'&&c.no&&bl(+c.no)&&typeof P==='function'&&P(bl(+c.no).pid)){
+    /* picture only: do NOT use shareBill here, it opens WhatsApp. The system share sheet has Print, Save Image, etc. */
+    var _b=bl(+c.no),_p=P(_b.pid);
+    Promise.resolve(billImg(_b,_p)).then(function(blob){var f=new File([blob],'bill-'+_b.no+'.png',{type:'image/png'});
+     if(navigator.canShare&&navigator.canShare({files:[f]}))return navigator.share({files:[f]});
+     window.__printInline(window.prFull(c,t,false))}).catch(function(e){if(e&&e.name==='AbortError')return;try{window.__printInline(window.prFull(c,t,false))}catch(x){alert('Could not open print')}});
+    return}}catch(e){}
   window.__printInline(window.prFull(c,t,false))};
  /* every other print on a phone-size screen (reports, statements, bills) */
  var _pf=window.__printFrame;
