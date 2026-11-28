@@ -8035,8 +8035,8 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  };
 
  /* ---------- the Plan & Upgrade page ---------- */
- var msg='',bmsg='',bmsgBad=0;
- function bsay(t,bad){bmsg=t;bmsgBad=bad?1:0;var e=document.getElementById('plbm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
+ var msg='',bmsg='',bmsgBad=0,bmsgT=0;
+ function bsay(t,bad){bmsg=t;bmsgBad=bad?1:0;bmsgT=Date.now();var e=document.getElementById('plbm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
  function say(t,bad){msg=t;var e=document.getElementById('plm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
  function tick(y){return y?'<b class="grn">\u2713</b>':'<span class="mu" style="display:inline">\u2715</span>'}
  function row(a,f,p){return '<div style="display:grid;grid-template-columns:1fr 46px 46px;align-items:center;gap:4px;padding:8px 0;border-top:1px solid var(--k302,#e6e9f2);font-size:14px"><div>'+a+'</div><div style="text-align:center">'+tick(f)+'</div><div style="text-align:center">'+tick(p)+'</div></div>'}
@@ -8104,7 +8104,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Billing, payments, returns, parties, items, stock and basic reports are free on this one device. GST invoice, profit reports, analytics, Ask AI, live sync and more need Pro.</div></div>';
   /* comparison */
   var P=CFG.PRICES;
-  h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 64px 64px;gap:4px;font-weight:600;font-size:12px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free<br><span class="mu" style="font-size:11px">\u20B90</span></div><div style="text-align:center">Pro<br><span class="mu" style="font-size:11px">from \u20B9'+P.pro.m+'/mo</span></div></div>'+
+  var cmp='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 64px 64px;gap:4px;font-weight:600;font-size:12px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free<br><span class="mu" style="font-size:11px">\u20B90</span></div><div style="text-align:center">Pro<br><span class="mu" style="font-size:11px">from \u20B9'+P.pro.m+'/mo</span></div></div>'+
    rowP('Sale invoices, estimates, orders, challans, returns, payments in and out',1,1)+
    rowP('Parties, items, stock, day book, party statement, stock reports',1,1)+
    rowP('Print, WhatsApp share button, manual backup and restore',1,1)+
@@ -8116,18 +8116,27 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    rowP('<b>Daily Drive backup and live sync</b>',0,1)+
    rowP('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1)+
    rowP('<b>Devices</b>',CFG.DEV.free+(CFG.DEV.free===1?' device':' devices'),CFG.DEV.pro+' devices'+(CFG.DEVX_ON?' + \u20B9'+P.dev.m+'/mo each extra':''))+'</div>';
-  h+=signCard(cl);
+  var sgn=signCard(cl);
   /* ---------- Buy with Razorpay (automatic) ---------- */
   var em0=window.__sbSess&&window.__sbSess.user?window.__sbSess.user.email:'';
   function pbtn(kind,per,lbl,note,cls){var q=P[kind][per];return '<button class="'+cls+'" style="'+BS+'" onclick="planBuy(\''+kind+'\',\''+per+'\')"><span style="font-size:13px;opacity:.9">'+lbl+'</span><br><b style="font-size:20px">\u20B9'+q.toLocaleString('en-IN')+'</b>'+(note?'<br><span style="font-size:11px;opacity:.85">'+note+'</span>':'')+'</button>'}
   var sv1=P.pro.m*12-P.pro.y,sv3=P.pro.m*36-P.pro.t,mc=(st.tier==='pro'?'s':'b');
-  h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?'Renew or change plan':'Choose Pro')+'</b>'+
+  /* devices card: how many devices this account has, and where to add more */
+  var dev='',ext=Math.max(0,Math.floor(+(st.info&&st.info.x)||0)),incl=CFG.DEV[st.tier],tot=devLim(),CB='<div class="'+cl+'" style="max-width:600px">',DB='<b style="font-size:16px">Devices on this account</b>';
+  if(st.pro&&tot===Infinity)dev=CB+DB+'<div style="font-size:22px;font-weight:700;margin:6px 0">Unlimited</div><div class="mu">Your '+tnm(st.tier)+' plan has no device limit, so there is nothing extra to buy. Sign in with <b>'+esc(em0)+'</b> on each device.</div></div>';
+  else if(st.pro)dev=CB+DB+'<div style="font-size:22px;font-weight:700;margin:6px 0">'+tot+(tot===1?' device':' devices')+' in total</div><div class="mu">'+incl+' included with Pro + <b>'+ext+' extra</b> bought'+(ext?'':' so far')+'.</div>'+
+   (ext?'<div class="mu" style="margin-top:4px">Your extra devices end with your Pro plan on <b>'+fmt(st.info.e)+'</b>.</div>':'')+
+   '<div class="mu" style="margin-top:4px">Use the plan on each device by signing in with <b>'+esc(em0)+'</b>.</div>'+
+   (CFG.DEVX_ON?'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--k302,#e6e9f2)"><b style="font-size:14px">Add another device</b><div class="mu" style="margin:4px 0 8px">Each extra device costs \u20B9'+P.dev.m+' a month, \u20B9'+P.dev.y+' a year or \u20B9'+P.dev.t.toLocaleString('en-IN')+' for 3 years. It is added to this account straight away and ends with your Pro plan.</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+pbtn('dev','m','+1 device<br>Monthly','','b')+pbtn('dev','y','+1 device<br>Yearly','','b')+pbtn('dev','t','+1 device<br>3 years','','b')+'</div></div>':'')+'</div>';
+  var buy='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?(st.tier==='pro'?'Renew or extend Pro':'Renew or change plan'):'Choose Pro')+'</b>'+
    '<div class="mu" style="margin:6px 0 10px">Pay online by UPI, card or net banking. Your plan switches on by itself within a minute. No key to paste.</div>'+
    (em0?'<div class="mu" style="margin-bottom:10px">Plan will be added to <b>'+esc(em0)+'</b></div>':'<div class="mu" style="margin-bottom:10px">Sign in first, so we can add the plan to your account.</div>')+
-   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+pbtn('pro','m','Monthly','',mc)+pbtn('pro','y','Yearly','Save \u20B9'+sv1,mc)+pbtn('pro','t','3 years','Save \u20B9'+sv3.toLocaleString('en-IN'),mc)+'</div>'+
-   (CFG.DEVX_ON&&st.tier==='pro'?'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--k302,#e6e9f2)"><b style="font-size:14px">Need more devices?</b><div class="mu" style="margin:4px 0 8px">Your Pro plan allows '+devLim()+' devices. Each extra device is \u20B9'+P.dev.m+' a month, \u20B9'+P.dev.y+' a year or \u20B9'+P.dev.t.toLocaleString('en-IN')+' for 3 years, and ends with your Pro plan.</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+pbtn('dev','m','+1 device<br>Monthly','','s')+pbtn('dev','y','+1 device<br>Yearly','','s')+pbtn('dev','t','+1 device<br>3 years','','s')+'</div></div>':'')+'<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="margin-top:10px;font-size:14px">'+esc(bmsg)+'</div></div>';
+   (st.tier==='pro'&&ext?'<div class="mu" style="margin-bottom:10px">Renewing starts a new period. Extra devices end with the period they were bought in, so add them again after you renew.</div>':'')+
+   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+pbtn('pro','m','Monthly','',mc)+pbtn('pro','y','Yearly','Save \u20B9'+sv1,mc)+pbtn('pro','t','3 years','Save \u20B9'+sv3.toLocaleString('en-IN'),mc)+'</div></div>'+
+   '<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="max-width:600px;margin:8px 4px;font-size:14px">'+(Date.now()-bmsgT<120000?esc(bmsg):'')+'</div>';
   /* manual UPI / WhatsApp / license-key option removed: only direct online payment (Razorpay) */
-  if(st.pro)h+='<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">To use your plan on another device, sign in there with the same email.</div></div>';
+  var rem=st.pro?'<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">To use your plan on another device, sign in there with the same email.</div></div>':'';
+  h+=st.pro?dev+buy+sgn+cmp+rem:cmp+sgn+buy;
   return h}
  /* ---------- Razorpay checkout ---------- */
  var rzpBusy=0;
