@@ -12243,5 +12243,28 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
  };
 })();
 </script>
+
+<script id="pro-gates">
+(function(){
+ /* Free keeps: bills, payments, returns, parties, items, stock, basic reports, manual backup (1 device).
+    Pro unlocks: GST invoice, profit reports, analytics, insights, daily collection, salesmen, transporters, activity history. */
+ var NAV={ana:'Analytics',ins:'Insights',dcol:'Daily Collection',sls:'Salesmen',trn:'Transporters',act:'Activity History'};
+ var REP={pl:'Profit and Loss',bwp:'Bill Wise Profit and Loss',pwp:'Party Wise Profit and Loss',iwp:'Item Wise Profit and Loss'};
+ function free(){try{return !(window.PLAN&&(PLAN.pro()||PLAN.owner()))}catch(e){return false}}
+ var _nav=window.nav;
+ if(typeof _nav==='function')window.nav=function(k){
+  if(NAV[k]&&free()){try{PLAN.lock(NAV[k])}catch(e){}return}
+  return _nav.apply(this,arguments)};
+ var _vR=window.vReps;
+ if(typeof _vR==='function')window.vReps=function(){
+  try{if(typeof rsel!=='undefined'&&REP[rsel]&&free())
+   return '<button class="s" onclick="rsel=null;render()">\u2190 Reports</button>'+PLAN.lockCard(REP[rsel],['Profit and loss for the whole shop, each bill, each party and each item','Know which sales really make money'],'Profit reports')}catch(e){}
+  return _vR.apply(this,arguments)};
+ var _g=window.gstTog;
+ if(typeof _g==='function')window.gstTog=function(v){
+  if(v&&free()){try{PLAN.lock('GST invoice')}catch(e){}try{render()}catch(e){}return}
+  return _g.apply(this,arguments)};
+})();
+</script>
 </body>
 </html>
