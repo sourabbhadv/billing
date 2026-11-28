@@ -12352,6 +12352,15 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
   session().then(function(ss){if(!ss||!ss.user)return restored=0;
    return window.getDigitalGoodsService(BILLING).then(function(svc){return svc.listPurchases()}).then(function(list){
     return Promise.all((list||[]).map(function(p){return verifyOnServer(p.itemId,p.purchaseToken,'','',true)}))}).then(refreshPlan)}).catch(function(){restored=0})}
+ /* automatic check: when the app opens in Play, when the user signs in, and when the app comes back to the screen (at most once an hour). This is how a renewal is noticed without opening the plan page. */
+ var lastAuto=0;
+ function autoRestore(force){
+  if(!isPlay())return;
+  var n=Date.now();if(n-lastAuto<(force?10000:3600000))return;
+  lastAuto=n;restored=0;restore()}
+ setTimeout(function(){autoRestore(false)},3000);
+ try{if(window.SB&&SB.auth&&SB.auth.onAuthStateChange)SB.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_IN'||ev==='INITIAL_SESSION')setTimeout(function(){autoRestore(true)},1500)})}catch(e){}
+ try{document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')autoRestore(false)})}catch(e){}
  var _rf=window.planRefresh;
  if(typeof _rf==='function')window.planRefresh=function(){if(isPlay()){restored=0;restore()}return _rf.apply(this,arguments)};
  /* the plan page: Play wording, and no Razorpay wording */
