@@ -12225,12 +12225,12 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
    +'<a class="s" style="text-decoration:none;display:inline-block" href="'+B+'terms.html" target="_blank" rel="noopener">Terms of Service</a>'
    +'<a class="s" style="text-decoration:none;display:inline-block" href="'+B+'delete-account.html" target="_blank" rel="noopener">How deletion works</a></div>'
    +(signed?'<div style="margin-top:12px"><button class="s" style="color:var(--rd,#c62828)" onclick="deleteMyAccount()">Delete my account</button>'
-   +'<div class="mu" style="margin-top:4px">Removes your sign-in, plan and wallet records from our servers. Data on this device and in your Google Drive is not touched.</div></div>':'')
+   +'<div class="mu" style="margin-top:4px">Removes your sign-in, plan and WhatsApp link records from our servers. Data on this device and in your Google Drive is not touched.</div></div>':'')
    +'</div>';
  }
  window.deleteMyAccount=function(){
   var em='';try{em=(window.__sbSess&&window.__sbSess.user&&window.__sbSess.user.email)||''}catch(e){}
-  if(!confirm('Request deletion of your account'+(em?' ('+em+')':'')+'?\n\nThis removes your sign-in, plan and WhatsApp wallet records. Any unused wallet balance is lost. It cannot be undone.\n\nAn email will open for you to send.'))return;
+  if(!confirm('Request deletion of your account'+(em?' ('+em+')':'')+'?\n\nThis removes your sign-in, plan and WhatsApp link records. It cannot be undone.\n\nAn email will open for you to send.'))return;
   var sub=encodeURIComponent('Delete my account'),body=encodeURIComponent('Please delete my ezy Billing and Accounting account.\nAccount email: '+em);
   window.location.href='mailto:chandwanisourabh@gmail.com?subject='+sub+'&body='+body;
  };
