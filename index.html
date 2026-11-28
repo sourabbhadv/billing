@@ -7951,9 +7951,10 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   UPI:'',            /* where the customer pays */
   WA:'',             /* YOUR WhatsApp number with country code, customer sends payment proof here */
   RZP_KEY:'rzp_live_U1cLxcjBcDRGig',   /* Razorpay Key ID (public). LIVE key. */
-  PRO:50, ULTRA:350,
+  PRO:60, ULTRA:0,
+  PRICES:{pro:{m:60,y:550,t:1500},dev:{m:60,y:550,t:1500}},   /* Rs: m = 1 month, y = 12 months, t = 36 months. Ultra is removed. */
   OWNER:'chandwanisourabh@gmail.com',   /* only this signed-in email sees and uses automatic WhatsApp (Outbox, campaigns, sender) */
-  DEVX:50, DEVX_ON:true,   /* extra device on Pro: Rs per month, ends with the Pro plan. Needs the webhook that handles kind 'device' */
+  DEVX:60, DEVX_ON:true,   /* extra device on Pro: Rs per month, ends with the Pro plan. Needs the webhook that handles kind 'device' */
   WA_RATE:100, WALLET_MIN:50, WALLET_MAX:10000,   /* Pro: price per automatic WhatsApp message in PAISE (100 = Rs 1) and the recharge range in rupees. Batch 4 uses the same rate on the server. */            /* rupees per month: Pro = Rs 100, Ultra Pro = Rs 350 */
   DEV:{free:1,pro:2,ultra:0}     /* live-sync device limit per plan (used in Batch 2). 0 = unlimited */
  };
@@ -8021,7 +8022,7 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
   lock:function(feature){
    var o=document.getElementById('plk');if(o)o.remove();
    o=document.createElement('div');o.id='plk';o.style.cssText='position:fixed;inset:0;background:rgba(15,18,50,.55);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px';
-   o.innerHTML='<div class="card" style="width:100%;max-width:380px;margin:0"><b style="font-size:16px">\uD83D\uDD12 '+esc(feature)+' is a Pro feature</b><p class="mu" style="margin:8px 0 12px">Your Free plan keeps your billing, stock, parties, reports and daily Google Drive backup on 1 device. Pro adds Ask AI and live sync on more devices.</p><div class="row" style="justify-content:flex-end;gap:8px"><button class="s" onclick="document.getElementById(\'plk\').remove()">Not now</button><button class="b" onclick="document.getElementById(\'plk\').remove();nav(\'plan\')">See Pro plan</button></div></div>';
+   o.innerHTML='<div class="card" style="width:100%;max-width:380px;margin:0"><b style="font-size:16px">\uD83D\uDD12 '+esc(feature)+' is a Pro feature</b><p class="mu" style="margin:8px 0 12px">Your Free plan keeps your billing, payments, returns, parties, items, stock and basic reports on 1 device. Pro adds GST invoice, profit reports, analytics, daily Drive backup, live sync, Ask AI and more people.</p><div class="row" style="justify-content:flex-end;gap:8px"><button class="s" onclick="document.getElementById(\'plk\').remove()">Not now</button><button class="b" onclick="document.getElementById(\'plk\').remove();nav(\'plan\')">See Pro plan</button></div></div>';
    document.body.appendChild(o);return false},
   /* full-page lock shown instead of a Pro page */
   lockCard:function(feature,points,heading){
@@ -8100,22 +8101,31 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">\u2B50 '+tnm(st.tier)+' plan is ON</b><div class="mu" style="margin-top:6px">Licensed to <b>'+esc(st.info.n||'')+'</b><br>Valid till <b>'+fmt(st.info.e)+'</b> ('+left+' days left)</div></div>'}
   else if(st.mism){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">This license is for '+esc(st.info.n||'another account')+'</b><div class="mu" style="margin-top:6px">Sign in with the email it was made for ('+esc(st.info.m||'')+') to use your plan on this device.</div></div>'}
   else if(st.expired){h+='<div class="'+cl+'" style="max-width:600px"><b class="red">Your plan ended on '+fmt(st.info.e)+'</b><div class="mu" style="margin-top:6px">Nothing is deleted. All your data is still on this device. Paid features are locked until you renew.</div></div>'}
-  else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Billing, stock, parties and reports are free on this one device. Ask AI and live sync across devices need a paid plan.</div></div>';
+  else h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">You are on the Free plan</b><div class="mu" style="margin-top:6px">Billing, payments, returns, parties, items, stock and basic reports are free on this one device. GST invoice, profit reports, analytics, Ask AI, live sync and more need Pro.</div></div>';
   /* comparison */
-  h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 64px 64px;gap:4px;font-weight:600;font-size:12px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free<br><span class="mu" style="font-size:11px">\u20B90</span></div><div style="text-align:center">Pro<br><span class="mu" style="font-size:11px">\u20B9'+CFG.PRO+'/mo</span></div></div>'+
-   rowP('Billing, stock, parties, reports, old-software import',1,1)+
-   rowP('Daily backup to your Google Drive',1,1)+
-   rowP('WhatsApp button opens WhatsApp, you press Send',1,1)+
-   rowP('<b>Live sync</b> (devices on one account)',CFG.DEV.free+(CFG.DEV.free===1?' device':' devices'),CFG.DEV.pro+' devices'+(CFG.DEVX_ON?' + \u20B9'+CFG.DEVX+' each extra':''))+
-   rowP('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1)+'</div>';
+  var P=CFG.PRICES;
+  h+='<div class="'+cl+'" style="max-width:600px"><div style="display:grid;grid-template-columns:1fr 64px 64px;gap:4px;font-weight:600;font-size:12px;padding-bottom:4px"><div>What you get</div><div style="text-align:center">Free<br><span class="mu" style="font-size:11px">\u20B90</span></div><div style="text-align:center">Pro<br><span class="mu" style="font-size:11px">from \u20B9'+P.pro.m+'/mo</span></div></div>'+
+   rowP('Sale invoices, estimates, orders, challans, returns, payments in and out',1,1)+
+   rowP('Parties, items, stock, day book, party statement, stock reports',1,1)+
+   rowP('Print, WhatsApp share button, manual backup and restore',1,1)+
+   rowP('<b>GST invoice</b>',0,1)+
+   rowP('<b>Profit reports</b> (Profit and Loss, Bill, Party, Item wise)',0,1)+
+   rowP('<b>Analytics, Insights, Daily Collection</b>',0,1)+
+   rowP('<b>Salesmen, Transporters, Activity History</b>',0,1)+
+   rowP('<b>Staff names and PINs</b>','1 person','More')+
+   rowP('<b>Daily Drive backup and live sync</b>',0,1)+
+   rowP('<b>Ask AI</b>: questions, voice billing, bill photo scan',0,1)+
+   rowP('<b>Devices</b>',CFG.DEV.free+(CFG.DEV.free===1?' device':' devices'),CFG.DEV.pro+' devices'+(CFG.DEVX_ON?' + \u20B9'+P.dev.m+'/mo each extra':''))+'</div>';
   h+=signCard(cl);
   /* ---------- Buy with Razorpay (automatic) ---------- */
   var em0=window.__sbSess&&window.__sbSess.user?window.__sbSess.user.email:'';
-  h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?'Renew or change plan':'Choose a plan')+'</b>'+
+  function pbtn(kind,per,lbl,note,cls){var q=P[kind][per];return '<button class="'+cls+'" style="'+BS+'" onclick="planBuy(\''+kind+'\',\''+per+'\')"><span style="font-size:13px;opacity:.9">'+lbl+'</span><br><b style="font-size:20px">\u20B9'+q.toLocaleString('en-IN')+'</b>'+(note?'<br><span style="font-size:11px;opacity:.85">'+note+'</span>':'')+'</button>'}
+  var sv1=P.pro.m*12-P.pro.y,sv3=P.pro.m*36-P.pro.t,mc=(st.tier==='pro'?'s':'b');
+  h+='<div class="'+cl+'" style="max-width:600px"><b style="font-size:16px">'+(st.pro?'Renew or change plan':'Choose Pro')+'</b>'+
    '<div class="mu" style="margin:6px 0 10px">Pay online by UPI, card or net banking. Your plan switches on by itself within a minute. No key to paste.</div>'+
    (em0?'<div class="mu" style="margin-bottom:10px">Plan will be added to <b>'+esc(em0)+'</b></div>':'<div class="mu" style="margin-bottom:10px">Sign in first, so we can add the plan to your account.</div>')+
-   '<div style="max-width:320px"><button class="'+(st.tier==='pro'?'s':'b')+'" style="'+BS+'" onclick="planBuy(\'pro\')"><span style="font-size:13px;opacity:.9">Pro \u00B7 1 month</span><br><b style="font-size:20px">\u20B9'+CFG.PRO+'</b><br><span style="font-size:11px;opacity:.85">Ask AI + live sync</span></button></div>'+
-   (CFG.DEVX_ON&&st.tier==='pro'?'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--k302,#e6e9f2)"><b style="font-size:14px">Need more devices?</b><div class="mu" style="margin:4px 0 8px">Your Pro plan allows '+devLim()+' devices on live sync. Each extra device is \u20B9'+CFG.DEVX+' per month and ends with your Pro plan.</div><button class="s" style="width:100%" onclick="planBuy(\'dev\')">Add a device \u20B9'+CFG.DEVX+'</button></div>':'')+'<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="margin-top:10px;font-size:14px">'+esc(bmsg)+'</div></div>';
+   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+pbtn('pro','m','Monthly','',mc)+pbtn('pro','y','Yearly','Save \u20B9'+sv1,mc)+pbtn('pro','t','3 years','Save \u20B9'+sv3.toLocaleString('en-IN'),mc)+'</div>'+
+   (CFG.DEVX_ON&&st.tier==='pro'?'<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--k302,#e6e9f2)"><b style="font-size:14px">Need more devices?</b><div class="mu" style="margin:4px 0 8px">Your Pro plan allows '+devLim()+' devices. Each extra device is \u20B9'+P.dev.m+' a month, \u20B9'+P.dev.y+' a year or \u20B9'+P.dev.t.toLocaleString('en-IN')+' for 3 years, and ends with your Pro plan.</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+pbtn('dev','m','+1 device<br>Monthly','','s')+pbtn('dev','y','+1 device<br>Yearly','','s')+pbtn('dev','t','+1 device<br>3 years','','s')+'</div></div>':'')+'<div id="plbm" class="'+(bmsgBad?'red':'grn')+'" style="margin-top:10px;font-size:14px">'+esc(bmsg)+'</div></div>';
   /* manual UPI / WhatsApp / license-key option removed: only direct online payment (Razorpay) */
   if(st.pro)h+='<div class="'+cl+'" style="max-width:600px"><button class="s" onclick="planRemove()">Remove license from this device</button><div class="mu" style="margin-top:6px">To use your plan on another device, sign in there with the same email.</div></div>';
   return h}
@@ -8137,21 +8147,24 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
    if(n>=200){rzpBusy=0;bsay('Payment received. The extra device is taking longer than usual. Press "Check my license" above in a few minutes. If it does not switch on, contact us with your payment ID.',1);return}
    bsay('Payment received. Adding your extra device... this can take up to 15 minutes. You can keep using the app.');
    return new Promise(function(r){setTimeout(r,n<30?3000:5000)}).then(function(){return waitDev(before,n+1)})})}
- window.planBuy=function(kind){
+ window.planBuy=function(kind,per){
   if(rzpBusy)return;
+  if(typeof kind==='string'&&kind.indexOf(':')>0){var kp=kind.split(':');kind=kp[0];per=kp[1]}
+  if(!CFG.PRICES[kind]||!CFG.PRICES[kind][per]){kind=kind==='dev'?'dev':'pro';per='m'}
+  var MON={m:1,y:12,t:36},PL={m:'1 month',y:'1 year',t:'3 years'};
   Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){return (r&&r.data&&r.data.session)||window.__sbSess||null},function(){return window.__sbSess||null}).then(function(ss){
-  if(!ss||!ss.user){try{sessionStorage.setItem('plBuy',kind+'|'+Date.now())}catch(e){}bsay('Sign in once. Your payment opens right after you sign in.',1);try{if(!document.getElementById('lgn'))loginBox()}catch(e){}return}
+  if(!ss||!ss.user){try{sessionStorage.setItem('plBuy',kind+':'+per+'|'+Date.now())}catch(e){}bsay('Sign in once. Your payment opens right after you sign in.',1);try{if(!document.getElementById('lgn'))loginBox()}catch(e){}return}
   window.__sbSess=ss;
   if(kind==='dev'){if(!CFG.DEVX_ON)return;if(st.tier!=='pro'){bsay('Extra devices can be added to a running Pro plan only.',1);return}}
-  else if(kind!=='pro'&&kind!=='ultra')kind='pro';
-  var email=ss.user.email||'',amt=(kind==='dev'?CFG.DEVX:kind==='ultra'?CFG.ULTRA:CFG.PRO)*100,before=devLim();
+  else kind='pro';
+  var email=ss.user.email||'',amt=CFG.PRICES[kind][per]*100,before=devLim();
   rzpBusy=1;bsay('Opening payment...');
   loadRzp().then(function(){
    var o={
     key:CFG.RZP_KEY,amount:amt,currency:'INR',
-    name:kind==='dev'?'Extra device':(kind==='ultra'?'Ultra Pro':'Pro')+' plan',description:kind==='dev'?'Extra device for live sync - until your Pro plan ends':(kind==='ultra'?'Ultra Pro':'Pro')+' plan - 1 month',
+    name:kind==='dev'?'Extra device':'Pro plan',description:kind==='dev'?'Extra device - '+PL[per]+' (ends with your Pro plan)':'Pro plan - '+PL[per],
     prefill:{email:email},
-    notes:kind==='dev'?{kind:'device',email:email,devices:'1',amount_rs:String(amt/100),shop:String((window.D&&D.shop)||'')}:{email:email,plan:kind,months:'1',amount_rs:String(amt/100),shop:String((window.D&&D.shop)||'')},
+    notes:kind==='dev'?{kind:'device',email:email,devices:'1',months:String(MON[per]),period:per,amount_rs:String(amt/100),shop:String((window.D&&D.shop)||'')}:{email:email,plan:kind,months:String(MON[per]),period:per,amount_rs:String(amt/100),shop:String((window.D&&D.shop)||'')},
     theme:{color:'#3b4cca'},
     handler:function(r){if(kind==='dev'){bsay('Payment received. Adding your extra device...');waitDev(before,0)}else{bsay('Payment received. Activating your plan...');waitLic(0)}},
     modal:{ondismiss:function(){if((kind==='dev'||!st.pro)&&bmsg.indexOf('received')<0){rzpBusy=0;bsay('')}}}
@@ -12264,6 +12277,82 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
  if(typeof _g==='function')window.gstTog=function(v){
   if(v&&free()){try{PLAN.lock('GST invoice')}catch(e){}try{render()}catch(e){}return}
   return _g.apply(this,arguments)};
+})();
+</script>
+<script id="staff-limit">
+(function(){
+ /* Free: 1 person, no PINs. Pro: more people and PINs. Existing people and PINs keep working; only adding is limited. */
+ function free(){try{return !(window.PLAN&&(PLAN.pro()||PLAN.owner()))}catch(e){return false}}
+ function usr(){try{return users()}catch(e){return []}}
+ function lk(f){try{actClose()}catch(e){}try{PLAN.lock(f)}catch(e){}}
+ var _a=window.actAdd;
+ if(typeof _a==='function')window.actAdd=function(){
+  if(free()&&usr().length>=1){lk('More than 1 person');return}
+  return _a.apply(this,arguments)};
+ var _s=window.actSave;
+ if(typeof _s==='function')window.actSave=function(){
+  if(free()){
+   if(usr().length>=1){lk('More than 1 person');return}
+   var p=((document.getElementById('acp')||{}).value||'').trim();
+   if(p){lk('A PIN for a person');return}}
+  return _s.apply(this,arguments)};
+ var _p=window.actPinSet;
+ if(typeof _p==='function')window.actPinSet=function(i){
+  var u=usr()[i];
+  if(free()&&u&&!u.p){lk('A PIN for a person');return}
+  return _p.apply(this,arguments)};
+})();
+</script>
+<script id="play-billing">
+(function(){
+ /* Inside the Android app (TWA) only Google Play Billing is used. Outside it (website, desktop, iPhone Safari) nothing here changes: Razorpay stays.
+    SKU ids below are PLACEHOLDERS. They must equal the product ids created in Play Console. m and y are subscriptions, t is a one-time prepaid pack. */
+ var SKU={pro:{m:'pro_monthly',y:'pro_yearly',t:'pro_3years'},dev:{m:'device_monthly',y:'device_yearly',t:'device_3years'}};
+ var BILLING='https://play.google.com/billing',busy=0,restored=0;
+ function isPlay(){try{if(/^android-app:\/\//.test(document.referrer||''))sessionStorage.setItem('lbPlay','1');return sessionStorage.getItem('lbPlay')==='1'}catch(e){return false}}
+ window.isPlayApp=isPlay;isPlay();
+ function say(t,bad){var e=document.getElementById('plbm');if(e){e.textContent=t;e.className=bad?'red':'grn'}}
+ function session(){return Promise.resolve(window.SB&&SB.auth&&SB.auth.getSession?SB.auth.getSession():null).then(function(r){return (r&&r.data&&r.data.session)||window.__sbSess||null},function(){return window.__sbSess||null})}
+ function verifyOnServer(sku,token,kind,per,restore){return SB.functions.invoke('play-verify',{body:{sku:sku,token:token,kind:kind,per:per,restore:!!restore}}).then(function(r){return !!(r&&!r.error&&r.data&&r.data.ok)},function(){return false})}
+ function refreshPlan(){return Promise.resolve(window.PLAN&&PLAN.fetchLicense?PLAN.fetchLicense():null).then(function(){try{render()}catch(e){}})}
+ var _buy=window.planBuy;
+ window.planBuy=function(kind,per){
+  if(!isPlay())return _buy.apply(this,arguments);
+  if(typeof kind==='string'&&kind.indexOf(':')>0){var q=kind.split(':');kind=q[0];per=q[1]}
+  if(!SKU[kind]||!SKU[kind][per]||busy)return;
+  session().then(function(ss){
+   if(!ss||!ss.user){try{sessionStorage.setItem('plBuy',kind+':'+per+'|'+Date.now())}catch(e){}say('Sign in once. Your purchase opens right after you sign in.',1);try{if(!document.getElementById('lgn'))loginBox()}catch(e){}return}
+   window.__sbSess=ss;
+   if(kind==='dev'&&!(window.PLAN&&PLAN.tier()==='pro')){say('Extra devices can be added to a running Pro plan only.',1);return}
+   if(!window.getDigitalGoodsService||!window.PaymentRequest){say('Google Play purchase is not available here. Update the app and Chrome, then try again.',1);return}
+   var id=SKU[kind][per];busy=1;say('Opening Google Play...');
+   window.getDigitalGoodsService(BILLING).then(function(){
+    var req=new PaymentRequest([{supportedMethods:BILLING,data:{sku:id}}]);
+    return req.show()}).then(function(resp){
+    var token=resp&&resp.details&&resp.details.purchaseToken;
+    say('Payment received. Activating your plan...');
+    return verifyOnServer(id,token,kind,per,false).then(function(ok){
+     return resp.complete(ok?'success':'fail').catch(function(){}).then(function(){
+      busy=0;
+      if(ok){say('Done. Your plan is ON.');return refreshPlan()}
+      say('We could not confirm this purchase yet. If you were charged, press Check my license in a few minutes. Google refunds unconfirmed purchases after 3 days.',1)})})
+   }).catch(function(e){busy=0;say(e&&e.name==='AbortError'?'':'Could not complete the purchase. Please try again.',e&&e.name!=='AbortError')})})};
+ /* re-check purchases Google already holds for this account (renewals, a new device, a lost connection) */
+ function restore(){
+  if(!isPlay()||restored||!window.getDigitalGoodsService)return;restored=1;
+  session().then(function(ss){if(!ss||!ss.user)return restored=0;
+   return window.getDigitalGoodsService(BILLING).then(function(svc){return svc.listPurchases()}).then(function(list){
+    return Promise.all((list||[]).map(function(p){return verifyOnServer(p.itemId,p.purchaseToken,'','',true)}))}).then(refreshPlan)}).catch(function(){restored=0})}
+ var _rf=window.planRefresh;
+ if(typeof _rf==='function')window.planRefresh=function(){if(isPlay()){restored=0;restore()}return _rf.apply(this,arguments)};
+ /* the plan page: Play wording, and no Razorpay wording */
+ var _v=window.vPage;
+ if(typeof _v==='function')window.vPage=function(){
+  var r=_v.apply(this,arguments);
+  if(isPlay()&&window.pg==='plan'&&typeof r==='string'){
+   r=r.replace('Pay online by UPI, card or net banking. Your plan switches on by itself within a minute. No key to paste.','Pay securely with Google Play. Your plan switches on by itself.');
+   setTimeout(restore,300)}
+  return r};
 })();
 </script>
 </body>
