@@ -636,7 +636,7 @@ function sbReady(ss){
 }
 function loginBox(){
  var m=document.createElement('div');m.id='lgn';m.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
- m.innerHTML="<div class='card' style='width:100%;max-width:380px'><b>Sign in</b><p class='mu'>Sign in with your Google account to use your Pro plan.</p><div class='row' style='margin-top:8px;gap:8px'><button class='b' style='flex:1;padding:12px' onclick='googleAuth()'>Sign in with Google</button><button class='s' onclick='cancelLogin()'>Cancel</button></div><div id='lm' style='margin-top:10px;color:var(--rd);font-size:14px'></div></div>";
+ m.innerHTML="<div class='card' style='width:100%;max-width:380px'><b>Sign in</b><p class='mu'>Sign in with your Google account to use your Pro plan.</p><div class='row' style='margin-top:8px;gap:8px'><button class='b' style='flex:1;padding:12px' onclick='googleAuth()'>Sign in with Google</button><button class='s' onclick='cancelLogin()'>Cancel</button></div><p class='mu' style='font-size:12px;margin:12px 0 0'>By signing in you agree to the <a href='https://sourabbhadv.github.io/billing/terms.html' target='_blank' rel='noopener'>Terms of Service</a> and the <a href='https://sourabbhadv.github.io/billing/privacy.html' target='_blank' rel='noopener'>Privacy Policy</a>.</p><div id='lm' style='margin-top:10px;color:var(--rd);font-size:14px'></div></div>";
  document.body.appendChild(m);
  ['le','lp'].forEach(function(i){var x=document.getElementById(i);if(x)x.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doAuth(0)}})});
  var f=document.getElementById('le');if(f&&!f.value)try{f.focus()}catch(e){}
@@ -2183,7 +2183,7 @@ vSettings=function(){
  var h=_vS8(),i=h.indexOf('<div class="card" style="max-width:600px">'),p=PS(),hasPw=!!localStorage.getItem('sbpw'),dec=p.dec==null?2:p.dec;
  return h.slice(0,i)+'<div class="sgrid">'
  +'<div class="sec"><h3>Application</h3>'
- +'<label class="ck"><input type="checkbox" '+(hasPw?'checked':'')+' onchange="(this.checked?setPass():rmPass());render()"><span>Enable Passcode</span><i class="inf" title="Asks for a passcode every time the app is opened on this device." onclick="event.preventDefault();alert(this.title)">i</i></label>'
+ +'<label class="ck"><input type="checkbox" '+(hasPw?'checked':'')+' onchange="(this.checked?setPass():rmPass());render()"><span>Enable Passcode</span><i class="inf" title="Asks for a passcode when the app is opened on this device. It is a simple lock, not encryption." onclick="event.preventDefault();alert(this.title)">i</i></label>'
  +(hasPw?'<div style="padding:0 0 6px 30px"><a style="color:var(--k53,#1a73e8);font-weight:600;cursor:pointer" onclick="setPass()">Change Passcode</a></div>':'')
  +'<div class="ck" style="cursor:default"><span style="flex:1">Amount (decimal places)</span><select style="width:72px;margin:0" onchange="setP(\'dec\',+this.value)">'+[0,1,2,3].map(function(n){return '<option value="'+n+'"'+(dec===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div>'
  +ck('nostk','Stop Sale on Negative Stock','Bill will not save if quantity is more than stock.',1)
@@ -7947,9 +7947,9 @@ var _lm0=lockMail;lockMail=function(){return _lm0().then(function(v){window.__lm
  /* ---------- FILL THESE ONCE ---------- */
  var CFG={
   PUB:{"kty":"EC","crv":"P-256","x":"6Cgm0rCu39CjW8A7Y5Lv-9paiZBq6A4zOsvUeWtyhoQ","y":"5EA6mWrF9vL80g0R6vUA6dmgtzXIx-UHMCGc_CdnHXY"},                      /* paste the public key from license-maker.html, like {"kty":"EC","crv":"P-256","x":"...","y":"..."} */
-  PRICE:'Rs. ____ per year',     /* what the customer sees */
-  UPI:'yourname@upi',            /* where the customer pays */
-  WA:'91__________',             /* YOUR WhatsApp number with country code, customer sends payment proof here */
+  PRICE:'',     /* what the customer sees */
+  UPI:'',            /* where the customer pays */
+  WA:'',             /* YOUR WhatsApp number with country code, customer sends payment proof here */
   RZP_KEY:'rzp_live_U1cLxcjBcDRGig',   /* Razorpay Key ID (public). LIVE key. */
   PRO:50, ULTRA:350,
   OWNER:'chandwanisourabh@gmail.com',   /* only this signed-in email sees and uses automatic WhatsApp (Outbox, campaigns, sender) */
@@ -12210,6 +12210,36 @@ html[data-theme=glass] body .mptb button:not(.on):not(.sel):not(.act){background
    Object.keys(want).forEach(function(id){bcSel(id,1)});bcFilter('');
    Object.keys(want).forEach(function(id){var e=document.getElementById('bcq_'+id);if(e)e.value=Math.min(500,want[id])});
    var h=document.querySelector('#bclm .mu');if(h)h.textContent='Labels for the purchase you just saved are ticked (one label per piece bought). Change the numbers if needed, then press Print.'}catch(e){}
+ };
+})();
+</script>
+
+<script id="legal-account">
+(function(){
+ var B='https://sourabbhadv.github.io/billing/';
+ function card(){
+  var signed=!!window.__sbSess;
+  return '<div class="card" style="max-width:600px;margin-top:12px"><b>Legal and account</b>'
+   +'<div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">'
+   +'<a class="s" style="text-decoration:none;display:inline-block" href="'+B+'privacy.html" target="_blank" rel="noopener">Privacy Policy</a>'
+   +'<a class="s" style="text-decoration:none;display:inline-block" href="'+B+'terms.html" target="_blank" rel="noopener">Terms of Service</a>'
+   +'<a class="s" style="text-decoration:none;display:inline-block" href="'+B+'delete-account.html" target="_blank" rel="noopener">How deletion works</a></div>'
+   +(signed?'<div style="margin-top:12px"><button class="s" style="color:var(--rd,#c62828)" onclick="deleteMyAccount()">Delete my account</button>'
+   +'<div class="mu" style="margin-top:4px">Removes your sign-in, plan and wallet records from our servers. Data on this device and in your Google Drive is not touched.</div></div>':'')
+   +'</div>';
+ }
+ window.deleteMyAccount=function(){
+  var em='';try{em=(window.__sbSess&&window.__sbSess.user&&window.__sbSess.user.email)||''}catch(e){}
+  if(!confirm('Request deletion of your account'+(em?' ('+em+')':'')+'?\n\nThis removes your sign-in, plan and WhatsApp wallet records. Any unused wallet balance is lost. It cannot be undone.\n\nAn email will open for you to send.'))return;
+  var sub=encodeURIComponent('Delete my account'),body=encodeURIComponent('Please delete my ezy Billing and Accounting account.\nAccount email: '+em);
+  window.location.href='mailto:chandwanisourabh@gmail.com?subject='+sub+'&body='+body;
+ };
+ var _prev=window.vSettings;
+ if(typeof _prev!=='function')return;
+ window.vSettings=function(){
+  var h=_prev.apply(this,arguments);
+  try{if(typeof h==='string'&&(typeof sTab==='undefined'||sTab==='gen'))h+=card()}catch(e){}
+  return h;
  };
 })();
 </script>
